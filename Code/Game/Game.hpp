@@ -1,6 +1,5 @@
 #pragma once
 #include "Game/GameCommon.hpp"
-#include "Game/Entity.hpp"
 #include "Engine/Core/Rgba8.hpp"
 #include "Engine/Math/Vec2.hpp"
 #include <vector>
@@ -9,6 +8,7 @@ class Camera;
 class RandomNumberGenerator;
 class Clock;
 class Player;
+class Map;
 
 //-----------------------------------------------------------------------------------------------
 enum GameState {
@@ -33,23 +33,20 @@ public:
 	RandomNumberGenerator*  m_randomGenerator            = nullptr;
 	Clock*                  m_gameClock                  = nullptr;
 	Player*                 m_player                     = nullptr;
+	Map*                    m_curMap                 = nullptr;
 
 private:
-	void                    InitialGameEntities();
-	void                    UpdateGameEntities();
-	void                    DeleteGameEntities();
 	void                    UpdateCameras();
 
-	void                    RenderTestAttractMode() const;
-	void                    RenderTestGamePlay() const;
-	void                    RenderTestGameUI() const;
+	void                    RenderAttractMode() const;
+	void                    RenderGamePlay() const;
+	void                    RenderGameUI() const;
 	void                    RenderWorldGrids() const;
 	void                    RenderSkySphere() const;
 
 	void                    DecayCameraShake();
 
 private:
-	std::vector<Entity*>    m_gameEntites;
 	GameState               m_curGameState                  = GAME_ATTRACT_MODE;
 	GameState               m_nextGameState                 = GAME_ATTRACT_MODE;
 						    

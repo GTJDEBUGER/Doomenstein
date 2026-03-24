@@ -1,5 +1,6 @@
 #include "Game/Player.hpp"
 #include "Game/GameCommon.hpp"
+#include "Game/App.hpp"
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Input/InputSystem.hpp"
 #include "Engine/Renderer/Camera.hpp"
@@ -15,9 +16,9 @@ Player::~Player() {
 }
 
 //-----------------------------------------------------------------------------------------------
-Player::Player(Game* game, Vec3 startPos) : Entity(game, startPos) {
+Player::Player(Game* game, Vec3 startPos) : m_game(game), m_position(startPos) {
 	m_playerClock = new Clock();
-	m_playerCamera = new Camera(SCREEN_ASPECT, 60.f, 0.1f, 1000.f);
+	m_playerCamera = new Camera(g_gameConfig->m_screenAspect, 60.f, 0.1f, 1000.f);
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -38,15 +39,15 @@ void Player::Update(float deltaSeconds) {
 	m_orientation.GetAsVectors_IFwd_JLeft_KUp(curFwd, curLeft, curUp);
 	curUp = Vec3(0, 0, 1); //use world up
 	if (m_isRun) {
-		m_velocity = (-curFwd * m_moveInput.z - curLeft * m_moveInput.x + curUp * m_moveInput.y) * PLAYER_RUN_MAX_SPEED;
+		m_velocity = (-curFwd * m_moveInput.z - curLeft * m_moveInput.x + curUp * m_moveInput.y) * g_gameConfig->m_playerRunSpeed;
 	}
 	else {
-		m_velocity = (-curFwd * m_moveInput.z - curLeft * m_moveInput.x + curUp * m_moveInput.y) * PLAYER_MOVE_MAX_SPEED;
+		m_velocity = (-curFwd * m_moveInput.z - curLeft * m_moveInput.x + curUp * m_moveInput.y) * g_gameConfig->m_playerMoveSpeed;
 	}
 
-	m_angularVelocity.m_yawDegrees = m_viewInput.x * PLAYER_VIEW_YAW_SPEED;
-	m_angularVelocity.m_pitchDegrees = -m_viewInput.y * PLAYER_VIEW_PITCH_SPEED;
-	m_angularVelocity.m_rollDegrees = m_viewRollInput * PLAYER_VIEW_ROLL_SPEED;
+	m_angularVelocity.m_yawDegrees = m_viewInput.x * g_gameConfig->m_playerViewYawSpeed;
+	m_angularVelocity.m_pitchDegrees = -m_viewInput.y * g_gameConfig->m_playerViewPitchSpeed;
+	m_angularVelocity.m_rollDegrees = m_viewRollInput * g_gameConfig->m_playerViewRollSpeed;
 
 	m_position += m_velocity * deltaSeconds;
 	m_orientation.m_yawDegrees += m_angularVelocity.m_yawDegrees * deltaSeconds;
@@ -64,5 +65,16 @@ void Player::Update(float deltaSeconds) {
 }
 //-----------------------------------------------------------------------------------------------
 void Player::Render() const {
-	Entity::Render();
+	Vec3 iBias;
+	Vec3 jBias;
+	Vec3 kBias;
+	m_orientation.GetAsVectors_IFwd_JLeft_KUp(iBias, jBias, kBias);
+	g_engine->m_renderer->SetModelConstants(
+		Mat44(
+			iBias,
+			jBias,
+			kBias,
+			m_position
+		)
+	);
 }

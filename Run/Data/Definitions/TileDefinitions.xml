@@ -1,0 +1,4 @@
+<Definitions>
+  <TileDefinition name="StoneFloor" isSolid="false" mapImagePixelColor="0,0,0" floorSpriteCoords="3,6"/>
+  <TileDefinition name="BrickWall" isSolid="true" mapImagePixelColor="255,255,255" wallSpriteCoords="0,5" topSpriteCoords ="0,5"/>
+</Definitions>

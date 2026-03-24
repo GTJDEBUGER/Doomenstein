@@ -8,6 +8,9 @@
     <Filter Include="Gameplay">
       <UniqueIdentifier>{7ccbddcb-e517-4f6b-9351-6c5301ef0942}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Data">
+      <UniqueIdentifier>{bf759371-fd29-4e5c-a681-c5766feea8d1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main_Windows.cpp">
@@ -19,28 +22,25 @@
     <ClCompile Include="GameCommon.cpp">
       <Filter>Framework</Filter>
     </ClCompile>
-    <ClCompile Include="Entity.cpp">
-      <Filter>Gameplay</Filter>
-    </ClCompile>
     <ClCompile Include="Game.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
     <ClCompile Include="Player.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
-    <ClCompile Include="Prop.cpp">
+    <ClCompile Include="Actor.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
-    <ClCompile Include="CubeProp.cpp">
+    <ClCompile Include="MapDefinition.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
-    <ClCompile Include="SphereProp.cpp">
+    <ClCompile Include="TileDefinition.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
-    <ClCompile Include="CylinderProp.cpp">
+    <ClCompile Include="Map.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
-    <ClCompile Include="ConeProp.cpp">
+    <ClCompile Include="Tile.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
   </ItemGroup>
@@ -57,26 +57,43 @@
     <ClInclude Include="Game.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
-    <ClInclude Include="Entity.hpp">
-      <Filter>Gameplay</Filter>
-    </ClInclude>
     <ClInclude Include="Player.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
-    <ClInclude Include="Prop.hpp">
+    <ClInclude Include="Actor.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
-    <ClInclude Include="CubeProp.hpp">
+    <ClInclude Include="MapDefinition.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
-    <ClInclude Include="SphereProp.hpp">
+    <ClInclude Include="TileDefinition.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
-    <ClInclude Include="CylinderProp.hpp">
+    <ClInclude Include="Map.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
-    <ClInclude Include="ConeProp.hpp">
+    <ClInclude Include="Tile.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="..\..\Run\Data\Definitions\ActorDefinitions.xml">
+      <Filter>Data</Filter>
+    </Xml>
+    <Xml Include="..\..\Run\Data\Definitions\MapDefinitions.xml">
+      <Filter>Data</Filter>
+    </Xml>
+    <Xml Include="..\..\Run\Data\Definitions\ProjectileActorDefinitions.xml">
+      <Filter>Data</Filter>
+    </Xml>
+    <Xml Include="..\..\Run\Data\Definitions\TileDefinitions.xml">
+      <Filter>Data</Filter>
+    </Xml>
+    <Xml Include="..\..\Run\Data\Definitions\WeaponDefinitions.xml">
+      <Filter>Data</Filter>
+    </Xml>
+    <Xml Include="..\..\Run\Data\GameConfig.xml">
+      <Filter>Data</Filter>
+    </Xml>
   </ItemGroup>
 </Project>

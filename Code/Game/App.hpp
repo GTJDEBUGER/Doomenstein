@@ -8,6 +8,27 @@ class Camera;
 class BitmapFont;
 class Clock;
 
+//-----------------------------------------------------------------------------------------------
+struct GameConfig
+{
+	std::string m_defaultMap;
+	std::string m_windowName;
+	float m_debugSlowdownTimescale;
+	Vec2 m_screenSize;
+	Vec2 m_screenCenter;
+	float m_screenAspect;
+	float m_cameraShakeAmp;
+	float m_cameraShakeDecay;
+	float m_playerMoveSpeed;
+	float m_playerRunSpeed;
+	float m_playerViewYawSpeed;
+	float m_playerViewPitchSpeed;
+	float m_playerViewRollSpeed;
+	float m_playerViewControllerMultiplier;
+};
+
+//-----------------------------------------------------------------------------------------------
+extern GameConfig* g_gameConfig;
 extern App* g_app;
 extern BitmapFont* g_defaultFont;
 
@@ -33,10 +54,10 @@ public:
 					                    
 	bool m_isQuitting                   = false;
 	bool m_isShutdown                   = false;
-	bool m_isDrawDebugInfo              = false;
 
 private:
 	void HandlePlayerInput();
+	void LoadGameConfig();
 	void LoadTextureResources();
 	void LoadAudioResources();
 	void PrintGameControlGuide();

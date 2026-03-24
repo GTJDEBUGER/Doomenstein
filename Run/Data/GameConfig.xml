@@ -1,0 +1,14 @@
+<GameConfig
+	defaultMap="TestMap"
+    windowName = "Doomenstein"
+	debugSlowdownTimescale = "0.1"
+	screenSize = "1600,800"
+	cameraShakeAmp = "100.0"
+	cameraShakeDecay = "5.0"
+	playerMoveSpeed = "5.0"
+	playerRunSpeed = "20.0"
+	playerViewYawSpeed = "15.0"
+	playerViewPitchSpeed = "15.0"
+	playerViewRollSpeed = "90.0"
+	playerViewControllerSensitivity = "3.0"
+/>

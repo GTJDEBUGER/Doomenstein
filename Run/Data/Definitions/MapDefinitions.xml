@@ -1,0 +1,18 @@
+<Definitions>
+  <MapDefinition name="TestMap" image="Data/Maps/TestMap.png" shader="Diffuse" spriteSheetTexture="Data/Images/Terrain_8x8.png" spriteSheetNormalTexture="Data/Images/Terrain_Normal.png" spriteSheetCellCount="8,8" tileSize ="5.0">
+    <SpawnInfos>
+      <SpawnInfo actor="SpawnPoint" position="25.5,15.5,0.0" orientation="270.0,0.0,0.0" />
+      <SpawnInfo actor="SpawnPoint" position="26.5,15.5,0.0" orientation="270.0,0.0,0.0" />
+      <SpawnInfo actor="SpawnPoint" position="27.5,15.5,0.0" orientation="270.0,0.0,0.0" />
+      <SpawnInfo actor="SpawnPoint" position="28.5,15.5,0.0" orientation="270.0,0.0,0.0" />
+      <SpawnInfo actor="SpawnPoint" position="29.5,15.5,0.0" orientation="270.0,0.0,0.0" />
+      <SpawnInfo actor="SpawnPoint"  position="30.5,15.5,0.0" orientation="270.0,0.0,0.0" />
+      <SpawnInfo actor="Demon" position="1.5,15.5,0.0" orientation="270.0,0.0,0.0" />
+      <SpawnInfo actor="Demon" position="4.5,15.5,0.0" orientation="270.0,0.0,0.0" />
+      <SpawnInfo actor="Demon" position="7.5,15.5,0.0" orientation="270.0,0.0,0.0" />
+      <SpawnInfo actor="Demon" position="26.5,10.5,0.0" orientation="270.0,0.0,0.0" />
+      <SpawnInfo actor="Demon" position="29.5,10.5,0.0" orientation="270.0,0.0,0.0" />
+    </SpawnInfos>
+  </MapDefinition>
+</Definitions>
+

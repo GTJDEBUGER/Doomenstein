@@ -1,0 +1,28 @@
+<Definitions>
+  <!-- Pistol -->
+  <WeaponDefinition name="Pistol" refireTime="0.75" rayCount="1" rayCone="0.0" rayRange="40.0" rayDamage="10.0~15.0" rayImpulse="4.0">
+    <HUD shader="Default" baseTexture="Data/Images/Hud_Base.png" reticleTexture="Data/Images/Reticle.png" reticleSize="16,16" spriteSize="256,256" spritePivot="0.5,0.0">
+      <Animation name="Idle" shader="Default" spriteSheet="Data/Images/Weapon_Pistol.png" cellCount="5,1" secondsPerFrame="0.1" startFrame="0" endFrame="0"/>
+      <Animation name="Attack" shader="Default" spriteSheet="Data/Images/Weapon_Pistol.png" cellCount="5,1" secondsPerFrame="0.1" startFrame="1" endFrame="3" />
+    </HUD>
+    <Sounds>
+      <Sound sound="Fire" name="Data/Audio/PistolFire.wav"/>
+    </Sounds>
+  </WeaponDefinition>
+  <!-- Plasma Rifle -->
+  <WeaponDefinition name="PlasmaRifle" refireTime="0.1" projectileCount="1" projectileActor="PlasmaProjectile" projectileCone="4.0" projectileSpeed="4.0">
+    <HUD shader="Default" baseTexture="Data/Images/Hud_Base.png" reticleTexture="Data/Images/Reticle.png" reticleSize="16,16" spriteSize="256,256" spritePivot="0.5,0.0">
+      <Animation name="Idle" shader="Default" spriteSheet="Data/Images/Weapon_Plasma.png" cellCount="4,1" secondsPerFrame="0.125" startFrame="0" endFrame="0" />
+      <Animation name="Attack" shader="Default" spriteSheet="Data/Images/Weapon_Plasma.png" cellCount="4,1" secondsPerFrame="0.125" startFrame="1" endFrame="2" />
+    </HUD>
+    <Sounds>
+      <Sound sound="Fire" name="Data/Audio/PlasmaFire.wav"/>
+    </Sounds>
+  </WeaponDefinition>
+  <!-- Demon Melee -->
+  <WeaponDefinition name="DemonMelee" refireTime="2.0" meleeCount="1" meleeArc="180.0" meleeRange="0.75" meleeDamage="2.0~4.0" meleeImpulse="2.0">
+    <Sounds>
+      <Sound sound="Fire" name="Data/Audio/DemonAttack.wav"/>
+    </Sounds>
+  </WeaponDefinition>
+</Definitions>

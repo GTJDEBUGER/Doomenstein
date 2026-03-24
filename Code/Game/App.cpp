@@ -2,10 +2,14 @@
 #include "Game/Game.hpp"
 #include "Game/GameCommon.hpp"
 #include "Game/Player.hpp"
+#include "Game/Map.hpp"
 
+#include "Engine/Core/EngineCommon.hpp"
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Core/Time.hpp"
 #include "Engine//Renderer/Camera.hpp"
+#include "Game/TileDefinition.hpp"
+#include "Game/MapDefinition.hpp"
 #include "Engine/Renderer/Renderer.hpp"
 #include "Engine/Input/InputSystem.hpp"
 #include "Engine/Math/MathUtils.hpp"
@@ -14,27 +18,33 @@
 #include "Engine/Core/Clock.hpp"
 #include "Engine/Renderer/DebugRenderSystem.hpp"
 #include "Engine/Core/StringUtils.hpp"
+#include "Engine/Renderer/DebugRenderSystem.hpp"
 
+GameConfig* g_gameConfig = nullptr;
 App* g_app = nullptr;
 BitmapFont* g_defaultFont = nullptr;
 
 //-----------------------------------------------------------------------------------------------
 App::App()
 {
-	m_screenCamera = new Camera(Vec2(0.f, 0.f), Vec2(SCREEN_SIZE_X, SCREEN_SIZE_Y));
+	LoadGameConfig();
+	m_screenCamera = new Camera(Vec2(0.f, 0.f), g_gameConfig->m_screenSize);
 
 	EngineConfig config;
-	config.m_windowConfig.m_clientAspect = 2.f;
-	config.m_windowConfig.m_windowTitle = "Protogame3D";
+	config.m_windowConfig.m_clientAspect = g_gameConfig->m_screenAspect;
+	config.m_windowConfig.m_windowTitle = g_gameConfig->m_windowName;
 	config.m_devConsoleConfig.m_camera = m_screenCamera;
-
 	new Engine(config);
+
 	DebugRenderConfig debugRenderConfig;
 	debugRenderConfig.m_renderer = g_engine->m_renderer;
 	DebugRenderSystemStartup(debugRenderConfig);
 
 	g_engine->m_eventSystem->SubscribeEventCallbackFunction("quit", &Command_Quit, "Close whole game application.", true);
 	g_engine->m_eventSystem->SubscribeEventCallbackFunction("guide", &Command_Guide, "Show how to control the game.", true);
+
+	TileDefinition::InitializeTileDefs();
+	MapDefinition::InitializeMapDefs();
 
 	g_defaultFont = g_engine->m_renderer->CreateOrGetBitmapFontFromFile("Data/Fonts/SquirrelFixedFont.png");
 	m_game = new Game();
@@ -55,6 +65,9 @@ App::~App()
 
 	delete g_engine;
 	g_engine = nullptr;
+
+	delete g_gameConfig;
+	g_gameConfig = nullptr;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -103,7 +116,7 @@ void App::Render() {
 
 	//Render Dev Console
 	//-------------------------------------------------------------------------------------------
-	g_engine->m_devConsole->Render(AABB2(Vec2(0.f, 0.f), Vec2(SCREEN_SIZE_X, SCREEN_SIZE_Y)));
+	g_engine->m_devConsole->Render(AABB2(Vec2(0.f, 0.f), g_gameConfig->m_screenSize));
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -128,9 +141,38 @@ void App::HandlePlayerInput(){
 		g_engine->m_devConsole->ToggleOpen();
 	}
 
-	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F1)) {
-		m_isDrawDebugInfo = !m_isDrawDebugInfo;
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F2)) {
+		m_game->m_curMap->m_sunDirection.x -= 1.f;
 	}
+
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F3)) {
+		m_game->m_curMap->m_sunDirection.x += 1.f;
+	}
+
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F4)) {
+		m_game->m_curMap->m_sunDirection.y -= 1.f;
+	}
+
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F5)) {
+		m_game->m_curMap->m_sunDirection.y += 1.f;
+	}
+
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F6)) {
+		m_game->m_curMap->m_sunIntensity -= 0.05f;
+	}
+
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F7)) {
+		m_game->m_curMap->m_sunIntensity += 0.05f;
+	}
+
+	DebugAddWorldArrow(
+		m_game->m_curMap->GetMapWorldCenter() + Vec3(0,0,20.f),
+		m_game->m_curMap->GetMapWorldCenter() + Vec3(0, 0, 20.f) + m_game->m_curMap->m_sunDirection.GetNormalized() * 10.f,
+		1.f,
+		0.f,
+		Rgba8::YELLOW,
+		Rgba8::YELLOW
+	);
 
 	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F8)) {
 		Reboot();
@@ -144,7 +186,7 @@ void App::HandlePlayerInput(){
 			g_engine->m_audio->StartSound(slowDownAudio, false);
 		}
 
-		m_game->m_gameClock->SetTimeScale(DEBUG_SLOWDOWN_TIMESCALE);
+		m_game->m_gameClock->SetTimeScale(g_gameConfig->m_debugSlowdownTimescale);
 	}
 
 	if (g_engine->m_input->WasKeyJustPressed('P')) {
@@ -253,6 +295,10 @@ void App::HandlePlayerInput(){
 			),
 			5.f
 		);
+	}
+
+	if (g_engine->m_input->WasKeyJustPressed('8')) {
+		m_game->AddCameraShake(20.f);
 	}
 
 	//Control Game-------------------------------------------------------------------------------
@@ -381,8 +427,8 @@ void App::HandlePlayerInput(){
 
 	if (g_engine->m_input->GetController(0).GetRightStick().GetMagnitude() > 0.f) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_player->m_viewInput.x = -PLAYER_VIEW_CONTROLLER_MULTIPLIER * g_engine->m_input->GetController(0).GetRightStick().GetPosition().x;
-			m_game->m_player->m_viewInput.y = PLAYER_VIEW_CONTROLLER_MULTIPLIER * g_engine->m_input->GetController(0).GetRightStick().GetPosition().y;
+			m_game->m_player->m_viewInput.x = -g_gameConfig->m_playerViewControllerMultiplier * g_engine->m_input->GetController(0).GetRightStick().GetPosition().x;
+			m_game->m_player->m_viewInput.y = g_gameConfig->m_playerViewControllerMultiplier * g_engine->m_input->GetController(0).GetRightStick().GetPosition().y;
 		}
 	}
 	
@@ -418,10 +464,35 @@ bool App::Command_Guide([[maybe_unused]] EventArgs& args) {
 }
 
 //-----------------------------------------------------------------------------------------------
+void App::LoadGameConfig() {
+	g_gameConfig = new GameConfig();
+
+	XmlDocument doc;
+	doc.LoadFile("Data/GameConfig.xml");
+	for (XmlElement* i = doc.FirstChildElement(); i != nullptr; i = i->NextSiblingElement()) {
+		g_gameConfigBlackboard.PopulateFromXmlElementAttributes(*i);
+	}
+
+	g_gameConfig->m_defaultMap = g_gameConfigBlackboard.GetValue("defaultMap", "?");
+	g_gameConfig->m_windowName = g_gameConfigBlackboard.GetValue("windowName", "?");
+	g_gameConfig->m_debugSlowdownTimescale = g_gameConfigBlackboard.GetValue("debugSlowdownTimescale", 0.f);
+	g_gameConfig->m_screenSize = g_gameConfigBlackboard.GetValue("screenSize", Vec2(0.f, 0.f));
+	g_gameConfig->m_screenCenter = g_gameConfig->m_screenSize * 0.5f;
+	g_gameConfig->m_screenAspect = g_gameConfig->m_screenSize.x / g_gameConfig->m_screenSize.y;
+	g_gameConfig->m_cameraShakeAmp = g_gameConfigBlackboard.GetValue("cameraShakeAmp", 0.f);
+	g_gameConfig->m_cameraShakeDecay = g_gameConfigBlackboard.GetValue("cameraShakeDecay", 0.f);
+	g_gameConfig->m_playerMoveSpeed = g_gameConfigBlackboard.GetValue("playerMoveSpeed", 0.f);
+	g_gameConfig->m_playerRunSpeed = g_gameConfigBlackboard.GetValue("playerRunSpeed", 0.f);
+	g_gameConfig->m_playerViewYawSpeed = g_gameConfigBlackboard.GetValue("playerViewYawSpeed", 0.f);
+	g_gameConfig->m_playerViewPitchSpeed = g_gameConfigBlackboard.GetValue("playerViewPitchSpeed", 0.f);
+	g_gameConfig->m_playerViewRollSpeed = g_gameConfigBlackboard.GetValue("playerViewRollSpeed", 0.f);
+	g_gameConfig->m_playerViewControllerMultiplier = g_gameConfigBlackboard.GetValue("playerViewControllerMultiplier", 0.f);
+}
+
+//-----------------------------------------------------------------------------------------------
 void App::LoadTextureResources() {
 	g_engine->m_renderer->CreateOrGetTextureFromFile("Data/Images/TestTransparent.png");
 	g_engine->m_renderer->CreateOrGetTextureFromFile("Data/Images/TestUV.png");
-	g_engine->m_renderer->CreateOrGetTextureFromFile("Data/Images/Test_StbiFlippedAndOpenGL.png");
 	g_engine->m_renderer->CreateOrGetTextureFromFile("Data/Images/SkySphere.png");
 }
 
@@ -432,7 +503,7 @@ void App::LoadAudioResources() {
 
 //-----------------------------------------------------------------------------------------------
 void App::PrintGameControlGuide() {
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "Protogame3D");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "Doomenstein");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "Control Guide:");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-SPACE Start game at attract mode");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-ESC Switch from game mode to attract mode or shut down application in attract mode");

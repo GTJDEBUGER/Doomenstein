@@ -1,12 +1,8 @@
 #include "Game/Game.hpp"
 #include "Game/GameCommon.hpp"
 #include "Game/App.hpp"
-#include "Game/Entity.hpp"
 #include "Game/Player.hpp"
-#include "Game/CubeProp.hpp"
-#include "Game/SphereProp.hpp"
-#include "Game/CylinderProp.hpp"
-#include "Game/ConeProp.hpp"
+#include "Game/Map.hpp"
 
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
@@ -14,6 +10,7 @@
 #include "Engine/Renderer/Renderer.hpp"
 #include "Engine/Renderer/Camera.hpp"
 #include "Engine/Renderer/SimpleTriangleFont.hpp"
+#include "Game/MapDefinition.hpp"
 #include "Engine/Math/RandomNumberGenerator.hpp"
 #include "Engine/Math/MathUtils.hpp"
 #include "Engine/Audio/AudioSystem.hpp"
@@ -33,65 +30,23 @@ Game::Game()
 
 	m_UICamera = new Camera(
 		Vec2(0.f, 0.f), 
-		Vec2(SCREEN_SIZE_X, SCREEN_SIZE_Y)
+		g_gameConfig->m_screenSize
 	);
 
 	m_randomGenerator = new RandomNumberGenerator();
 
-	InitialGameEntities();
-
-	DebugAddBasis(
-		Mat44::MakeTransform3D(
-			Vec3(0.f, 0.f, 0.f),
-			EulerAngles(0.f, 0.f, 0.f),
-			Vec3(1.f, 1.f, 1.f)
-		),
-		-1.f,
-		1.f,
-		0.125f
-	);
-	DebugAddWorldText(
-		"X Forward",
-		Mat44::MakeTransform3D(
-			Vec3(1.f, 0.f, 0.25f),
-			EulerAngles(90.f, 0.f, 0.f),
-			Vec3(1.f, 1.f, 1.f)
-		),
-		0.1f,
-		Vec2(0.5f, 0.5f),
-		-1.f,
-		Rgba8::RED
-	);
-	DebugAddWorldText(
-		"Y Left",
-		Mat44::MakeTransform3D(
-			Vec3(0.f, 1.f, 0.25f),
-			EulerAngles(0.f, 0.f, 0.f),
-			Vec3(1.f, 1.f, 1.f)
-		),
-		0.1f,
-		Vec2(0.5f, 0.5f),
-		-1.f,
-		Rgba8::GREEN
-	);
-	DebugAddWorldText(
-		"Z Up",
-		Mat44::MakeTransform3D(
-			Vec3(0.f, -0.25f, 1.f),
-			EulerAngles(0.f, 0.f, 90.f),
-			Vec3(1.f, 1.f, 1.f)
-		),
-		0.1f,
-		Vec2(0.5f, 0.5f),
-		-1.f,
-		Rgba8::BLUE
-	);
+	m_player = new Player(this, Vec3(14.5f, 50.f, 3.f));
+	m_curMap = new Map(this, &MapDefinition::s_definitions[g_gameConfig->m_defaultMap]);
 }
 
 //---------------------------------------------------------------------------------------------------
 Game::~Game()
 {
-	DeleteGameEntities();
+	delete m_curMap;
+	m_curMap = nullptr;
+
+	delete m_player;
+	m_player = nullptr;
 
 	delete m_randomGenerator;
 	m_randomGenerator = nullptr;
@@ -106,22 +61,6 @@ Game::~Game()
 //---------------------------------------------------------------------------------------------------
 void Game::Update()
 {
-	DebugAddScreenText(
-		Stringf(
-			"Time: %.1f | FPS: %.1f | Scale: %1.f ", 
-			(float) m_gameClock->GetTotalSeconds(),
-			1.f / (float)m_gameClock->GetDeltaSeconds(),
-			(float)m_gameClock->GetTimeScale()
-		),
-		AABB2(
-			Vec2(SCREEN_SIZE_X - 400.f, SCREEN_SIZE_Y - 24.f),
-			Vec2(SCREEN_SIZE_X, SCREEN_SIZE_Y)
-		),
-		24.f,
-		Vec2(0.f, 0.5f),
-		0.f,
-		Rgba8::WHITE
-	);
 	//-----------------------------------------------------------------------------------------------
 	//Swap game state
 	if (m_nextGameState != m_curGameState) {
@@ -140,8 +79,9 @@ void Game::Update()
 		}
 
 		//-------------------------------------------------------------------------------------------
+		m_player->Update(static_cast<float>(m_gameClock->GetDeltaSeconds()));
+		m_curMap->Update();
 		UpdateCameras();
-		UpdateGameEntities();
 	}
 	
 	//-----------------------------------------------------------------------------------------------
@@ -151,16 +91,6 @@ void Game::Update()
 		g_engine->m_input->SetCursorMode(CursorMode::POINTER);
 
 	}
-
-	DebugAddMessage(
-		Stringf(
-			"Player Position: (X=%.1f, Y=%.1f, Z=%.1f)",
-			m_player->m_position.x,
-			m_player->m_position.y,
-			m_player->m_position.z
-		),
-		0.f
-	);
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -174,8 +104,7 @@ void Game::Render() const
 		g_engine->m_renderer->BeginCamera(*(m_player->m_playerCamera));
 
 		RenderSkySphere();
-		RenderWorldGrids();
-		RenderTestGamePlay();
+		RenderGamePlay();
 
 		DebugRenderWorld(*(m_player->m_playerCamera));
 
@@ -185,7 +114,7 @@ void Game::Render() const
 		//For UI
 		g_engine->m_renderer->BeginCamera(*m_UICamera);
 		
-		RenderTestGameUI();
+		RenderGameUI();
 
 		DebugRenderScreen(*(m_UICamera));
 
@@ -199,7 +128,7 @@ void Game::Render() const
 		//For AttractMode
 		g_engine->m_renderer->BeginCamera(*m_UICamera);
 
-		RenderTestAttractMode();
+		RenderAttractMode();
 
 		g_engine->m_renderer->EndCamera(*m_UICamera);
 	}
@@ -218,53 +147,29 @@ GameState const Game::GetCurGameState() const {
 
 //--------------------------------------------------------------------------------------------------
 void Game::AddCameraShake(float amp) {
-	m_curCameraShakeAmp = GetClamped(m_curCameraShakeAmp + amp, 0.f, CAMERA_SHAKE_MAX_AMP);
+	m_curCameraShakeAmp = GetClamped(m_curCameraShakeAmp + amp, 0.f, g_gameConfig->m_cameraShakeAmp);
 }
 
 //---------------------------------------------------------------------------------------------------
 void Game::UpdateCameras() {
 	DecayCameraShake();
-	m_player->m_playerCamera->Translate2D(Vec2(m_randomGenerator->RollRandomFloatZeroToOne() * m_curCameraShakeAmp,
-		                            m_randomGenerator->RollRandomFloatZeroToOne() * m_curCameraShakeAmp));
+	m_player->m_playerCamera->Translate3D(
+		Vec3(
+			m_randomGenerator->RollRandomFloatZeroToOne() * m_curCameraShakeAmp,
+		    m_randomGenerator->RollRandomFloatZeroToOne() * m_curCameraShakeAmp,
+			m_randomGenerator->RollRandomFloatZeroToOne() * m_curCameraShakeAmp)
+	);
 }
 
 //---------------------------------------------------------------------------------------------------
-void Game::InitialGameEntities() {
-	m_player = new Player(this, Vec3(0, 0, 0));
-	m_gameEntites.push_back(dynamic_cast<Entity*>(m_player));
-	m_gameEntites.push_back(dynamic_cast<Entity*>(new CubeProp(this, Vec3(2.5f, 2.5f, 0.5f), 1.f, false, 45.f, 30.f)));
-	m_gameEntites.push_back(dynamic_cast<Entity*>(new CubeProp(this, Vec3(7.5f, 2.5f, 0.5f), 1.f, true)));
-	m_gameEntites.push_back(dynamic_cast<Entity*>(new SphereProp(this, Vec3(7.5f, -2.5f, 1.f), 1.f, 32, 16, 45.f)));
-	m_gameEntites.push_back(dynamic_cast<Entity*>(new CylinderProp(this, Vec3(2.5f, -2.5f, 0), Vec3(2.5f, -2.5f, 2.f), 1.f)));
-	m_gameEntites.push_back(dynamic_cast<Entity*>(new ConeProp(this, Vec3(2.5f, -7.5f, 0), Vec3(2.5f, -7.5f, 2.f), 1.f)));
-}
-
-//---------------------------------------------------------------------------------------------------
-void Game::UpdateGameEntities() {
-	for (int i = 0; i < m_gameEntites.size(); i++) {
-		if (m_gameEntites[i] != nullptr) {
-			m_gameEntites[i]->Update((float)m_gameClock->GetDeltaSeconds());
-		}
-	}
-}
-
-//---------------------------------------------------------------------------------------------------
-void Game::DeleteGameEntities() {
-	for (int i = 0; i < m_gameEntites.size(); i++) {
-		delete m_gameEntites[i];
-		m_gameEntites[i] = nullptr;
-	}
-}
-
-//---------------------------------------------------------------------------------------------------
-void Game::RenderTestAttractMode() const {
+void Game::RenderAttractMode() const {
 	Texture* testTexture = g_engine->m_renderer->CreateOrGetTextureFromFile("Data/Images/TestTransparent.png");
 
 	std::vector<Vertex> tempMesh;
 	float time = (float)m_gameClock->GetTotalSeconds();
 
 	//2D ring rendering
-	AddVertexsForRing2D(tempMesh, Vec2(SCREEN_CENTER_X, SCREEN_CENTER_Y),
+	AddVertexsForRing2D(tempMesh, g_gameConfig->m_screenCenter,
 		SinDegrees(time * 120.f) * 25.f + 125.f, 10.f, Rgba8(255, 255, 255, 128));
 	g_engine->m_renderer->BindTexture(nullptr);
 	g_engine->m_renderer->DrawVertexArray((int)tempMesh.size(), tempMesh.data());
@@ -288,7 +193,7 @@ void Game::RenderTestAttractMode() const {
 	Face faces[6] = {
 		{ {0, 1, 2, 3}, 0.f }, { {4, 5, 6, 7}, 0.f },
 		{ {0, 4, 7, 3}, 0.f }, { {1, 5, 6, 2}, 0.f },
-		{ {0, 1, 5, 4}, 0.f }, { {3, 2, 6, 7}, 0.f } 
+		{ {0, 1, 5, 4}, 0.f }, { {3, 2, 6, 7}, 0.f }
 	};
 
 	for (int i = 0; i < 6; i++) {
@@ -338,8 +243,8 @@ void Game::RenderTestAttractMode() const {
 
 						float cameraZ = -400.f;
 						float perspectiveScale = 400.f / (rz - cameraZ);
-						float screenX = SCREEN_CENTER_X + (rx * perspectiveScale);
-						float screenY = SCREEN_CENTER_Y + (ry * perspectiveScale);
+						float screenX = g_gameConfig->m_screenCenter.x + (rx * perspectiveScale);
+						float screenY = g_gameConfig->m_screenCenter.y + (ry * perspectiveScale);
 
 						Vec2 uv_base[4] = { Vec2(1.f, 1.f), Vec2(0.f, 1.f), Vec2(0.f, 0.f), Vec2(1.f, 0.f) };
 						Vec2 uv = uv_base[0] * (1.f - u) * (1.f - v) +
@@ -347,7 +252,7 @@ void Game::RenderTestAttractMode() const {
 							uv_base[2] * u * v +
 							uv_base[3] * (1.f - u) * v;
 
-						quad[r * 2 + c] = Vertex(Vec3(screenX, screenY, 0.f), Rgba8(255,255,255), uv);
+						quad[r * 2 + c] = Vertex(Vec3(screenX, screenY, 0.f), Rgba8(255, 255, 255), uv);
 					}
 				}
 
@@ -365,13 +270,13 @@ void Game::RenderTestAttractMode() const {
 	float shadowSize = 51;
 	g_defaultFont->AddVertsForText2D(
 		tempMesh,
-		Vec2(SCREEN_CENTER_X - text.size()*0.5f*shadowSize, SCREEN_CENTER_Y-0.5f*shadowSize-130.f),
+		Vec2(g_gameConfig->m_screenCenter.x - text.size() * 0.5f * shadowSize, g_gameConfig->m_screenCenter.y - 0.5f * shadowSize - 130.f),
 		shadowSize,
 		text,
 		Rgba8(50, 50, 50, 255));
 	g_defaultFont->AddVertsForText2D(
 		tempMesh,
-		Vec2(SCREEN_CENTER_X - text.size() * 0.5f * fontSize, SCREEN_CENTER_Y - 0.5f * fontSize - 125.f),
+		Vec2(g_gameConfig->m_screenCenter.x - text.size() * 0.5f * fontSize, g_gameConfig->m_screenCenter.y - 0.5f * fontSize - 125.f),
 		fontSize,
 		text,
 		Rgba8(225, 225, 225, 255));
@@ -380,10 +285,10 @@ void Game::RenderTestAttractMode() const {
 	fontSize = 10;
 	g_defaultFont->AddVertsForText2D(
 		tempMesh,
-		Vec2(SCREEN_CENTER_X - text.size() * 0.5f * fontSize,2.f*fontSize),
+		Vec2(g_gameConfig->m_screenCenter.x - text.size() * 0.5f * fontSize, 2.f * fontSize),
 		fontSize,
 		text,
-		Rgba8(250, 250, 250, (unsigned char)(SinDegrees(time*240.f)*100.f+155.f)));
+		Rgba8(250, 250, 250, (unsigned char)(SinDegrees(time * 240.f) * 100.f + 155.f)));
 
 	g_engine->m_renderer->SetBlendMode(BlendMode::ALPHA);
 	g_engine->m_renderer->BindTexture(&g_defaultFont->GetTexture());
@@ -391,16 +296,13 @@ void Game::RenderTestAttractMode() const {
 }
 
 //---------------------------------------------------------------------------------------------------
-void Game::RenderTestGamePlay() const {
-	for (int i = 0; i < m_gameEntites.size(); i++) {
-		if (m_gameEntites[i] != nullptr) {
-			m_gameEntites[i]->Render();
-		}
-	}
+void Game::RenderGamePlay() const {
+	m_curMap->Render();
+	m_player->Render();
 }
 
 //---------------------------------------------------------------------------------------------------
-void Game::RenderTestGameUI() const {
+void Game::RenderGameUI() const {
 	
 }
 
@@ -470,5 +372,5 @@ void Game::RenderSkySphere() const {
 
 //---------------------------------------------------------------------------------------------------
 void Game::DecayCameraShake() {
-	m_curCameraShakeAmp = GetClamped(m_curCameraShakeAmp - (float)m_gameClock->GetDeltaSeconds() * CAMERA_SHAKE_DECAYSPEED, 0.f, CAMERA_SHAKE_DECAYSPEED);
+	m_curCameraShakeAmp = GetClamped(m_curCameraShakeAmp - (float)m_gameClock->GetDeltaSeconds() * g_gameConfig->m_cameraShakeDecay, 0.f, g_gameConfig->m_cameraShakeDecay);
 }
