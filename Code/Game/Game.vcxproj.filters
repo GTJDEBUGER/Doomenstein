@@ -11,6 +11,12 @@
     <Filter Include="Data">
       <UniqueIdentifier>{bf759371-fd29-4e5c-a681-c5766feea8d1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Data\Definitions">
+      <UniqueIdentifier>{077a70a2-babd-4b7e-a9d4-249073dfb0b1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Data\Shaders">
+      <UniqueIdentifier>{32bd949a-967d-4061-bffd-8f1cfed02ac2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main_Windows.cpp">
@@ -78,22 +84,33 @@
   </ItemGroup>
   <ItemGroup>
     <Xml Include="..\..\Run\Data\Definitions\ActorDefinitions.xml">
-      <Filter>Data</Filter>
-    </Xml>
-    <Xml Include="..\..\Run\Data\Definitions\MapDefinitions.xml">
-      <Filter>Data</Filter>
-    </Xml>
-    <Xml Include="..\..\Run\Data\Definitions\ProjectileActorDefinitions.xml">
-      <Filter>Data</Filter>
-    </Xml>
-    <Xml Include="..\..\Run\Data\Definitions\TileDefinitions.xml">
-      <Filter>Data</Filter>
-    </Xml>
-    <Xml Include="..\..\Run\Data\Definitions\WeaponDefinitions.xml">
-      <Filter>Data</Filter>
+      <Filter>Data\Definitions</Filter>
     </Xml>
     <Xml Include="..\..\Run\Data\GameConfig.xml">
-      <Filter>Data</Filter>
+      <Filter>Data\Definitions</Filter>
     </Xml>
+    <Xml Include="..\..\Run\Data\Definitions\MapDefinitions.xml">
+      <Filter>Data\Definitions</Filter>
+    </Xml>
+    <Xml Include="..\..\Run\Data\Definitions\ProjectileActorDefinitions.xml">
+      <Filter>Data\Definitions</Filter>
+    </Xml>
+    <Xml Include="..\..\Run\Data\Definitions\TileDefinitions.xml">
+      <Filter>Data\Definitions</Filter>
+    </Xml>
+    <Xml Include="..\..\Run\Data\Definitions\WeaponDefinitions.xml">
+      <Filter>Data\Definitions</Filter>
+    </Xml>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\..\Run\Data\Shaders\Diffuse.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\ShadowMap.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\SkySphere.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

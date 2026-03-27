@@ -28,6 +28,9 @@ public:
 		Shader* mapShader,
 		Texture* mapTexture,
 		Texture* mapNormalTexture,
+		Texture* mapAOTexture,
+		Texture* mapRoughnessTexture,
+		Texture* mapMetallicTexture,
 		IntVec2 mapTextureDimentions,
 		float tileSize
 	);
@@ -40,6 +43,9 @@ public:
 	Shader*                m_mapShader = nullptr;
 	Texture*               m_mapTexture = nullptr;
 	Texture*			   m_mapNormalTexture = nullptr;
+	Texture*               m_mapAOTexture = nullptr;
+	Texture*               m_mapRoughnessTexture = nullptr;
+	Texture*			   m_mapMetallicTexture = nullptr;
 	IntVec2                m_mapTextureDimentions = IntVec2(0, 0);
 	float                  m_tileSize = 1.f;
 	std::vector<SpawnInfo> m_spawnInfos;

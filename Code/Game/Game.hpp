@@ -1,6 +1,7 @@
 #pragma once
 #include "Game/GameCommon.hpp"
 #include "Engine/Core/Rgba8.hpp"
+#include "Engine/Core/Vertex_TBN.hpp"
 #include "Engine/Math/Vec2.hpp"
 #include <vector>
 
@@ -9,6 +10,9 @@ class RandomNumberGenerator;
 class Clock;
 class Player;
 class Map;
+class Shader;
+class VertexBuffer;
+class IndexBuffer;
 
 //-----------------------------------------------------------------------------------------------
 enum GameState {
@@ -33,9 +37,11 @@ public:
 	RandomNumberGenerator*  m_randomGenerator            = nullptr;
 	Clock*                  m_gameClock                  = nullptr;
 	Player*                 m_player                     = nullptr;
-	Map*                    m_curMap                 = nullptr;
+	Map*                    m_curMap                     = nullptr;
+	Shader*                 m_skySphereShader            = nullptr;
 
 private:
+	void                    InitializeSkySphere();
 	void                    UpdateCameras();
 
 	void                    RenderAttractMode() const;
@@ -47,8 +53,12 @@ private:
 	void                    DecayCameraShake();
 
 private:
-	GameState               m_curGameState                  = GAME_ATTRACT_MODE;
-	GameState               m_nextGameState                 = GAME_ATTRACT_MODE;
+	GameState                 m_curGameState                  = GAME_ATTRACT_MODE;
+	GameState                 m_nextGameState                 = GAME_ATTRACT_MODE;
+	std::vector<Vertex_TBN>   m_skySphereVerts;
+	std::vector<unsigned int> m_skySphereIndexs;
+	VertexBuffer*             m_skySphereVertexBuffer         = nullptr;
+	IndexBuffer*              m_skySphereIndexBuffer          = nullptr;
 						    
 	float                   m_curCameraShakeAmp             = 0.f;
 };

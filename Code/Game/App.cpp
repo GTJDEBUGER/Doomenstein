@@ -141,27 +141,30 @@ void App::HandlePlayerInput(){
 		g_engine->m_devConsole->ToggleOpen();
 	}
 
-	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F2)) {
-		m_game->m_curMap->m_sunDirection.x -= 1.f;
+	if (g_engine->m_input->IsKeyDown(KEYCODE_F2)) {
+		m_game->m_curMap->m_sunDirection.x -= 0.1f;
 	}
 
-	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F3)) {
-		m_game->m_curMap->m_sunDirection.x += 1.f;
+	if (g_engine->m_input->IsKeyDown(KEYCODE_F3)) {
+		m_game->m_curMap->m_sunDirection.x += 0.1f;
 	}
 
-	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F4)) {
-		m_game->m_curMap->m_sunDirection.y -= 1.f;
+	if (g_engine->m_input->IsKeyDown(KEYCODE_F4)) {
+		m_game->m_curMap->m_sunDirection.y -= 0.1f;
 	}
 
-	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F5)) {
-		m_game->m_curMap->m_sunDirection.y += 1.f;
+	if (g_engine->m_input->IsKeyDown(KEYCODE_F5)) {
+		m_game->m_curMap->m_sunDirection.y += 0.1f;
 	}
 
-	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F6)) {
+	if (g_engine->m_input->IsKeyDown(KEYCODE_F6)) {
 		m_game->m_curMap->m_sunIntensity -= 0.05f;
+		if (m_game->m_curMap->m_sunIntensity < 0.f) {
+			m_game->m_curMap->m_sunIntensity = 0.f;
+		}
 	}
 
-	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F7)) {
+	if (g_engine->m_input->IsKeyDown(KEYCODE_F7)) {
 		m_game->m_curMap->m_sunIntensity += 0.05f;
 	}
 
@@ -174,7 +177,7 @@ void App::HandlePlayerInput(){
 		Rgba8::YELLOW
 	);
 
-	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F8)) {
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F12)) {
 		Reboot();
 		m_isShutdown = true;
 		return;

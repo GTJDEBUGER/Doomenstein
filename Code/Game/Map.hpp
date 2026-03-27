@@ -3,6 +3,7 @@
 #include "Engine/Math/AABB3.hpp"
 #include "Engine/Math/MathUtils.hpp"
 #include "Engine/Core/Vertex_TBN.hpp"
+#include "Engine/Math/EulerAngles.hpp"
 #include <vector>
 
 //-----------------------------------------------------------------------------------------------
@@ -14,6 +15,7 @@ class Texture;
 class Shader;
 class VertexBuffer;
 class IndexBuffer;
+class Camera;
 
 //-----------------------------------------------------------------------------------------------
 class Map {
@@ -21,6 +23,7 @@ public:
 	Map(Game* game, MapDefinition const* definition);
 	~Map();
 
+	void CreateCameras();
 	void CreateTiles();
 	void CreateGeometry();
 	void AddGeometryForFrontWall(AABB3 const& bounds, AABB2 const& UVs);
@@ -38,14 +41,17 @@ public:
 	bool AreCoordsInBounds(int x, int y) const;
 	Tile const* GetTile(int x, int y) const;
 	Vec3 GetMapWorldCenter() const;
+	Mat44 GetSunShadowCameraViewProjMatrix() const;
 
 	void Update();
 	void CollideActors();
 	void CollideActors(Actor* actorA, Actor* actorB);
 	void CollideActorsWithMap();
 	void CollideActorWithMap(Actor* actor);
+	void UpdateSunShadowCamera();
 
 	void Render() const;
+	void RenderShadowmap() const;
 	RaycastResult3D RaycastAll(Vec3 const& start, Vec3 const& direction, float distance, Actor* owner = nullptr) const;
 	RaycastResult3D RaycastWorldXY(Vec3 const& start, Vec3 const& direction, float distance) const;
 	RaycastResult3D RaycastWorldZ(Vec3 const& start, Vec3 const& direction, float distance) const;
@@ -53,17 +59,19 @@ public:
 
 public:
 	Game* m_game = nullptr;
-	Vec3  m_sunDirection = Vec3(-1.f, 1.f, -1.f);
+	Vec3  m_sunDirection = Vec3(-1.f, -1.f, -1.f);
 	float m_sunIntensity = 0.85f;
 	float m_ambientIntensity = 0.35f;
+	Camera* m_sunShadowCamera = nullptr;
 
 protected:
 	MapDefinition const* m_definition = nullptr;
 	std::vector<Tile> m_tiles;
 	IntVec2 m_dimensions = IntVec2(0, 0);
 
-	std::vector<Vertex_TBN> m_mapVertices;
-	std::vector<unsigned int> m_mapIndices;
+	std::vector<Vertex_TBN> m_mapVerts;
+	std::vector<unsigned int> m_mapIndexs;
 	VertexBuffer* m_mapVertexBuffer = nullptr;
 	IndexBuffer* m_mapIndexBuffer = nullptr;
+	Shader* m_shadowMapShader = nullptr;
 };

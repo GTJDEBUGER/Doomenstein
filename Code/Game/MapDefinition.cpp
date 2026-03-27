@@ -15,6 +15,9 @@ MapDefinition::MapDefinition(
 	Shader* mapShader,
 	Texture* mapTexture,
 	Texture* mapNormalTexture,
+	Texture* mapAOTexture,
+	Texture* mapRoughnessTexture,
+	Texture* mapMetallicTexture,
 	IntVec2 mapTextureDimentions,
 	float tileSize
 	) :
@@ -24,6 +27,9 @@ MapDefinition::MapDefinition(
 	m_mapTexture(mapTexture),
 	m_mapNormalTexture(mapNormalTexture),
 	m_mapTextureDimentions(mapTextureDimentions),
+	m_mapAOTexture(mapAOTexture),
+	m_mapRoughnessTexture(mapRoughnessTexture),
+	m_mapMetallicTexture(mapMetallicTexture),
 	m_tileSize(tileSize){
 }
 
@@ -43,6 +49,9 @@ void MapDefinition::InitializeMapDefs() {
 			g_engine->m_renderer->CreateShader(ParseXmlAttribute(*i, "shader", "Error").data(), VertexType::PCUTBN),
 			g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*i, "spriteSheetTexture", "Error").data()),
 			g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*i, "spriteSheetNormalTexture", "Error").data()),
+			g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*i, "spriteSheetAOTexture", "Error").data()),
+			g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*i, "spriteSheetRoughnessTexture", "Error").data()),
+			g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*i, "spriteSheetMetallicTexture", "Error").data()),
 			ParseXmlAttribute(*i, "spriteSheetTextureDimentions", IntVec2(0, 0)),
 			ParseXmlAttribute(*i, "tileSize", 1.f)
 		);

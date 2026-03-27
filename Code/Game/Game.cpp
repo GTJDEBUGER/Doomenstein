@@ -14,13 +14,16 @@
 #include "Engine/Math/RandomNumberGenerator.hpp"
 #include "Engine/Math/MathUtils.hpp"
 #include "Engine/Audio/AudioSystem.hpp"
-#include "Engine/Core/Vertex.hpp"
 #include "Engine/Core/VertexUtils.hpp"
 #include "Engine/Math/AABB2.hpp"
 #include "Engine/Core/FileUtils.hpp"
 #include "Engine/Core/Clock.hpp"
 #include "Engine/Math/AABB3.hpp"
 #include "Engine/Renderer/DebugRenderSystem.hpp"
+#include "Engine/Renderer/Shader.hpp"
+#include "Engine/Core/Vertex.hpp"
+#include "Engine/Renderer/VertexBuffer.hpp"
+#include "Engine/Renderer/IndexBuffer.hpp"
 
 
 //---------------------------------------------------------------------------------------------------
@@ -37,11 +40,18 @@ Game::Game()
 
 	m_player = new Player(this, Vec3(14.5f, 50.f, 3.f));
 	m_curMap = new Map(this, &MapDefinition::s_definitions[g_gameConfig->m_defaultMap]);
+
+	InitializeSkySphere();
 }
 
 //---------------------------------------------------------------------------------------------------
 Game::~Game()
 {
+	delete m_skySphereVertexBuffer;
+	m_skySphereVertexBuffer = nullptr;
+	delete m_skySphereIndexBuffer;
+	m_skySphereIndexBuffer = nullptr;
+
 	delete m_curMap;
 	m_curMap = nullptr;
 
@@ -100,12 +110,18 @@ void Game::Render() const
 	if (m_curGameState == GAME_PLAYING_MODE) {
 		//-------------------------------------------------------------------------------------------
 		g_engine->m_renderer->ClearScreen(Rgba8(50, 50, 50));
+		//For ShadowMap
+		g_engine->m_renderer->BeginShadowCamera(*(m_curMap->m_sunShadowCamera));
+
+		m_curMap->RenderShadowmap();
+
+		g_engine->m_renderer->EndShadowCamera(*(m_curMap->m_sunShadowCamera));
+
 		//For GameScene
 		g_engine->m_renderer->BeginCamera(*(m_player->m_playerCamera));
 
 		RenderSkySphere();
 		RenderGamePlay();
-
 		DebugRenderWorld(*(m_player->m_playerCamera));
 
 		g_engine->m_renderer->EndCamera(*(m_player->m_playerCamera));
@@ -148,6 +164,36 @@ GameState const Game::GetCurGameState() const {
 //--------------------------------------------------------------------------------------------------
 void Game::AddCameraShake(float amp) {
 	m_curCameraShakeAmp = GetClamped(m_curCameraShakeAmp + amp, 0.f, g_gameConfig->m_cameraShakeAmp);
+}
+
+//---------------------------------------------------------------------------------------------------
+void Game::InitializeSkySphere() {
+	m_skySphereShader = g_engine->m_renderer->CreateShader("SkySphere", VertexType::PCUTBN);
+
+	AddVertexForSphere3D(
+		m_skySphereVerts,
+		m_skySphereIndexs,
+		m_player->m_playerCamera->GetPosition(),
+		500.f,
+		Rgba8::WHITE,
+		AABB2::ZERO_TO_ONE,
+		32,
+		16,
+		true
+	);
+
+	m_skySphereVertexBuffer = g_engine->m_renderer->CreateVertexBuffer(static_cast<unsigned int>(m_skySphereVerts.size()), sizeof(Vertex_TBN));
+	g_engine->m_renderer->CopyCPUToGPU(
+		m_skySphereVerts.data(),
+		static_cast<unsigned int>(m_skySphereVerts.size() * sizeof(Vertex_TBN)),
+		m_skySphereVertexBuffer
+	);
+	m_skySphereIndexBuffer = g_engine->m_renderer->CreateIndexBuffer(static_cast<unsigned int>(m_skySphereIndexs.size()));
+	g_engine->m_renderer->CopyCPUToGPU(
+		m_skySphereIndexs.data(),
+		static_cast<unsigned int>(m_skySphereIndexs.size() * sizeof(unsigned int)),
+		m_skySphereIndexBuffer
+	);
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -352,22 +398,8 @@ void Game::RenderWorldGrids() const {
 
 //---------------------------------------------------------------------------------------------------
 void Game::RenderSkySphere() const {
-	std::vector<Vertex> tempMesh;
-	AddVertexForSphere3D(
-		tempMesh,
-		m_player->m_playerCamera->GetPosition(),
-		1000.f,
-		Rgba8::WHITE,
-		AABB2::ZERO_TO_ONE,
-		32,
-		16,
-		true
-	);
-	g_engine->m_renderer->SetRasterizerMode(RasterizerMode::SOLID_CULL_BACK);
-	g_engine->m_renderer->BindTexture(
-		g_engine->m_renderer->CreateOrGetTextureFromFile("Data/Images/SkySphere.png")
-	);
-	g_engine->m_renderer->DrawVertexArray((int)tempMesh.size(), tempMesh.data());
+	g_engine->m_renderer->BindShader(m_skySphereShader);
+	g_engine->m_renderer->DrawIndexedVertexBuffer(m_skySphereVertexBuffer, m_skySphereIndexBuffer, static_cast<unsigned int>(m_skySphereIndexs.size()));
 }
 
 //---------------------------------------------------------------------------------------------------

@@ -1,5 +1,14 @@
 <Definitions>
-  <MapDefinition name="TestMap" image="Data/Maps/TestMap.png" shader="Diffuse" spriteSheetTexture="Data/Images/Terrain_8x8.png" spriteSheetNormalTexture="Data/Images/Terrain_Normal.png" spriteSheetCellCount="8,8" tileSize ="5.0">
+  <MapDefinition name="TestMap" 
+				 image="Data/Maps/TestMap.png" 
+				 shader="Diffuse" 
+				 spriteSheetTexture="Data/Images/Terrain_8x8.png" 
+				 spriteSheetNormalTexture="Data/Images/Terrain_Normal.png" 
+				 spriteSheetAOTexture="Data/Images/Terrain_AO.png"
+				 spriteSheetRoughnessTexture="Data/Images/Terrain_Roughness.png"
+				 spriteSheetMetallicTexture="Data/Images/Terrain_Metallic.png"
+				 spriteSheetCellCount="8,8" 
+				 tileSize ="5.0">
     <SpawnInfos>
       <SpawnInfo actor="SpawnPoint" position="25.5,15.5,0.0" orientation="270.0,0.0,0.0" />
       <SpawnInfo actor="SpawnPoint" position="26.5,15.5,0.0" orientation="270.0,0.0,0.0" />

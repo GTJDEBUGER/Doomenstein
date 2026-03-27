@@ -3,6 +3,7 @@
 #include "Game/Tile.hpp"
 #include "Game/Actor.hpp"
 #include "Game/MapDefinition.hpp"
+#include "Game/Player.hpp"
 #include "Engine/Renderer/Texture.hpp"
 #include "Engine/Renderer/Shader.hpp"
 #include "Engine/Renderer/VertexBuffer.hpp"
@@ -11,12 +12,15 @@
 #include "Engine/Core/StringUtils.hpp"
 #include "Engine/Core/VertexUtils.hpp"
 #include "Engine/Core/Engine.hpp"
+#include "Engine/Renderer/Camera.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Map::Map(Game* game, MapDefinition const* definition)
 	: m_game(game)
 	, m_definition(definition)
 {
+	m_shadowMapShader = g_engine->m_renderer->CreateShader("ShadowMap", VertexType::PCUTBN);
+	CreateCameras();
 	CreateTiles();
 	CreateGeometry();
 	CreateBuffers();
@@ -24,10 +28,18 @@ Map::Map(Game* game, MapDefinition const* definition)
 
 //-----------------------------------------------------------------------------------------------
 Map::~Map() {
+	delete m_sunShadowCamera;
+	m_sunShadowCamera = nullptr;
 	delete m_mapVertexBuffer;
 	m_mapVertexBuffer = nullptr;
 	delete m_mapIndexBuffer;
 	m_mapIndexBuffer = nullptr;
+}
+
+//-----------------------------------------------------------------------------------------------
+void Map::CreateCameras() {
+	m_sunShadowCamera = new Camera(Vec2(-150.f, -150.f), Vec2(150.f, 150.f), 0.001f, 350.f);
+	UpdateSunShadowCamera();
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -97,7 +109,7 @@ void Map::CreateGeometry() {
 
 //-----------------------------------------------------------------------------------------------
 void Map::AddGeometryForFrontWall(AABB3 const& bounds, AABB2 const& UVs) {
-	AddVertexForQuad3D(m_mapVertices, m_mapIndices,
+	AddVertexForQuad3D(m_mapVerts, m_mapIndexs,
 		Vec3(bounds.m_maxs.x, bounds.m_mins.y, bounds.m_mins.z),
 		Vec3(bounds.m_maxs.x, bounds.m_maxs.y, bounds.m_mins.z),
 		Vec3(bounds.m_maxs.x, bounds.m_maxs.y, bounds.m_maxs.z),
@@ -109,7 +121,7 @@ void Map::AddGeometryForFrontWall(AABB3 const& bounds, AABB2 const& UVs) {
 
 //-----------------------------------------------------------------------------------------------
 void Map::AddGeometryForBackWall(AABB3 const& bounds, AABB2 const& UVs) {
-	AddVertexForQuad3D(m_mapVertices, m_mapIndices,
+	AddVertexForQuad3D(m_mapVerts, m_mapIndexs,
 		Vec3(bounds.m_mins.x, bounds.m_maxs.y, bounds.m_mins.z),
 		Vec3(bounds.m_mins.x, bounds.m_mins.y, bounds.m_mins.z),
 		Vec3(bounds.m_mins.x, bounds.m_mins.y, bounds.m_maxs.z),
@@ -121,7 +133,7 @@ void Map::AddGeometryForBackWall(AABB3 const& bounds, AABB2 const& UVs) {
 
 //-----------------------------------------------------------------------------------------------
 void Map::AddGeometryForLeftWall(AABB3 const& bounds, AABB2 const& UVs) {
-	AddVertexForQuad3D(m_mapVertices, m_mapIndices,
+	AddVertexForQuad3D(m_mapVerts, m_mapIndexs,
 		Vec3(bounds.m_maxs.x, bounds.m_maxs.y, bounds.m_mins.z),
 		Vec3(bounds.m_mins.x, bounds.m_maxs.y, bounds.m_mins.z),
 		Vec3(bounds.m_mins.x, bounds.m_maxs.y, bounds.m_maxs.z),
@@ -133,7 +145,7 @@ void Map::AddGeometryForLeftWall(AABB3 const& bounds, AABB2 const& UVs) {
 
 //-----------------------------------------------------------------------------------------------
 void Map::AddGeometryForRightWall(AABB3 const& bounds, AABB2 const& UVs) {
-	AddVertexForQuad3D(m_mapVertices, m_mapIndices,
+	AddVertexForQuad3D(m_mapVerts, m_mapIndexs,
 		Vec3(bounds.m_mins.x, bounds.m_mins.y, bounds.m_mins.z),
 		Vec3(bounds.m_maxs.x, bounds.m_mins.y, bounds.m_mins.z),
 		Vec3(bounds.m_maxs.x, bounds.m_mins.y, bounds.m_maxs.z),
@@ -145,7 +157,7 @@ void Map::AddGeometryForRightWall(AABB3 const& bounds, AABB2 const& UVs) {
 
 //-----------------------------------------------------------------------------------------------
 void Map::AddGeometryForFloor(AABB3 const& bounds, AABB2 const& UVs) {
-	AddVertexForQuad3D(m_mapVertices, m_mapIndices,
+	AddVertexForQuad3D(m_mapVerts, m_mapIndexs,
 		Vec3(bounds.m_mins.x, bounds.m_mins.y, bounds.m_mins.z),
 		Vec3(bounds.m_maxs.x, bounds.m_mins.y, bounds.m_mins.z),
 		Vec3(bounds.m_maxs.x, bounds.m_maxs.y, bounds.m_mins.z),
@@ -157,7 +169,7 @@ void Map::AddGeometryForFloor(AABB3 const& bounds, AABB2 const& UVs) {
 
 //-----------------------------------------------------------------------------------------------
 void Map::AddGeometryForCeiling(AABB3 const& bounds, AABB2 const& UVs) {
-	AddVertexForQuad3D(m_mapVertices, m_mapIndices,
+	AddVertexForQuad3D(m_mapVerts, m_mapIndexs,
 		Vec3(bounds.m_mins.x, bounds.m_mins.y, bounds.m_maxs.z),
 		Vec3(bounds.m_mins.x, bounds.m_maxs.y, bounds.m_maxs.z),
 		Vec3(bounds.m_maxs.x, bounds.m_maxs.y, bounds.m_maxs.z),
@@ -169,7 +181,7 @@ void Map::AddGeometryForCeiling(AABB3 const& bounds, AABB2 const& UVs) {
 
 //-----------------------------------------------------------------------------------------------
 void Map::AddGeometryForTop(AABB3 const& bounds, AABB2 const& UVs) {
-	AddVertexForQuad3D(m_mapVertices, m_mapIndices,
+	AddVertexForQuad3D(m_mapVerts, m_mapIndexs,
 		Vec3(bounds.m_mins.x, bounds.m_mins.y, bounds.m_maxs.z),
 		Vec3(bounds.m_maxs.x, bounds.m_mins.y, bounds.m_maxs.z),
 		Vec3(bounds.m_maxs.x, bounds.m_maxs.y, bounds.m_maxs.z),
@@ -181,7 +193,7 @@ void Map::AddGeometryForTop(AABB3 const& bounds, AABB2 const& UVs) {
 
 //-----------------------------------------------------------------------------------------------
 void Map::AddGeometryForBottom(AABB3 const& bounds, AABB2 const& UVs) {
-	AddVertexForQuad3D(m_mapVertices, m_mapIndices,
+	AddVertexForQuad3D(m_mapVerts, m_mapIndexs,
 		Vec3(bounds.m_mins.x, bounds.m_mins.y, bounds.m_mins.z),
 		Vec3(bounds.m_mins.x, bounds.m_maxs.y, bounds.m_mins.z),
 		Vec3(bounds.m_maxs.x, bounds.m_maxs.y, bounds.m_mins.z),
@@ -193,8 +205,8 @@ void Map::AddGeometryForBottom(AABB3 const& bounds, AABB2 const& UVs) {
 
 //-----------------------------------------------------------------------------------------------
 void Map::CreateBuffers() {
-	m_mapVertexBuffer = g_engine->m_renderer->CreateVertexBuffer(static_cast<unsigned int>(m_mapVertices.size()) * sizeof(Vertex_TBN), sizeof(Vertex_TBN));
-	m_mapIndexBuffer = g_engine->m_renderer->CreateIndexBuffer(static_cast<unsigned int>(m_mapIndices.size()) * sizeof(unsigned int));
+	m_mapVertexBuffer = g_engine->m_renderer->CreateVertexBuffer(static_cast<unsigned int>(m_mapVerts.size()) * sizeof(Vertex_TBN), sizeof(Vertex_TBN));
+	m_mapIndexBuffer = g_engine->m_renderer->CreateIndexBuffer(static_cast<unsigned int>(m_mapIndexs.size()) * sizeof(unsigned int));
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -233,7 +245,16 @@ Vec3 Map::GetMapWorldCenter() const {
 }
 
 //-----------------------------------------------------------------------------------------------
+Mat44 Map::GetSunShadowCameraViewProjMatrix() const {
+	Mat44 viewProj = m_sunShadowCamera->GetRendererToClipTransform();
+	viewProj.Append(m_sunShadowCamera->GetCameraToRendererTransform());
+	viewProj.Append(m_sunShadowCamera->GetWorldToCameraTransform());
+	return viewProj;
+}
+
+//-----------------------------------------------------------------------------------------------
 void Map::Update() {
+	UpdateSunShadowCamera();
 	CollideActorsWithMap();
 	CollideActors();
 }
@@ -259,29 +280,56 @@ void Map::CollideActorWithMap(Actor* actor) {
 }
 
 //-----------------------------------------------------------------------------------------------
-void Map::Render() const {
-	g_engine->m_renderer->SetLightConstants(m_sunDirection.GetNormalized(), m_sunIntensity, m_ambientIntensity);
+void Map::UpdateSunShadowCamera() {
+	Vec3 sunDir = m_sunDirection.GetNormalized();
+	Vec3 sunPos = GetMapWorldCenter() - (sunDir * 200.f);
+	EulerAngles sunOrientation = EulerAngles::MakeLookDirectionEulerAngles(sunDir);
+	m_sunShadowCamera->SetPosition(sunPos);
+	m_sunShadowCamera->SetOrientation(sunOrientation);
+}
 
+//-----------------------------------------------------------------------------------------------
+void Map::Render() const {
+	g_engine->m_renderer->SetLightConstants(
+		m_sunDirection.GetNormalized(),
+		m_sunIntensity,
+		m_ambientIntensity,
+		GetSunShadowCameraViewProjMatrix()
+	);
+
+	g_engine->m_renderer->BindShader(m_definition->m_mapShader);
+
+	g_engine->m_renderer->SetSamplerMode(SamplerMode::POINT_CLAMP, SamplerSlot::SLOT0);
+	g_engine->m_renderer->SetSamplerMode(SamplerMode::ANISOTROPIC_WARP, SamplerSlot::SLOT1);
+	g_engine->m_renderer->SetSamplerMode(SamplerMode::SHADOWMAP, SamplerSlot::SLOT2);
+
+	g_engine->m_renderer->BindTexture(m_definition->m_mapTexture, TextureSlot::DIFFUSE);
+	g_engine->m_renderer->BindTexture(m_definition->m_mapNormalTexture, TextureSlot::NORMAL);
+	g_engine->m_renderer->BindTexture(m_definition->m_mapAOTexture, TextureSlot::AO);
+	g_engine->m_renderer->BindTexture(m_definition->m_mapRoughnessTexture, TextureSlot::ROUGHNESS);
+	g_engine->m_renderer->BindTexture(m_definition->m_mapMetallicTexture, TextureSlot::METALLIC);
+	g_engine->m_renderer->BindTexture(nullptr, TextureSlot::SHADOWMAP);
+	g_engine->m_renderer->DrawIndexedVertexBuffer(m_mapVertexBuffer, m_mapIndexBuffer, static_cast<unsigned int>(m_mapIndexs.size()));
+	g_engine->m_renderer->SetSamplerMode(SamplerMode::POINT_CLAMP);
+}
+
+//-----------------------------------------------------------------------------------------------
+void Map::RenderShadowmap() const {
+	g_engine->m_renderer->BindShader(m_shadowMapShader, true, false);
+	g_engine->m_renderer->SetSamplerMode(SamplerMode::POINT_CLAMP);
 	g_engine->m_renderer->CopyCPUToGPU(
-		m_mapVertices.data(),
-		static_cast<unsigned int>(m_mapVertices.size() * sizeof(Vertex_TBN)),
+		m_mapVerts.data(),
+		static_cast<unsigned int>(m_mapVerts.size() * sizeof(Vertex_TBN)),
 		m_mapVertexBuffer
 	);
 	g_engine->m_renderer->BindVertexBuffer(m_mapVertexBuffer);
 	g_engine->m_renderer->CopyCPUToGPU(
-		m_mapIndices.data(),
-		static_cast<unsigned int>(m_mapIndices.size() * sizeof(unsigned int)),
+		m_mapIndexs.data(),
+		static_cast<unsigned int>(m_mapIndexs.size() * sizeof(unsigned int)),
 		m_mapIndexBuffer
 	);
 	g_engine->m_renderer->BindIndexBuffer(m_mapIndexBuffer);
-
-	g_engine->m_renderer->BindShader(m_definition->m_mapShader);
-	g_engine->m_renderer->SetSamplerMode(SamplerMode::POINT_CLAMP, SamplerSlot::SLOT1);
-	g_engine->m_renderer->SetSamplerMode(SamplerMode::ANISOTROPIC_WARP, SamplerSlot::SLOT2);
-
-	g_engine->m_renderer->BindTexture(m_definition->m_mapTexture, TextureSlot::DIFFUSE);
-	g_engine->m_renderer->DrawIndexedVertexBuffer(m_mapVertexBuffer, m_mapIndexBuffer, static_cast<unsigned int>(m_mapIndices.size()));
-	g_engine->m_renderer->SetSamplerMode(SamplerMode::POINT_CLAMP);
+	g_engine->m_renderer->DrawIndexedVertexBuffer(m_mapVertexBuffer, m_mapIndexBuffer, static_cast<unsigned int>(m_mapIndexs.size()));
 }
 
 //-----------------------------------------------------------------------------------------------
