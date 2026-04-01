@@ -13,6 +13,7 @@ class Map;
 class Shader;
 class VertexBuffer;
 class IndexBuffer;
+struct PostProcessingConstants;
 
 //-----------------------------------------------------------------------------------------------
 enum GameState {
@@ -33,23 +34,30 @@ public:
 	void	                AddCameraShake(float amp);
 
 public:
-	Camera*                 m_UICamera                   = nullptr;
-	RandomNumberGenerator*  m_randomGenerator            = nullptr;
-	Clock*                  m_gameClock                  = nullptr;
-	Player*                 m_player                     = nullptr;
-	Map*                    m_curMap                     = nullptr;
-	Shader*                 m_skySphereShader            = nullptr;
-	Shader*                 m_brightFilterShader         = nullptr;
-	Shader*                 m_horizontalBlurShader       = nullptr;
-	Shader*                 m_verticalBlurShader         = nullptr;
-	Shader*                 m_bloomShader                = nullptr;
-	Shader*                 m_pixelizeShader             = nullptr;
-	Shader*                 m_SSAOShader                 = nullptr;
-	Shader*                 m_crosshairShader            = nullptr;
+	Camera*                 m_UICamera                      = nullptr;
+	RandomNumberGenerator*  m_randomGenerator               = nullptr;
+	Clock*                  m_gameClock                     = nullptr;
+	Player*                 m_player                        = nullptr;
+	Map*                    m_curMap                        = nullptr;
+	Shader*                 m_skySphereShader               = nullptr;
+	Shader*                 m_brightFilterShader            = nullptr;
+	Shader*                 m_horizontalBlurShader          = nullptr;
+	Shader*                 m_verticalBlurShader            = nullptr;
+	Shader*                 m_horizontalBlurWithDepthShader = nullptr;
+	Shader*                 m_verticalBlurWithDepthShader   = nullptr;
+	Shader*                 m_bloomShader                   = nullptr;
+	Shader*                 m_pixelizeShader                = nullptr;
+	Shader*                 m_SSDOShader                    = nullptr;
+	Shader*                 m_SSDOBlendShader               = nullptr;
+	Shader*                 m_crosshairShader               = nullptr;
+	Shader*                 m_toneMappingShader             = nullptr;
 
 private:
 	void                    InitializeShaders();
+	void                    InitializeShaderConstants();
+	void                    UpdateShaderConstants();
 	void                    InitializeSkySphere();
+	void                    UpdateSkySphere();
 	void                    UpdateCameras();
 	void                    UpdateDebugInfo();
 
@@ -60,7 +68,7 @@ private:
 	void                    RenderSkySphere() const;
 
 	void                    DecayCameraShake();
-
+	 
 private:
 	GameState                 m_curGameState                  = GAME_ATTRACT_MODE;
 	GameState                 m_nextGameState                 = GAME_ATTRACT_MODE;
@@ -68,6 +76,7 @@ private:
 	std::vector<unsigned int> m_skySphereIndexs;
 	VertexBuffer*             m_skySphereVertexBuffer         = nullptr;
 	IndexBuffer*              m_skySphereIndexBuffer          = nullptr;
+	PostProcessingConstants*  m_postProcessingCBO             = nullptr;
 						    
 	float                   m_curCameraShakeAmp             = 0.f;
 };

@@ -42,6 +42,7 @@ Game::Game()
 	m_curMap = new Map(this, &MapDefinition::s_definitions[g_gameConfig->m_defaultMap]);
 
 	InitializeShaders();
+	InitializeShaderConstants();
 	InitializeSkySphere();
 }
 
@@ -93,6 +94,8 @@ void Game::Update()
 		m_player->Update();
 		m_curMap->Update();
 		UpdateCameras();
+		UpdateShaderConstants();
+		UpdateSkySphere();
 		UpdateDebugInfo();
 	}
 	
@@ -133,14 +136,31 @@ void Game::Render() const
 		//Post processing
 		g_engine->m_renderer->ResolveSceneToPostProcessing();
 
-		
-		g_engine->m_renderer->RenderPostProcessing(m_SSAOShader);
+		g_engine->m_renderer->SetPostProcessingConstants(
+			m_postProcessingCBO->ScreenProjectionMatrix,
+			m_postProcessingCBO->InverseScreenProjectionMatrix,
+			m_postProcessingCBO->WorldToRendererTransform,
+			m_postProcessingCBO->SSDO_Samples,
+			m_postProcessingCBO->SSDO_NoiseScale,
+			m_postProcessingCBO->SSDO_Radius,
+			m_postProcessingCBO->SSDO_Bias
+		);
+		g_engine->m_renderer->RenderPostProcessing(m_SSDOShader, SamplerMode::BILINEAR_CLAMP);
+		for (int i = 0; i < 4; i++) {
+			g_engine->m_renderer->RenderPostProcessing(m_horizontalBlurShader, SamplerMode::BILINEAR_CLAMP);
+			g_engine->m_renderer->RenderPostProcessing(m_verticalBlurShader, SamplerMode::BILINEAR_CLAMP);
+		}
+		g_engine->m_renderer->RenderPostProcessing(m_SSDOBlendShader);
+		/*
+		//Bloom
 		g_engine->m_renderer->RenderPostProcessing(m_brightFilterShader);
 		for (int i = 0; i < 4; i++) {
 			g_engine->m_renderer->RenderPostProcessing(m_horizontalBlurShader, SamplerMode::BILINEAR_CLAMP);
 			g_engine->m_renderer->RenderPostProcessing(m_verticalBlurShader, SamplerMode::BILINEAR_CLAMP);
 		}
-		g_engine->m_renderer->RenderPostProcessing(m_bloomShader);
+		g_engine->m_renderer->RenderPostProcessing(m_bloomShader);*/
+
+		//Draw crosshair
 		g_engine->m_renderer->RenderPostProcessing(m_crosshairShader);
 
 		g_engine->m_renderer->PresentPostProcessingToScreen();
@@ -191,10 +211,54 @@ void Game::InitializeShaders() {
 	m_brightFilterShader = g_engine->m_renderer->CreateShader("BrightFilter", VertexType::PCU);
 	m_horizontalBlurShader = g_engine->m_renderer->CreateShader("HorizontalGaussianBlur", VertexType::PCU);
 	m_verticalBlurShader = g_engine->m_renderer->CreateShader("VerticalGaussianBlur", VertexType::PCU);
+	m_horizontalBlurWithDepthShader = g_engine->m_renderer->CreateShader("HorizontalGaussianBlurWithDepth", VertexType::PCU);
+	m_verticalBlurWithDepthShader = g_engine->m_renderer->CreateShader("VerticalGaussianBlurWithDepth", VertexType::PCU);
 	m_bloomShader = g_engine->m_renderer->CreateShader("Bloom", VertexType::PCU);
 	m_pixelizeShader = g_engine->m_renderer->CreateShader("Pixelize", VertexType::PCU);
-	m_SSAOShader = g_engine->m_renderer->CreateShader("SSAO", VertexType::PCU);
+	m_SSDOShader = g_engine->m_renderer->CreateShader("SSDO", VertexType::PCU);
+	m_SSDOBlendShader = g_engine->m_renderer->CreateShader("SSDOBlend", VertexType::PCU);
+	m_toneMappingShader = g_engine->m_renderer->CreateShader("ToneMapping", VertexType::PCU);
 	m_crosshairShader = g_engine->m_renderer->CreateShader("Crosshair", VertexType::PCU);
+}
+
+//---------------------------------------------------------------------------------------------------
+void Game::InitializeShaderConstants() {
+	m_postProcessingCBO = new PostProcessingConstants();
+	m_postProcessingCBO->ScreenProjectionMatrix = m_player->m_playerCamera->GetProjectionMat();
+	m_postProcessingCBO->InverseScreenProjectionMatrix = m_player->m_playerCamera->GetInverseProjectionMat();
+	Mat44 worldToRenderer = m_player->m_playerCamera->GetCameraToRendererTransform();
+	worldToRenderer.Append(m_player->m_playerCamera->GetWorldToCameraTransform());
+	m_postProcessingCBO->WorldToRendererTransform = worldToRenderer;
+	for (int i = 0; i < 64; ++i)
+	{
+		Vec3 sample(
+			m_randomGenerator->RollRandomFloatZeroToOne() * 2.f - 1.f,
+			m_randomGenerator->RollRandomFloatZeroToOne() * 2.f - 1.f,
+			m_randomGenerator->RollRandomFloatZeroToOne()
+		);
+
+		sample = sample.GetNormalized();
+		sample *= m_randomGenerator->RollRandomFloatZeroToOne();
+
+		float scale = (float)i / 64.0f;
+		scale = Interpolate(0.01f, 1.0f, scale * scale);
+		sample *= scale;
+
+		m_postProcessingCBO->SSDO_Samples[i] = Vec4(sample.x, sample.y, sample.z, 0.0f);
+	}
+	m_postProcessingCBO->SSDO_NoiseScale = Vec2(
+		g_gameConfig->m_screenSize.x / 128.f,
+		g_gameConfig->m_screenSize.y / 128.f
+	);
+	m_postProcessingCBO->SSDO_Radius = 1.f;
+	m_postProcessingCBO->SSDO_Bias = 0.025f;
+}
+
+//---------------------------------------------------------------------------------------------------
+void Game::UpdateShaderConstants() {
+	Mat44 worldToRenderer = m_player->m_playerCamera->GetCameraToRendererTransform();
+	worldToRenderer.Append(m_player->m_playerCamera->GetWorldToCameraTransform());
+	m_postProcessingCBO->WorldToRendererTransform = worldToRenderer;
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -222,6 +286,21 @@ void Game::InitializeSkySphere() {
 		m_skySphereIndexs.data(),
 		static_cast<unsigned int>(m_skySphereIndexs.size() * sizeof(unsigned int)),
 		m_skySphereIndexBuffer
+	);
+}
+
+//---------------------------------------------------------------------------------------------------
+void Game::UpdateSkySphere() {
+	std::vector<Vertex_TBN> updatedVerts;
+	for (const Vertex_TBN& vert : m_skySphereVerts) {
+		Vertex_TBN updatedVert = vert;
+		updatedVert.m_position += m_player->m_playerCamera->GetPosition();
+		updatedVerts.push_back(updatedVert);
+	}
+	g_engine->m_renderer->CopyCPUToGPU(
+		updatedVerts.data(),
+		static_cast<unsigned int>(updatedVerts.size() * sizeof(Vertex_TBN)),
+		m_skySphereVertexBuffer
 	);
 }
 

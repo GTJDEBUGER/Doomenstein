@@ -22,6 +22,13 @@ struct v2p_t
 };
 
 //------------------------------------------------------------------------------------------------
+struct p_out
+{
+    float4 color : SV_Target0;
+    float4 normal : SV_Target1;
+};
+
+//------------------------------------------------------------------------------------------------
 cbuffer LightConstants : register(b1)
 {
     float3 SunDirection;
@@ -221,8 +228,9 @@ v2p_t VertexMain(vs_input_t input)
 }
 
 // ------------------------------------------------------------------------------------------------
-float4 PixelMain(v2p_t input) : SV_TARGET
+p_out PixelMain(v2p_t input)
 {
+    p_out output;
     // --- Sampler Blend Factor ---
     float2 dx = ddx(input.uv);
     float2 dy = ddy(input.uv);
@@ -291,5 +299,8 @@ float4 PixelMain(v2p_t input) : SV_TARGET
     finalRgb = pow(finalRgb, 1.0 / 2.5);
     
     clip(albedoTex.a - 0.01f);
-    return float4(finalRgb, albedoTex.a);
+    output.color = float4(finalRgb, albedoTex.a);
+    output.normal = float4(N, 1.0f);
+    
+    return output;
 }

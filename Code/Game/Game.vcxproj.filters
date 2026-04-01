@@ -142,10 +142,22 @@
     <FxCompile Include="..\..\Run\Data\Shaders\ScreenDepth.hlsl">
       <Filter>Data\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="..\..\Run\Data\Shaders\SSAO.hlsl">
+    <FxCompile Include="..\..\Run\Data\Shaders\Crosshair.hlsl">
       <Filter>Data\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="..\..\Run\Data\Shaders\Crosshair.hlsl">
+    <FxCompile Include="..\..\Run\Data\Shaders\ToneMapping.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\SSDO.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\HorizontalGaussianBlurWithDepth.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\VerticalGaussianBlurWithDepth.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\SSDOBlend.hlsl">
       <Filter>Data\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

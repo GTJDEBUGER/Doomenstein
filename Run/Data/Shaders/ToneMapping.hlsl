@@ -12,6 +12,7 @@ struct vs_input_t
     float2 uv : TEXCOORD;
 };
 
+//----------------------------------------------------------------
 struct v2p_t
 {
     float4 clipSpacePosition : SV_POSITION;
@@ -29,10 +30,8 @@ v2p_t VertexMain(vs_input_t input)
     return v2p;
 }
 
-//----------------------------------------------------------------
 float4 PixelMain(v2p_t input) : SV_Target0
 {
     float4 baseColor = screenColor.Sample(screenSampler, input.uv);
-    //TODO: Implement SSAO
     return baseColor;
 }

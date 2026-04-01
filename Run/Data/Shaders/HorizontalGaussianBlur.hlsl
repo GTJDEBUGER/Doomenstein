@@ -33,7 +33,7 @@ v2p_t VertexMain(vs_input_t input)
 //----------------------------------------------------------------
 float4 PixelMain(v2p_t input) : SV_Target0
 {
-    float2 texelSize = float2(1.0f / 1200.0f, 0.0f);
+    float2 texelSize = float2(1.0f / 1600.0f, 0.0f);
     float4 color = float4(0, 0, 0, 0);
     
     color += screenColor.Sample(screenSampler, input.uv - texelSize * 3.23076923f) * 0.07027027f;

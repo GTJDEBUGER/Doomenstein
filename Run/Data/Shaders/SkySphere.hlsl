@@ -22,6 +22,14 @@ struct v2p_t
 };
 
 //------------------------------------------------------------------------------------------------
+struct p_out
+{
+    float4 color : SV_Target0;
+    float4 normal : SV_Target1;
+    float4 ambient : SV_Target2;
+};
+
+//------------------------------------------------------------------------------------------------
 cbuffer LightConstants : register(b1)
 {
     float3 SunDirection;
@@ -74,8 +82,9 @@ v2p_t VertexMain(vs_input_t input)
 //------------------------------------------------------------------------------------------------
 // Pixel Shader
 //------------------------------------------------------------------------------------------------
-float4 PixelMain(v2p_t input) : SV_Target0
+p_out PixelMain(v2p_t input)
 {
+    p_out output;
     float3 viewDir = normalize(input.worldNormal.xyz);
     float3 sunDir = normalize(-SunDirection);
     float3 moonDir = -sunDir;
@@ -122,6 +131,8 @@ float4 PixelMain(v2p_t input) : SV_Target0
     color.rgb = saturate(color.rgb);
     
     clip(color.a - 0.01f);
-    
-    return color;
+    output.color = color;
+    output.normal = float4(0.f,0.f,0.f, 1.0f);
+    output.ambient = float4(0.f, 0.f, 0.f, 1.0f);
+    return output;
 }
