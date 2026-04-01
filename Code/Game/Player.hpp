@@ -17,7 +17,7 @@ public:
 	~Player();
 	Player(Game* game, Vec3 startPos);
 
-	void          Update(float deltaSeconds);
+	void          Update();
 	void          Render() const;
 
 public:
@@ -27,6 +27,7 @@ public:
 	Vec3		  m_velocity;
 	EulerAngles	  m_angularVelocity;
 
+	bool          m_canMove = true;
 	bool          m_isResetTransform = false;
 	bool          m_isRun = false;
 	Vec2          m_viewInput;

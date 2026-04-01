@@ -49,6 +49,12 @@
     <ClCompile Include="Tile.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
+    <ClCompile Include="Demon.cpp">
+      <Filter>Gameplay</Filter>
+    </ClCompile>
+    <ClCompile Include="Projectile.cpp">
+      <Filter>Gameplay</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="App.hpp">
@@ -81,6 +87,12 @@
     <ClInclude Include="Tile.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
+    <ClInclude Include="Demon.hpp">
+      <Filter>Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="Projectile.hpp">
+      <Filter>Gameplay</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Xml Include="..\..\Run\Data\Definitions\ActorDefinitions.xml">
@@ -110,6 +122,30 @@
       <Filter>Data\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\..\Run\Data\Shaders\SkySphere.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\Bloom.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\Pixelize.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\BrightFilter.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\HorizontalGaussianBlur.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\VerticalGaussianBlur.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\ScreenDepth.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\SSAO.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\Crosshair.hlsl">
       <Filter>Data\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

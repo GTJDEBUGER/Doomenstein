@@ -39,10 +39,19 @@ public:
 	Player*                 m_player                     = nullptr;
 	Map*                    m_curMap                     = nullptr;
 	Shader*                 m_skySphereShader            = nullptr;
+	Shader*                 m_brightFilterShader         = nullptr;
+	Shader*                 m_horizontalBlurShader       = nullptr;
+	Shader*                 m_verticalBlurShader         = nullptr;
+	Shader*                 m_bloomShader                = nullptr;
+	Shader*                 m_pixelizeShader             = nullptr;
+	Shader*                 m_SSAOShader                 = nullptr;
+	Shader*                 m_crosshairShader            = nullptr;
 
 private:
+	void                    InitializeShaders();
 	void                    InitializeSkySphere();
 	void                    UpdateCameras();
+	void                    UpdateDebugInfo();
 
 	void                    RenderAttractMode() const;
 	void                    RenderGamePlay() const;

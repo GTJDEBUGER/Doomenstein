@@ -56,13 +56,16 @@ void MapDefinition::InitializeMapDefs() {
 			ParseXmlAttribute(*i, "tileSize", 1.f)
 		);
 
-		for (XmlElement* j = i->FirstChildElement(); j !=nullptr ; j = j->NextSiblingElement())
+		XmlElement* spawnInfos = i->FirstChildElement("SpawnInfos");
+		for (XmlElement* j = spawnInfos->FirstChildElement(); j !=nullptr ; j = j->NextSiblingElement())
 		{
 			s_definitions[ParseXmlAttribute(*i, "name", "undefineMap")].m_spawnInfos.push_back(
 				SpawnInfo{
-					ParseXmlAttribute(*j, "actorType", "undefinedActor"),
+					ParseXmlAttribute(*j, "actor", "undefineActor"),
 					ParseXmlAttribute(*j, "position", Vec3(0.f, 0.f, 0.f)),
-					ParseXmlAttribute(*j, "orientation", EulerAngles(0.f, 0.f, 0.f))
+					ParseXmlAttribute(*j, "orientation", EulerAngles(0.f, 0.f, 0.f)),
+					ParseXmlAttribute(*j, "scale", Vec3(1.f,1.f,1.f)),
+					ParseXmlAttribute(*j, "isPhysicsSimul", false)
 				}
 			);
 		}

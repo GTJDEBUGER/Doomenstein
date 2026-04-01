@@ -38,9 +38,10 @@ Game::Game()
 
 	m_randomGenerator = new RandomNumberGenerator();
 
-	m_player = new Player(this, Vec3(14.5f, 50.f, 3.f));
+	m_player = new Player(this, Vec3(12.5f, 42.5f, 2.5f));
 	m_curMap = new Map(this, &MapDefinition::s_definitions[g_gameConfig->m_defaultMap]);
 
+	InitializeShaders();
 	InitializeSkySphere();
 }
 
@@ -89,9 +90,10 @@ void Game::Update()
 		}
 
 		//-------------------------------------------------------------------------------------------
-		m_player->Update(static_cast<float>(m_gameClock->GetDeltaSeconds()));
+		m_player->Update();
 		m_curMap->Update();
 		UpdateCameras();
+		UpdateDebugInfo();
 	}
 	
 	//-----------------------------------------------------------------------------------------------
@@ -122,19 +124,36 @@ void Game::Render() const
 
 		RenderSkySphere();
 		RenderGamePlay();
-		DebugRenderWorld(*(m_player->m_playerCamera));
 
 		g_engine->m_renderer->EndCamera(*(m_player->m_playerCamera));
 
+		DebugRenderWorld(*(m_player->m_playerCamera));
+
+		//-------------------------------------------------------------------------------------------
+		//Post processing
+		g_engine->m_renderer->ResolveSceneToPostProcessing();
+
+		
+		g_engine->m_renderer->RenderPostProcessing(m_SSAOShader);
+		g_engine->m_renderer->RenderPostProcessing(m_brightFilterShader);
+		for (int i = 0; i < 4; i++) {
+			g_engine->m_renderer->RenderPostProcessing(m_horizontalBlurShader, SamplerMode::BILINEAR_CLAMP);
+			g_engine->m_renderer->RenderPostProcessing(m_verticalBlurShader, SamplerMode::BILINEAR_CLAMP);
+		}
+		g_engine->m_renderer->RenderPostProcessing(m_bloomShader);
+		g_engine->m_renderer->RenderPostProcessing(m_crosshairShader);
+
+		g_engine->m_renderer->PresentPostProcessingToScreen();
+
 		//-------------------------------------------------------------------------------------------
 		//For UI
-		g_engine->m_renderer->BeginCamera(*m_UICamera);
+		g_engine->m_renderer->BeginCamera(*m_UICamera, true);
 		
 		RenderGameUI();
 
-		DebugRenderScreen(*(m_UICamera));
-
 		g_engine->m_renderer->EndCamera(*m_UICamera);
+
+		DebugRenderScreen(*(m_UICamera));
 	}
 
 	//-----------------------------------------------------------------------------------------------
@@ -167,9 +186,19 @@ void Game::AddCameraShake(float amp) {
 }
 
 //---------------------------------------------------------------------------------------------------
-void Game::InitializeSkySphere() {
+void Game::InitializeShaders() {
 	m_skySphereShader = g_engine->m_renderer->CreateShader("SkySphere", VertexType::PCUTBN);
+	m_brightFilterShader = g_engine->m_renderer->CreateShader("BrightFilter", VertexType::PCU);
+	m_horizontalBlurShader = g_engine->m_renderer->CreateShader("HorizontalGaussianBlur", VertexType::PCU);
+	m_verticalBlurShader = g_engine->m_renderer->CreateShader("VerticalGaussianBlur", VertexType::PCU);
+	m_bloomShader = g_engine->m_renderer->CreateShader("Bloom", VertexType::PCU);
+	m_pixelizeShader = g_engine->m_renderer->CreateShader("Pixelize", VertexType::PCU);
+	m_SSAOShader = g_engine->m_renderer->CreateShader("SSAO", VertexType::PCU);
+	m_crosshairShader = g_engine->m_renderer->CreateShader("Crosshair", VertexType::PCU);
+}
 
+//---------------------------------------------------------------------------------------------------
+void Game::InitializeSkySphere() {
 	AddVertexForSphere3D(
 		m_skySphereVerts,
 		m_skySphereIndexs,
@@ -204,6 +233,78 @@ void Game::UpdateCameras() {
 			m_randomGenerator->RollRandomFloatZeroToOne() * m_curCameraShakeAmp,
 		    m_randomGenerator->RollRandomFloatZeroToOne() * m_curCameraShakeAmp,
 			m_randomGenerator->RollRandomFloatZeroToOne() * m_curCameraShakeAmp)
+	);
+}
+
+//---------------------------------------------------------------------------------------------------
+void Game::UpdateDebugInfo() {
+	DebugAddScreenText(
+		Stringf("<color=0,255,255>[Game Clock] Time: %.2f | FPS: %.1f | Time Scale %.2f </color>", 
+			m_gameClock->GetTotalSeconds(), 
+			1.0 / m_gameClock->GetDeltaSeconds(),
+			m_gameClock->GetTimeScale()
+		), 
+		AABB2(
+			Vec2(15.f, g_gameConfig->m_screenSize.y - 15.f),
+			Vec2(g_gameConfig->m_screenSize.x - 5.f, g_gameConfig->m_screenSize.y - 5.f)
+		),
+		10.f,
+		Vec2(1.f, 0.5f),
+		0.f
+	);
+
+	DebugAddScreenText(
+		Stringf("<color=255,255,0>[Sun Direction]</color> <color=255,0,0>x=%.2f (F2-/F3+)</color> | <color=0,255,0>y=%.2f (F4-/F5+)</color> | <color=0,0,255>z=%.2f</color>",
+			m_curMap->m_sunDirection.x,
+			m_curMap->m_sunDirection.y,
+			m_curMap->m_sunDirection.z
+		),
+		AABB2(
+			Vec2(15.f, g_gameConfig->m_screenSize.y - 35.f),
+			Vec2(g_gameConfig->m_screenSize.x - 5.f, g_gameConfig->m_screenSize.y - 25.f)
+		),
+		10.f,
+		Vec2(1.f, 0.5f),
+		0.f
+	);
+
+	DebugAddScreenText(
+		Stringf("<color=255,255,0>[Sun Intensity]</color> %.2f (F6-/F7+)",
+			m_curMap->m_sunIntensity
+		),
+		AABB2(
+			Vec2(15.f, g_gameConfig->m_screenSize.y - 55.f),
+			Vec2(g_gameConfig->m_screenSize.x - 5.f, g_gameConfig->m_screenSize.y - 45.f)
+		),
+		10.f,
+		Vec2(1.f, 0.5f),
+		0.f
+	);
+
+	DebugAddScreenText(
+		Stringf("<color=255,255,0>[Ambient Intensity]</color> %.2f (F8-/F9+)",
+			m_curMap->m_ambientIntensity
+		),
+		AABB2(
+			Vec2(15.f, g_gameConfig->m_screenSize.y - 75.f),
+			Vec2(g_gameConfig->m_screenSize.x - 5.f, g_gameConfig->m_screenSize.y - 65.f)
+		),
+		10.f,
+		Vec2(1.f, 0.5f),
+		0.f
+	);
+
+	DebugAddScreenText(
+		Stringf("<color=255,0,255>[Control Target]</color> %s (F1 Switch)",
+			m_player->m_canMove ? "Player" : "Projectile"
+		),
+		AABB2(
+			Vec2(15.f, g_gameConfig->m_screenSize.y - 95.f),
+			Vec2(g_gameConfig->m_screenSize.x - 5.f, g_gameConfig->m_screenSize.y - 85.f)
+		),
+		10.f,
+		Vec2(1.f, 0.5f),
+		0.f
 	);
 }
 
@@ -311,7 +412,7 @@ void Game::RenderAttractMode() const {
 	g_engine->m_renderer->DrawVertexArray((int)tempMesh.size(), tempMesh.data());
 
 	tempMesh.clear();
-	std::string text = "ProtoGame3D";
+	std::string text = "Doomenstein";
 	float fontSize = 50;
 	float shadowSize = 51;
 	g_defaultFont->AddVertsForText2D(

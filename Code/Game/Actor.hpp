@@ -7,7 +7,7 @@
 //-----------------------------------------------------------------------------------------------
 class Actor {
 public:
-	Actor(Vec3 pos = Vec3(), EulerAngles orien = EulerAngles(), Vec3 scale = Vec3());
+	Actor(Vec3 pos, EulerAngles orien, Vec3 scale);
 	virtual ~Actor() = 0;
 
 	virtual void Update(float deltaSeconds) = 0;
@@ -22,4 +22,5 @@ public:
 	float       m_physicsHeight = 1.f;
 	float       m_physicsRadius = 0.5f;
 	bool        m_isStatic = false;
+	Vec3        m_velocity = Vec3(0.f, 0.f, 0.f);
 };

@@ -141,20 +141,24 @@ void App::HandlePlayerInput(){
 		g_engine->m_devConsole->ToggleOpen();
 	}
 
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F1)) {
+		m_game->m_player->m_canMove = !m_game->m_player->m_canMove;
+	}
+
 	if (g_engine->m_input->IsKeyDown(KEYCODE_F2)) {
-		m_game->m_curMap->m_sunDirection.x -= 0.1f;
+		m_game->m_curMap->m_sunDirection.x -= 0.025f;
 	}
 
 	if (g_engine->m_input->IsKeyDown(KEYCODE_F3)) {
-		m_game->m_curMap->m_sunDirection.x += 0.1f;
+		m_game->m_curMap->m_sunDirection.x += 0.025f;
 	}
 
 	if (g_engine->m_input->IsKeyDown(KEYCODE_F4)) {
-		m_game->m_curMap->m_sunDirection.y -= 0.1f;
+		m_game->m_curMap->m_sunDirection.y -= 0.025f;
 	}
 
 	if (g_engine->m_input->IsKeyDown(KEYCODE_F5)) {
-		m_game->m_curMap->m_sunDirection.y += 0.1f;
+		m_game->m_curMap->m_sunDirection.y += 0.025f;
 	}
 
 	if (g_engine->m_input->IsKeyDown(KEYCODE_F6)) {
@@ -168,6 +172,17 @@ void App::HandlePlayerInput(){
 		m_game->m_curMap->m_sunIntensity += 0.05f;
 	}
 
+	if (g_engine->m_input->IsKeyDown(KEYCODE_F8)) {
+		m_game->m_curMap->m_ambientIntensity -= 0.05f;
+		if (m_game->m_curMap->m_ambientIntensity < 0.f) {
+			m_game->m_curMap->m_ambientIntensity = 0.f;
+		}
+	}
+
+	if (g_engine->m_input->IsKeyDown(KEYCODE_F9)) {
+		m_game->m_curMap->m_ambientIntensity += 0.05f;
+	}
+
 	DebugAddWorldArrow(
 		m_game->m_curMap->GetMapWorldCenter() + Vec3(0,0,20.f),
 		m_game->m_curMap->GetMapWorldCenter() + Vec3(0, 0, 20.f) + m_game->m_curMap->m_sunDirection.GetNormalized() * 10.f,
@@ -176,12 +191,6 @@ void App::HandlePlayerInput(){
 		Rgba8::YELLOW,
 		Rgba8::YELLOW
 	);
-
-	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F12)) {
-		Reboot();
-		m_isShutdown = true;
-		return;
-	}
 
 	if (g_engine->m_input->IsKeyDown('T') || g_engine->m_input->WasKeyJustPressed('T')) {
 		if (g_engine->m_input->WasKeyJustPressed('T')) {
@@ -356,8 +365,45 @@ void App::HandlePlayerInput(){
 	}
 	m_game->m_player->m_moveInput = moveInput.GetNormalized();
 
-	//PLayer view input
+	//Player view input
 	m_game->m_player->m_viewInput = g_engine->m_input->GetCursorClientDelta();
+
+	//Do Raycast test
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_LEFT_MOUSE) && m_game->GetCurGameState() == GAME_PLAYING_MODE) {
+		RaycastResult3D result = m_game->m_curMap->RaycastAll(
+			m_game->m_player->m_position, 
+			m_game->m_player->m_orientation.GetForwardDir_IFwd_JLeft_KUp(), 
+			50.f, 
+			nullptr
+		);
+
+		DebugAddWorldCylinder(
+			result.m_rayStartPos,
+			result.m_rayStartPos + result.m_rayFwdNormal * result.m_rayMaxLength,
+			0.01f,
+			10.f,
+			Rgba8::WHITE,
+			Rgba8::WHITE,
+			DebugRenderMode::X_RAY
+		);
+
+		if (result.m_didImpact) {
+			DebugAddWorldSphere(
+				result.m_impactPos,
+				0.08f,
+				10.f
+			);
+
+			DebugAddWorldArrow(
+				result.m_impactPos,
+				result.m_impactPos + result.m_impactNormal * 0.5f,
+				0.08f,
+				10.f,
+				Rgba8::BLUE,
+				Rgba8::BLUE
+			);
+		}
+	}
 
 	//Player roll view input
 	float viewRollInput = 0.f;

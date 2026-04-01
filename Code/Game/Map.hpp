@@ -5,6 +5,7 @@
 #include "Engine/Core/Vertex_TBN.hpp"
 #include "Engine/Math/EulerAngles.hpp"
 #include <vector>
+#include <string>
 
 //-----------------------------------------------------------------------------------------------
 class Game;
@@ -16,6 +17,14 @@ class Shader;
 class VertexBuffer;
 class IndexBuffer;
 class Camera;
+
+//-----------------------------------------------------------------------------------------------
+enum class ActorType
+{
+	DEMON,
+	PROJECTILE,
+	COUNT
+};
 
 //-----------------------------------------------------------------------------------------------
 class Map {
@@ -38,6 +47,7 @@ public:
 
 	bool ShouldRenderFaceAgainstNeighbor(int x, int y) const;
 	bool IsPositionInBounds(Vec3 const& position) const;
+	bool IsTileSolid(int x, int y) const;
 	bool AreCoordsInBounds(int x, int y) const;
 	Tile const* GetTile(int x, int y) const;
 	Vec3 GetMapWorldCenter() const;
@@ -47,7 +57,9 @@ public:
 	void CollideActors();
 	void CollideActors(Actor* actorA, Actor* actorB);
 	void CollideActorsWithMap();
+	IntVec2 GetTileCoordsForPosition(Vec3 const& position) const;
 	void CollideActorWithMap(Actor* actor);
+	void PushActorOutOfTileIfSolid(Actor* actor, int tileX, int tileY);
 	void UpdateSunShadowCamera();
 
 	void Render() const;
@@ -57,9 +69,13 @@ public:
 	RaycastResult3D RaycastWorldZ(Vec3 const& start, Vec3 const& direction, float distance) const;
 	RaycastResult3D RaycastWorldActors(Vec3 const& start, Vec3 const& direction, float distance, Actor* owner = nullptr) const;
 
+	ActorType StringToActorType(std::string const& str);
+	void SpawnActors();
+	void SpawnActor(ActorType type, Vec3 const& pos, EulerAngles const& ori=EulerAngles(), Vec3 const& scale=Vec3(1.f,1.f,1.f), bool isPhysicsSimul = false);
+
 public:
 	Game* m_game = nullptr;
-	Vec3  m_sunDirection = Vec3(-1.f, -1.f, -1.f);
+	Vec3  m_sunDirection = Vec3(2.f, 1.f, -1.f);
 	float m_sunIntensity = 0.85f;
 	float m_ambientIntensity = 0.35f;
 	Camera* m_sunShadowCamera = nullptr;
@@ -74,4 +90,6 @@ protected:
 	VertexBuffer* m_mapVertexBuffer = nullptr;
 	IndexBuffer* m_mapIndexBuffer = nullptr;
 	Shader* m_shadowMapShader = nullptr;
+
+	std::vector<Actor*> m_actors;
 };

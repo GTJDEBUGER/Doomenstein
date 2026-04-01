@@ -15,6 +15,8 @@ struct SpawnInfo {
 	std::string m_actorType = "undefinedActor";
 	Vec3 m_spawnPosition = Vec3(0.f, 0.f, 0.f);
 	EulerAngles m_spawnOrientation = EulerAngles(0.f, 0.f, 0.f);
+	Vec3 m_spawnScale = Vec3(1.f, 1.f, 1.f);
+	bool m_isPhysicsSimul = false;
 };
 
 //-----------------------------------------------------------------------------------------------

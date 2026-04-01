@@ -22,9 +22,9 @@ Player::Player(Game* game, Vec3 startPos) : m_game(game), m_position(startPos) {
 }
 
 //-----------------------------------------------------------------------------------------------
-void Player::Update(float deltaSeconds) {
+void Player::Update() {
 	//use independent clock delta seconds 
-	deltaSeconds = (float)m_playerClock->GetDeltaSeconds();
+	float deltaSeconds = (float)m_playerClock->GetDeltaSeconds();
 
 	//reset player position and orientation
 	if (m_isResetTransform) {
@@ -49,7 +49,8 @@ void Player::Update(float deltaSeconds) {
 	m_angularVelocity.m_pitchDegrees = -m_viewInput.y * g_gameConfig->m_playerViewPitchSpeed;
 	m_angularVelocity.m_rollDegrees = m_viewRollInput * g_gameConfig->m_playerViewRollSpeed;
 
-	m_position += m_velocity * deltaSeconds;
+	if(m_canMove) m_position += m_velocity * deltaSeconds;
+	
 	m_orientation.m_yawDegrees += m_angularVelocity.m_yawDegrees * deltaSeconds;
 	if (m_orientation.m_pitchDegrees + m_angularVelocity.m_pitchDegrees * deltaSeconds >= -85.f &&
 		m_orientation.m_pitchDegrees + m_angularVelocity.m_pitchDegrees * deltaSeconds <= 85.f) {
