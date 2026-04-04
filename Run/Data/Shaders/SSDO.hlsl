@@ -24,6 +24,9 @@ cbuffer PostProcessingBuffer : register(b4)
     float2 noiseScale;
     float radius;
     float bias;
+    float2 screenResolution;
+    float cameraNear;
+    float cameraFar;
 };
 
 //----------------------------------------------------------------
@@ -33,7 +36,6 @@ struct vs_input_t
     float4 color : COLOR;
     float2 uv : TEXCOORD;
 };
-
 
 struct v2p_t
 {
@@ -76,19 +78,19 @@ float4 PixelMain(v2p_t input) : SV_Target0
     
     if (rawDepth >= 0.9995f) 
         return float4(0, 0, 0, 1.f);
-    
+        
     if (length(worldNormal) < 0.1)
-        return originalScreenColor.Sample(screenSampler, input.uv);
+        return float4(0, 0, 0, 1.f);
     
     float3 viewNormal = normalize(mul((float3x3) worldToViewMatrix, worldNormal));
-    
-    float3 randomVec = GetRandomVec(viewPos.xy * noiseScale);
+    float3 randomVec = GetRandomVec(input.uv * noiseScale);
+
     float3 tangent = normalize(randomVec - viewNormal * dot(randomVec, viewNormal));
     float3 bitangent = cross(viewNormal, tangent);
     float3x3 TBN = float3x3(tangent, bitangent, viewNormal);
 
-    float occlusion = 0.0;
-    float3 directOcclusion = 0.0;
+    float ambientOcclusion = 0.0;
+    float directionalOcclusion = 0.0;
     float3 colorBleeding = 0.0;
     
     float3 viewSunDir = normalize(mul((float3x3) worldToViewMatrix, -SunDirection));
@@ -106,35 +108,38 @@ float4 PixelMain(v2p_t input) : SV_Target0
         
         float rangeCheck = smoothstep(0.0, 1.0, radius / abs(viewPos.z - sceneViewPos.z));
         
-        if (sceneViewPos.z <= samplePos.z - bias)
+        if (abs(sceneViewPos.z) <= abs(samplePos.z) - bias)
         {
             float3 dirToOccluder = normalize(sampleOffset);
             float3 dirFromOccluder = normalize(viewPos - sceneViewPos);
-
+            
             float weight = max(dot(viewNormal, dirToOccluder), 0.0);
+            
             float lightWeight = max(dot(dirToOccluder, viewSunDir), 0.0);
+            
+            ambientOcclusion += weight * rangeCheck;
+            directionalOcclusion += weight * lightWeight * rangeCheck;
             
             float dist = length(viewPos - sceneViewPos);
             float bounceAtten = saturate(1.0 - (dist / radius));
-            bounceAtten = bounceAtten * bounceAtten;
-    
+            
             float3 sceneWorldNormal = originalScreenNormal.SampleLevel(screenSampler, offsetUV, 0).xyz;
             float3 sceneViewNormal = normalize(mul((float3x3) worldToViewMatrix, sceneWorldNormal));
-            float bounceFacing = max(dot(sceneViewNormal, dirFromOccluder), 0.0);
-    
-            directOcclusion += weight * lightWeight * rangeCheck;
-    
+            
+            float bounceFacing = saturate(dot(sceneViewNormal, dirFromOccluder) * 0.5 + 0.5);
+            
             float3 bounceColor = originalScreenColor.SampleLevel(screenSampler, offsetUV, 0).rgb;
             colorBleeding += bounceColor * weight * bounceFacing * bounceAtten * rangeCheck;
         }
     }
     
-    float rawOcclusion = directOcclusion / 64.0;
-    float occlusionIntensity = 8.0f;
-    float occlusionFactor = saturate(1.0 - (rawOcclusion * occlusionIntensity));
-    occlusionFactor = pow(occlusionFactor, 2.2f);
+    float aoFactor = saturate(1.0 - (ambientOcclusion / 64.0) * 3.0f);
     
-    colorBleeding /= 64.0;
+    float doFactor = saturate(1.0 - (directionalOcclusion / 64.0) * 8.0f);
     
-    return float4(colorBleeding, occlusionFactor);
+    float finalOcclusion = pow(aoFactor * doFactor, 1.5f);
+    
+    colorBleeding = (colorBleeding / 64.0) * 3.14159;
+
+    return float4(colorBleeding, finalOcclusion);
 }

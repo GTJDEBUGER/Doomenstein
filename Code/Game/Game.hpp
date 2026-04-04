@@ -40,17 +40,19 @@ public:
 	Player*                 m_player                        = nullptr;
 	Map*                    m_curMap                        = nullptr;
 	Shader*                 m_skySphereShader               = nullptr;
+	Shader*                 m_fogShader                     = nullptr;
 	Shader*                 m_brightFilterShader            = nullptr;
 	Shader*                 m_horizontalBlurShader          = nullptr;
 	Shader*                 m_verticalBlurShader            = nullptr;
 	Shader*                 m_horizontalBlurWithDepthShader = nullptr;
 	Shader*                 m_verticalBlurWithDepthShader   = nullptr;
 	Shader*                 m_bloomShader                   = nullptr;
-	Shader*                 m_pixelizeShader                = nullptr;
 	Shader*                 m_SSDOShader                    = nullptr;
 	Shader*                 m_SSDOBlendShader               = nullptr;
+	//Shader*                 m_SSGIShader                    = nullptr;
+	//Shader*                 m_SSGIBlendShader               = nullptr;
+	Shader*                 m_FXAAShader                    = nullptr;
 	Shader*                 m_crosshairShader               = nullptr;
-	Shader*                 m_toneMappingShader             = nullptr;
 
 private:
 	void                    InitializeShaders();

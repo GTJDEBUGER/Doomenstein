@@ -135,7 +135,6 @@ void Game::Render() const
 		//-------------------------------------------------------------------------------------------
 		//Post processing
 		g_engine->m_renderer->ResolveSceneToPostProcessing();
-
 		g_engine->m_renderer->SetPostProcessingConstants(
 			m_postProcessingCBO->ScreenProjectionMatrix,
 			m_postProcessingCBO->InverseScreenProjectionMatrix,
@@ -145,20 +144,46 @@ void Game::Render() const
 			m_postProcessingCBO->SSDO_Radius,
 			m_postProcessingCBO->SSDO_Bias
 		);
+
+		//SSDO
 		g_engine->m_renderer->RenderPostProcessing(m_SSDOShader, SamplerMode::BILINEAR_CLAMP);
-		for (int i = 0; i < 4; i++) {
+		
+		for (int i = 0; i < 8; i++) {
+			g_engine->m_renderer->RenderPostProcessing(m_horizontalBlurWithDepthShader, SamplerMode::BILINEAR_CLAMP);
+			g_engine->m_renderer->RenderPostProcessing(m_verticalBlurWithDepthShader, SamplerMode::BILINEAR_CLAMP);
+		}
+		g_engine->m_renderer->RenderPostProcessing(m_SSDOBlendShader);
+		g_engine->m_renderer->CopyCurPPResultToOriginal();
+
+		//SSGI
+		/*
+		g_engine->m_renderer->RenderPostProcessing(m_SSGIShader, SamplerMode::BILINEAR_CLAMP);
+		for (int i = 0; i < 2; i++) {
 			g_engine->m_renderer->RenderPostProcessing(m_horizontalBlurShader, SamplerMode::BILINEAR_CLAMP);
 			g_engine->m_renderer->RenderPostProcessing(m_verticalBlurShader, SamplerMode::BILINEAR_CLAMP);
 		}
-		g_engine->m_renderer->RenderPostProcessing(m_SSDOBlendShader);
-		/*
+		for (int i = 0; i < 2; i++) {
+			g_engine->m_renderer->RenderPostProcessing(m_horizontalBlurWithDepthShader, SamplerMode::BILINEAR_CLAMP);
+			g_engine->m_renderer->RenderPostProcessing(m_verticalBlurWithDepthShader, SamplerMode::BILINEAR_CLAMP);
+		}
+		g_engine->m_renderer->RenderPostProcessing(m_SSGIBlendShader);
+
+		g_engine->m_renderer->CopyCurPPResultToOriginal();*/
+
+		//Fog
+		g_engine->m_renderer->RenderPostProcessing(m_fogShader);
+		g_engine->m_renderer->CopyCurPPResultToOriginal();
+
 		//Bloom
 		g_engine->m_renderer->RenderPostProcessing(m_brightFilterShader);
 		for (int i = 0; i < 4; i++) {
 			g_engine->m_renderer->RenderPostProcessing(m_horizontalBlurShader, SamplerMode::BILINEAR_CLAMP);
 			g_engine->m_renderer->RenderPostProcessing(m_verticalBlurShader, SamplerMode::BILINEAR_CLAMP);
 		}
-		g_engine->m_renderer->RenderPostProcessing(m_bloomShader);*/
+		g_engine->m_renderer->RenderPostProcessing(m_bloomShader);
+
+		//FXAA
+		g_engine->m_renderer->RenderPostProcessing(m_FXAAShader, SamplerMode::BILINEAR_CLAMP);
 
 		//Draw crosshair
 		g_engine->m_renderer->RenderPostProcessing(m_crosshairShader);
@@ -208,16 +233,18 @@ void Game::AddCameraShake(float amp) {
 //---------------------------------------------------------------------------------------------------
 void Game::InitializeShaders() {
 	m_skySphereShader = g_engine->m_renderer->CreateShader("SkySphere", VertexType::PCUTBN);
+	m_fogShader = g_engine->m_renderer->CreateShader("Fog", VertexType::PCU);
 	m_brightFilterShader = g_engine->m_renderer->CreateShader("BrightFilter", VertexType::PCU);
 	m_horizontalBlurShader = g_engine->m_renderer->CreateShader("HorizontalGaussianBlur", VertexType::PCU);
 	m_verticalBlurShader = g_engine->m_renderer->CreateShader("VerticalGaussianBlur", VertexType::PCU);
 	m_horizontalBlurWithDepthShader = g_engine->m_renderer->CreateShader("HorizontalGaussianBlurWithDepth", VertexType::PCU);
 	m_verticalBlurWithDepthShader = g_engine->m_renderer->CreateShader("VerticalGaussianBlurWithDepth", VertexType::PCU);
 	m_bloomShader = g_engine->m_renderer->CreateShader("Bloom", VertexType::PCU);
-	m_pixelizeShader = g_engine->m_renderer->CreateShader("Pixelize", VertexType::PCU);
 	m_SSDOShader = g_engine->m_renderer->CreateShader("SSDO", VertexType::PCU);
 	m_SSDOBlendShader = g_engine->m_renderer->CreateShader("SSDOBlend", VertexType::PCU);
-	m_toneMappingShader = g_engine->m_renderer->CreateShader("ToneMapping", VertexType::PCU);
+	//m_SSGIShader = g_engine->m_renderer->CreateShader("SSGI", VertexType::PCU);
+	//m_SSGIBlendShader = g_engine->m_renderer->CreateShader("SSGIBlend", VertexType::PCU);
+	m_FXAAShader = g_engine->m_renderer->CreateShader("FXAA", VertexType::PCU);
 	m_crosshairShader = g_engine->m_renderer->CreateShader("Crosshair", VertexType::PCU);
 }
 
@@ -250,8 +277,11 @@ void Game::InitializeShaderConstants() {
 		g_gameConfig->m_screenSize.x / 128.f,
 		g_gameConfig->m_screenSize.y / 128.f
 	);
-	m_postProcessingCBO->SSDO_Radius = 1.f;
-	m_postProcessingCBO->SSDO_Bias = 0.025f;
+	m_postProcessingCBO->SSDO_Radius = 1.28f;
+	m_postProcessingCBO->SSDO_Bias = 0.08f;
+	m_postProcessingCBO->screenResolution = g_gameConfig->m_screenSize;
+	m_postProcessingCBO->cameraNear = m_player->m_playerCamera->GetPerspNear();
+	m_postProcessingCBO->cameraFar = m_player->m_playerCamera->GetPerspFar();
 }
 
 //---------------------------------------------------------------------------------------------------

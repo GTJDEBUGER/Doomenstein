@@ -393,9 +393,31 @@ void Map::PushActorOutOfTileIfSolid(Actor* actor, int tileX, int tileY) {
 //-----------------------------------------------------------------------------------------------
 void Map::UpdateSunShadowCamera() {
 	Vec3 sunDir = m_sunDirection.GetNormalized();
-	Vec3 sunPos = GetMapWorldCenter() - (sunDir * 200.f);
+
+	Vec3 idealSunPos = GetMapWorldCenter() - (sunDir * 160.f);
 	EulerAngles sunOrientation = EulerAngles::MakeLookDirectionEulerAngles(sunDir);
-	m_sunShadowCamera->SetPosition(sunPos);
+
+	float orthoWidth = 300.f;
+	float shadowMapRes = 2048.f;
+	float unitsPerTexel = orthoWidth / shadowMapRes;
+
+	Vec3 lightLeft;
+	Vec3 lightUp;
+	Vec3 lightFwd;
+	sunOrientation.GetAsVectors_IFwd_JLeft_KUp(lightFwd, lightLeft, lightUp);
+
+	float xInLightSpace = DotProduct3D(idealSunPos, -lightLeft);
+	float yInLightSpace = DotProduct3D(idealSunPos, lightUp);
+	float zInLightSpace = DotProduct3D(idealSunPos, lightFwd);
+
+	xInLightSpace = floorf(xInLightSpace / unitsPerTexel) * unitsPerTexel;
+	yInLightSpace = floorf(yInLightSpace / unitsPerTexel) * unitsPerTexel;
+
+	Vec3 snappedSunPos = (-lightLeft * xInLightSpace) +
+		(lightUp * yInLightSpace) +
+		(lightFwd * zInLightSpace);
+
+	m_sunShadowCamera->SetPosition(snappedSunPos);
 	m_sunShadowCamera->SetOrientation(sunOrientation);
 }
 

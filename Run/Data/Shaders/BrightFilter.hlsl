@@ -2,6 +2,7 @@
 Texture2D screenColor : register(t0);
 Texture2D originalScreenColor : register(t1);
 Texture2D depthTexture : register(t2);
+Texture2D originalScreenNormal : register(t3);
 SamplerState screenSampler : register(s0);
 
 //----------------------------------------------------------------
@@ -35,6 +36,7 @@ float4 PixelMain(v2p_t input) : SV_Target0
 {
     float4 color = screenColor.Sample(screenSampler, input.uv);
     float rawDepth = depthTexture.Sample(screenSampler, input.uv).r;
+    float3 normal = originalScreenNormal.Sample(screenSampler, input.uv).rgb * 2.0f - 1.0f;
     
     if (rawDepth >= 0.9995f) 
         return float4(0, 0, 0, color.a);

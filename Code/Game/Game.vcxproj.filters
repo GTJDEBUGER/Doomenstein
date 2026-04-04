@@ -160,5 +160,23 @@
     <FxCompile Include="..\..\Run\Data\Shaders\SSDOBlend.hlsl">
       <Filter>Data\Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\SSGI.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\SSGIBlend.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\HorizontalBilateralBlur.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\VerticalBilateralBlur.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\Fog.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\FXAA.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

@@ -186,7 +186,7 @@ void App::HandlePlayerInput(){
 	DebugAddWorldArrow(
 		m_game->m_curMap->GetMapWorldCenter() + Vec3(0,0,20.f),
 		m_game->m_curMap->GetMapWorldCenter() + Vec3(0, 0, 20.f) + m_game->m_curMap->m_sunDirection.GetNormalized() * 10.f,
-		1.f,
+		0.5f,
 		0.f,
 		Rgba8::YELLOW,
 		Rgba8::YELLOW
@@ -405,6 +405,42 @@ void App::HandlePlayerInput(){
 		}
 	}
 
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_RIGHT_MOUSE) && m_game->GetCurGameState() == GAME_PLAYING_MODE) {
+		RaycastResult3D result = m_game->m_curMap->RaycastAll(
+			m_game->m_player->m_position,
+			m_game->m_player->m_orientation.GetForwardDir_IFwd_JLeft_KUp(),
+			1.25f,
+			nullptr
+		);
+
+		DebugAddWorldCylinder(
+			result.m_rayStartPos,
+			result.m_rayStartPos + result.m_rayFwdNormal * result.m_rayMaxLength,
+			0.01f,
+			10.f,
+			Rgba8::WHITE,
+			Rgba8::WHITE,
+			DebugRenderMode::X_RAY
+		);
+
+		if (result.m_didImpact) {
+			DebugAddWorldSphere(
+				result.m_impactPos,
+				0.08f,
+				10.f
+			);
+
+			DebugAddWorldArrow(
+				result.m_impactPos,
+				result.m_impactPos + result.m_impactNormal * 0.5f,
+				0.08f,
+				10.f,
+				Rgba8::BLUE,
+				Rgba8::BLUE
+			);
+		}
+	}
+
 	//Player roll view input
 	float viewRollInput = 0.f;
 	if (g_engine->m_input->IsKeyDown('Q')) {
@@ -558,6 +594,8 @@ void App::PrintGameControlGuide() {
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-ESC Switch from game mode to attract mode or shut down application in attract mode");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-Mouse(XAxis) Control player view yaw");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-Mouse(YAxis) Control player view pitch");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-Mouse(LeftButton) Raycast from player forward direction (10 unit)");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-Mouse(RightButton) Raycast from player forward direction (0.25 unit)");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-Q/E Control player view roll");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-A/D Move left or right, relative to player orientation");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-W/S Move forward or back, relative to player orientation");
