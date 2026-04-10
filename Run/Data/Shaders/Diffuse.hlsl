@@ -109,10 +109,12 @@ float FindBlockerDistance(float2 uv, float zReceiver, float searchRadius)
         }
     }
 
+    float result = -1.0;
     if (blockers > 0)
-        return avgBlockerDepth / (float) blockers;
-    
-    return -1.0;
+    {
+        result = avgBlockerDepth / (float) blockers;
+    }
+    return result;
 }
 
 float CalculateShadow(float4 lightSpacePos, float depthBias)
@@ -120,36 +122,39 @@ float CalculateShadow(float4 lightSpacePos, float depthBias)
     float3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
     projCoords.x = projCoords.x * 0.5 + 0.5;
     projCoords.y = -projCoords.y * 0.5 + 0.5;
-
+    
     if (projCoords.x < 0 || projCoords.x > 1 || projCoords.y < 0 || projCoords.y > 1)
+    {
         return 1.0;
+    }
 
     float zReceiver = projCoords.z - depthBias;
-    
     float searchRadius = 0.005;
+    
     float avgBlockerDepth = FindBlockerDistance(projCoords.xy, zReceiver, searchRadius);
-
-    if (avgBlockerDepth <= 0.0)
+    
+    if (avgBlockerDepth < 0.0)
+    {
         return 1.0;
+    }
     
-    float penumbra = ((zReceiver - avgBlockerDepth) * LIGHT_SIZE) / avgBlockerDepth;
-    
+    float penumbra = ((zReceiver - avgBlockerDepth) * LIGHT_SIZE) / max(avgBlockerDepth, 0.0001);
     float spread = clamp(penumbra, 0.0, 0.01);
-
+    
     if (zReceiver - avgBlockerDepth < 0.001)
     {
         spread = 0.0;
     }
     
-    float shadow = 0.0;
+    float totalShadow = 0.0;
     [unroll]
-    for (int i = 0; i < 32; i++)
+    for (int j = 0; j < 32; j++)
     {
-        float2 sampleUV = projCoords.xy + PoissonDisk[i] * spread;
-        shadow += shadowMapTexture.SampleCmp(shadowMapSampler, sampleUV, zReceiver);
+        float2 sampleUV = projCoords.xy + PoissonDisk[j] * spread;
+        totalShadow += shadowMapTexture.SampleCmp(shadowMapSampler, sampleUV, zReceiver);
     }
     
-    return shadow / 32.0;
+    return totalShadow / 32.0;
 }
 
 //------------------------------------------------------------------------------------------------
