@@ -109,9 +109,10 @@ float FindBlockerDistance(float2 uv, float zReceiver, float searchRadius)
         }
     }
 
-    if (blockers == 0)
-        return -1.0;
-    return avgBlockerDepth / (float) blockers;
+    if (blockers > 0)
+        return avgBlockerDepth / (float) blockers;
+    
+    return -1.0;
 }
 
 float CalculateShadow(float4 lightSpacePos, float depthBias)
@@ -128,7 +129,7 @@ float CalculateShadow(float4 lightSpacePos, float depthBias)
     float searchRadius = 0.005;
     float avgBlockerDepth = FindBlockerDistance(projCoords.xy, zReceiver, searchRadius);
 
-    if (avgBlockerDepth == -1.0)
+    if (avgBlockerDepth <= 0.0)
         return 1.0;
     
     float penumbra = ((zReceiver - avgBlockerDepth) * LIGHT_SIZE) / avgBlockerDepth;
