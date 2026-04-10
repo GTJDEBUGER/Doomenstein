@@ -394,7 +394,7 @@ void Map::PushActorOutOfTileIfSolid(Actor* actor, int tileX, int tileY) {
 void Map::UpdateSunShadowCamera() {
 	Vec3 sunDir = m_sunDirection.GetNormalized();
 
-	Vec3 idealSunPos = GetMapWorldCenter() - (sunDir * 160.f);
+	Vec3 idealSunPos = GetMapWorldCenter() - (sunDir * 180.f);
 	EulerAngles sunOrientation = EulerAngles::MakeLookDirectionEulerAngles(sunDir);
 
 	float orthoWidth = 300.f;

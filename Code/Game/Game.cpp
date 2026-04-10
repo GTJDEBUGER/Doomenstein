@@ -82,6 +82,9 @@ void Game::Update()
 	//-----------------------------------------------------------------------------------------------
 	//Update game mode
 	if (m_curGameState == GAME_PLAYING_MODE) {
+		//Update game constants
+		g_engine->m_renderer->SetGameConstants((float)m_gameClock->GetTotalSeconds());
+
 		//Handle cursor mode  
 		if (g_engine->m_devConsole->IsOpen() || !g_engine->m_window->m_isWindowFocus) {
 			g_engine->m_input->SetCursorMode(CursorMode::POINTER);
@@ -142,7 +145,10 @@ void Game::Render() const
 			m_postProcessingCBO->SSDO_Samples,
 			m_postProcessingCBO->SSDO_NoiseScale,
 			m_postProcessingCBO->SSDO_Radius,
-			m_postProcessingCBO->SSDO_Bias
+			m_postProcessingCBO->SSDO_Bias,
+			m_postProcessingCBO->screenResolution,
+			m_postProcessingCBO->cameraNear,
+			m_postProcessingCBO->cameraFar
 		);
 
 		//SSDO
@@ -170,12 +176,13 @@ void Game::Render() const
 
 		g_engine->m_renderer->CopyCurPPResultToOriginal();*/
 
+		
 		//Fog
-		g_engine->m_renderer->RenderPostProcessing(m_fogShader);
+		g_engine->m_renderer->RenderPostProcessing(m_fogShader, SamplerMode::BILINEAR_CLAMP);
 		g_engine->m_renderer->CopyCurPPResultToOriginal();
 
 		//Bloom
-		g_engine->m_renderer->RenderPostProcessing(m_brightFilterShader);
+		g_engine->m_renderer->RenderPostProcessing(m_brightFilterShader, SamplerMode::BILINEAR_CLAMP);
 		for (int i = 0; i < 4; i++) {
 			g_engine->m_renderer->RenderPostProcessing(m_horizontalBlurShader, SamplerMode::BILINEAR_CLAMP);
 			g_engine->m_renderer->RenderPostProcessing(m_verticalBlurShader, SamplerMode::BILINEAR_CLAMP);
@@ -274,11 +281,11 @@ void Game::InitializeShaderConstants() {
 		m_postProcessingCBO->SSDO_Samples[i] = Vec4(sample.x, sample.y, sample.z, 0.0f);
 	}
 	m_postProcessingCBO->SSDO_NoiseScale = Vec2(
-		g_gameConfig->m_screenSize.x / 128.f,
-		g_gameConfig->m_screenSize.y / 128.f
+		g_gameConfig->m_screenSize.x / 64.f,
+		g_gameConfig->m_screenSize.y / 64.f
 	);
 	m_postProcessingCBO->SSDO_Radius = 1.28f;
-	m_postProcessingCBO->SSDO_Bias = 0.08f;
+	m_postProcessingCBO->SSDO_Bias = 0.04f;
 	m_postProcessingCBO->screenResolution = g_gameConfig->m_screenSize;
 	m_postProcessingCBO->cameraNear = m_player->m_playerCamera->GetPerspNear();
 	m_postProcessingCBO->cameraFar = m_player->m_playerCamera->GetPerspFar();
@@ -361,7 +368,7 @@ void Game::UpdateDebugInfo() {
 		Vec2(1.f, 0.5f),
 		0.f
 	);
-
+	
 	DebugAddScreenText(
 		Stringf("<color=255,255,0>[Sun Direction]</color> <color=255,0,0>x=%.2f (F2-/F3+)</color> | <color=0,255,0>y=%.2f (F4-/F5+)</color> | <color=0,0,255>z=%.2f</color>",
 			m_curMap->m_sunDirection.x,
