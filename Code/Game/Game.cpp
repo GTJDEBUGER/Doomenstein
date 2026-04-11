@@ -152,6 +152,7 @@ void Game::Render() const
 		);
 
 		//SSDO
+		/*
 		g_engine->m_renderer->RenderPostProcessing(m_SSDOShader, SamplerMode::BILINEAR_CLAMP);
 		
 		for (int i = 0; i < 8; i++) {
@@ -159,7 +160,7 @@ void Game::Render() const
 			g_engine->m_renderer->RenderPostProcessing(m_verticalBlurWithDepthShader, SamplerMode::BILINEAR_CLAMP);
 		}
 		g_engine->m_renderer->RenderPostProcessing(m_SSDOBlendShader);
-		g_engine->m_renderer->CopyCurPPResultToOriginal();
+		g_engine->m_renderer->CopyCurPPResultToOriginal();*/
 
 		//SSGI
 		/*
