@@ -24,7 +24,6 @@ struct p_out
 {
     float4 color : SV_Target0;
     float4 normal : SV_Target1;
-    float4 ambient : SV_Target2;
 };
 
 //------------------------------------------------------------------------------------------------
@@ -221,6 +220,5 @@ p_out PixelMain(v2p_t input)
     clip(color.a - 0.01f);
     output.color = color;
     output.normal = float4(0.f, 0.f, 0.f, 1.0f);
-    output.ambient = float4(0.f, 0.f, 0.f, 1.0f);
     return output;
 }
