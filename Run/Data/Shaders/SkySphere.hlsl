@@ -124,50 +124,50 @@ float GetCloudDensity(float3 p)
 
 float4 RenderClouds(float3 ro, float3 rd, float3 sunDir, float3 moonDir, float dayFactor, float3 sunsetColor)
 {
-    if (rd.z <= 0.02)
-        return float4(0, 0, 0, 0);
+    float4 result = float4(0.0, 0.0, 0.0, 0.0);
     
-    float cloudHeight = 1500.0;
-    float dist = cloudHeight / max(rd.z, 0.001);
-    float3 startPos = ro + rd * dist;
-    
-    float3 stepDir = rd * 250.0;
-    float totalDensity = 0.0;
-    float lightScattering = 0.0;
-    
-    float3 activeLightDir = lerp(moonDir, sunDir, smoothstep(0.0, 0.2, dayFactor));
-    
-    for (int i = 0; i < 8; i++)
+    if (rd.z > 0.02)
     {
-        float3 p = startPos + stepDir * i;
-        float density = GetCloudDensity(p);
+        float cloudHeight = 1500.0;
+        float dist = cloudHeight / max(rd.z, 0.001);
+        float3 startPos = ro + rd * dist;
+        float3 stepDir = rd * 250.0;
+        float totalDensity = 0.0;
+        float lightScattering = 0.0;
+        float3 activeLightDir = lerp(moonDir, sunDir, smoothstep(0.0, 0.2, dayFactor));
         
-        if (density > 0.01)
+        for (int i = 0; i < 8; i++)
         {
-            float shadowDensity = GetCloudDensity(p + activeLightDir * 150.0)
-                                + GetCloudDensity(p + activeLightDir * 300.0);
+            float3 p = startPos + stepDir * i;
+            float density = GetCloudDensity(p);
             
-            float transmittance = exp(-shadowDensity * 0.5);
-            
-            totalDensity += density * (1.0 - totalDensity);
-            
-            lightScattering += density * transmittance * (1.0 - totalDensity) * 1.5;
-            
-            if (totalDensity > 0.99)
-                break;
+            if (density > 0.01)
+            {
+                float shadowDensity = GetCloudDensity(p + activeLightDir * 150.0)
+                                    + GetCloudDensity(p + activeLightDir * 300.0);
+                float transmittance = exp(-shadowDensity * 0.5);
+                
+                totalDensity += density * (1.0 - totalDensity);
+                lightScattering += density * transmittance * (1.0 - totalDensity) * 1.5;
+                
+                if (totalDensity > 0.99)
+                    break;
+            }
         }
+        
+        float3 baseColor = lerp(float3(0.2, 0.25, 0.35), float3(0.85, 0.9, 0.95), dayFactor);
+        float3 highlightColor = lerp(float3(0.5, 0.6, 0.8), float3(1.0, 1.0, 1.0), dayFactor);
+        
+        float sunsetFactor = saturate(1.0 - abs(sunDir.z * 3.0));
+        highlightColor = lerp(highlightColor, sunsetColor, sunsetFactor * dayFactor);
+        
+        float3 finalCloudColor = lerp(baseColor, highlightColor, lightScattering);
+        float horizonFade = smoothstep(0.02, 0.15, rd.z);
+        
+        result = float4(finalCloudColor, saturate(totalDensity * horizonFade));
     }
     
-    float3 baseColor = lerp(float3(0.2, 0.25, 0.35), float3(0.85, 0.9, 0.95), dayFactor);
-    float3 highlightColor = lerp(float3(0.5, 0.6, 0.8), float3(1.0, 1.0, 1.0), dayFactor);
-    
-    float sunsetFactor = saturate(1.0 - abs(sunDir.z * 3.0));
-    highlightColor = lerp(highlightColor, sunsetColor, sunsetFactor * dayFactor);
-    
-    float3 finalCloudColor = lerp(baseColor, highlightColor, lightScattering);
-    float horizonFade = smoothstep(0.02, 0.15, rd.z);
-    
-    return float4(finalCloudColor, saturate(totalDensity * horizonFade));
+    return result;
 }
 
 //------------------------------------------------------------------------------------------------
