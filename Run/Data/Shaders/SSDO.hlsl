@@ -61,7 +61,8 @@ float3 GetRandomVec(float2 uv, float2 screenResolution)
 
 float3 GetViewPos(float2 uv)
 {
-    float depth = depthTexture.Sample(screenSampler, uv).r;
+    float depth = depthTexture.SampleLevel(screenSampler, uv, 0).r;
+    
     float4 clipPos = float4(uv.x * 2.0 - 1.0, (1.0 - uv.y) * 2.0 - 1.0, depth, 1.0);
     float4 viewPos = mul(invProjectionMatrix, clipPos);
     return viewPos.xyz / viewPos.w;
