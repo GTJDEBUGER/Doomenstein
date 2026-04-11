@@ -119,43 +119,42 @@ float FindBlockerDistance(float2 uv, float zReceiver, float searchRadius)
 
 float CalculateShadow(float4 lightSpacePos, float depthBias)
 {
+    float finalShadow = 1.0;
+
     float3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
     projCoords.x = projCoords.x * 0.5 + 0.5;
     projCoords.y = -projCoords.y * 0.5 + 0.5;
     
-    if (projCoords.x < 0 || projCoords.x > 1 || projCoords.y < 0 || projCoords.y > 1)
+    if (projCoords.x >= 0.0 && projCoords.x <= 1.0 && projCoords.y >= 0.0 && projCoords.y <= 1.0)
     {
-        return 1.0;
+        float zReceiver = projCoords.z - depthBias;
+        float searchRadius = 0.005;
+        
+        float avgBlockerDepth = FindBlockerDistance(projCoords.xy, zReceiver, searchRadius);
+        
+        if (avgBlockerDepth >= 0.0)
+        {
+            float penumbra = ((zReceiver - avgBlockerDepth) * LIGHT_SIZE) / max(avgBlockerDepth, 0.0001);
+            float spread = clamp(penumbra, 0.0, 0.01);
+            
+            if (zReceiver - avgBlockerDepth < 0.001)
+            {
+                spread = 0.0;
+            }
+            
+            float totalShadow = 0.0;
+            [unroll]
+            for (int j = 0; j < 32; j++)
+            {
+                float2 sampleUV = projCoords.xy + PoissonDisk[j] * spread;
+                totalShadow += shadowMapTexture.SampleCmp(shadowMapSampler, sampleUV, zReceiver);
+            }
+            
+            finalShadow = totalShadow / 32.0;
+        }
     }
-
-    float zReceiver = projCoords.z - depthBias;
-    float searchRadius = 0.005;
     
-    float avgBlockerDepth = -1.0;
-    avgBlockerDepth = FindBlockerDistance(projCoords.xy, zReceiver, searchRadius);
-    
-    if (avgBlockerDepth < 0.0)
-    {
-        return 1.0;
-    }
-    
-    float penumbra = ((zReceiver - avgBlockerDepth) * LIGHT_SIZE) / max(avgBlockerDepth, 0.0001);
-    float spread = clamp(penumbra, 0.0, 0.01);
-    
-    if (zReceiver - avgBlockerDepth < 0.001)
-    {
-        spread = 0.0;
-    }
-    
-    float totalShadow = 0.0;
-    [unroll]
-    for (int j = 0; j < 32; j++)
-    {
-        float2 sampleUV = projCoords.xy + PoissonDisk[j] * spread;
-        totalShadow += shadowMapTexture.SampleCmp(shadowMapSampler, sampleUV, zReceiver);
-    }
-    totalShadow /= 32.0;
-    return totalShadow;
+    return finalShadow;
 }
 
 //------------------------------------------------------------------------------------------------
