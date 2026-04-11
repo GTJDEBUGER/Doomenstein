@@ -153,10 +153,8 @@ float CalculateShadow(float4 lightSpacePos, float depthBias)
         float2 sampleUV = projCoords.xy + PoissonDisk[j] * spread;
         totalShadow += shadowMapTexture.SampleCmp(shadowMapSampler, sampleUV, zReceiver);
     }
-    
-    return totalShadow / 32.0;
-    
-    return 1.0;
+    totalShadow /= 32.0;
+    return totalShadow;
 }
 
 //------------------------------------------------------------------------------------------------
