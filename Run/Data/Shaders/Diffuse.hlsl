@@ -131,7 +131,8 @@ float CalculateShadow(float4 lightSpacePos, float depthBias)
     float zReceiver = projCoords.z - depthBias;
     float searchRadius = 0.005;
     
-    float avgBlockerDepth = FindBlockerDistance(projCoords.xy, zReceiver, searchRadius);
+    float avgBlockerDepth = -1.0;
+    avgBlockerDepth = FindBlockerDistance(projCoords.xy, zReceiver, searchRadius);
     
     if (avgBlockerDepth < 0.0)
     {
