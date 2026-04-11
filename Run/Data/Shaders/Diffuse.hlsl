@@ -155,6 +155,8 @@ float CalculateShadow(float4 lightSpacePos, float depthBias)
     }
     
     return totalShadow / 32.0;
+    
+    return 1.0;
 }
 
 //------------------------------------------------------------------------------------------------
