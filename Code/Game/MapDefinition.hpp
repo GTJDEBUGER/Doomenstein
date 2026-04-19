@@ -12,11 +12,10 @@ class Shader;
 class Texture;
 
 struct SpawnInfo {
-	std::string m_actorType = "undefinedActor";
+	std::string m_actorName = "undefinedActor";
 	Vec3 m_spawnPosition = Vec3(0.f, 0.f, 0.f);
 	EulerAngles m_spawnOrientation = EulerAngles(0.f, 0.f, 0.f);
 	Vec3 m_spawnScale = Vec3(1.f, 1.f, 1.f);
-	bool m_isPhysicsSimul = false;
 };
 
 //-----------------------------------------------------------------------------------------------
@@ -31,12 +30,13 @@ public:
 		Texture* mapTexture,
 		Texture* mapNormalTexture,
 		Texture* mapAOTexture,
+		Texture* mapParallaxTexture,
 		Texture* mapRoughnessTexture,
 		Texture* mapMetallicTexture,
 		IntVec2 mapTextureDimentions,
 		float tileSize
 	);
-	static void InitializeMapDefs();
+	static void InitializeMapDefs(std::string configPath);
 
 public:
 	static std::map<std::string, MapDefinition> s_definitions;
@@ -46,6 +46,7 @@ public:
 	Texture*               m_mapTexture = nullptr;
 	Texture*			   m_mapNormalTexture = nullptr;
 	Texture*               m_mapAOTexture = nullptr;
+	Texture*               m_mapParallaxTexture = nullptr;
 	Texture*               m_mapRoughnessTexture = nullptr;
 	Texture*			   m_mapMetallicTexture = nullptr;
 	IntVec2                m_mapTextureDimentions = IntVec2(0, 0);

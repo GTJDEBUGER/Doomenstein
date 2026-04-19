@@ -1,4 +1,6 @@
 #pragma once
+#include "Game/MapDefinition.hpp"
+#include "Game/ActorHandle.hpp"
 #include "Engine/Math/AABB2.hpp"
 #include "Engine/Math/AABB3.hpp"
 #include "Engine/Math/MathUtils.hpp"
@@ -9,7 +11,6 @@
 
 //-----------------------------------------------------------------------------------------------
 class Game;
-class MapDefinition;
 class Tile;
 class Actor;
 class Texture;
@@ -17,19 +18,12 @@ class Shader;
 class VertexBuffer;
 class IndexBuffer;
 class Camera;
-
-//-----------------------------------------------------------------------------------------------
-enum class ActorType
-{
-	DEMON,
-	PROJECTILE,
-	COUNT
-};
+class PlayerController;
 
 //-----------------------------------------------------------------------------------------------
 class Map {
 public:
-	Map(Game* game, MapDefinition const* definition);
+	Map(Game* game, MapDefinition const& definition);
 	~Map();
 
 	void CreateCameras();
@@ -51,37 +45,51 @@ public:
 	bool AreCoordsInBounds(int x, int y) const;
 	Tile const* GetTile(int x, int y) const;
 	Vec3 GetMapWorldCenter() const;
+	IntVec2 GetTileCoordsForPosition(Vec3 const& position) const;
 	Mat44 GetSunShadowCameraViewProjMatrix() const;
 
 	void Update();
 	void CollideActors();
 	void CollideActors(Actor* actorA, Actor* actorB);
 	void CollideActorsWithMap();
-	IntVec2 GetTileCoordsForPosition(Vec3 const& position) const;
-	void CollideActorWithMap(Actor* actor);
-	void PushActorOutOfTileIfSolid(Actor* actor, int tileX, int tileY);
+	bool CollideActorWithMap(Actor* actor);
+	void ClearDeadActors();
+
+	bool PushActorOutOfTileIfSolid(Actor* actor, int tileX, int tileY);
+	bool PushActorOutofFloor(Actor* actor, int tileX, int tileY);
 	void UpdateSunShadowCamera();
 
 	void Render() const;
 	void RenderShadowmap() const;
+
 	RaycastResult3D RaycastAll(Vec3 const& start, Vec3 const& direction, float distance, Actor* owner = nullptr) const;
 	RaycastResult3D RaycastWorldXY(Vec3 const& start, Vec3 const& direction, float distance) const;
 	RaycastResult3D RaycastWorldZ(Vec3 const& start, Vec3 const& direction, float distance) const;
-	RaycastResult3D RaycastWorldActors(Vec3 const& start, Vec3 const& direction, float distance, Actor* owner = nullptr) const;
+	RaycastResult3D RaycastWorldActors(Vec3 const& start, Vec3 const& direction, float distance, Actor* owner = nullptr, Actor** hitActorPointer = nullptr) const;
+	bool SectorDetectWorldActors(Vec3 const& center, Vec3 const& forward, float radius, float angleDegrees, Actor* owner = nullptr, std::vector<Actor*>* out_actors = nullptr) const;
 
-	ActorType StringToActorType(std::string const& str);
 	void SpawnActors();
-	void SpawnActor(ActorType type, Vec3 const& pos, EulerAngles const& ori=EulerAngles(), Vec3 const& scale=Vec3(1.f,1.f,1.f), bool isPhysicsSimul = false);
+	void RespawnPlayers();
+	Actor* SpawnActor(SpawnInfo const& spawnInfo);
+	Actor* SpawnPlayerActor(SpawnInfo const& spawnInfo, PlayerController* controller);
+	Actor* GetActorByHandle(ActorHandle const handle) const;
+	Actor* GetRandomSpwanPoint() const;
+	Actor* GetNextValidActorLoop(ActorHandle const curHandle) const;
+	Actor* GetNearestActor(Actor* source, std::string const& faction) const;
 
 public:
 	Game* m_game = nullptr;
-	Vec3  m_sunDirection = Vec3(2.f, 1.f, -1.f);
+	Vec3  m_sunDirection = Vec3(1.0f, 2.0f, -1.f);
 	float m_sunIntensity = 0.85f;
 	float m_ambientIntensity = 0.35f;
+	float m_timeOfDay = 8.f;
+	float m_simulatTimeScale = 0.1f; // 1 game second equals to 1 simulated hour
+	float m_simulatLatitude = 30.659462f;
+	float m_simulatDeclination = 0.f;
 	Camera* m_sunShadowCamera = nullptr;
 
 protected:
-	MapDefinition const* m_definition = nullptr;
+	MapDefinition const& m_definition;
 	std::vector<Tile> m_tiles;
 	IntVec2 m_dimensions = IntVec2(0, 0);
 
@@ -92,4 +100,6 @@ protected:
 	Shader* m_shadowMapShader = nullptr;
 
 	std::vector<Actor*> m_actors;
+	std::vector<ActorHandle*> m_respawnActorsHandle;
+	unsigned int m_nextActorUID = 1;
 };

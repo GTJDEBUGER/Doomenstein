@@ -14,6 +14,7 @@ struct GameConfig
 	std::string m_defaultMap;
 	std::string m_windowName;
 	float m_debugSlowdownTimescale;
+	float m_debugSpeedupTimescale;
 	Vec2 m_screenSize;
 	Vec2 m_screenCenter;
 	float m_screenAspect;

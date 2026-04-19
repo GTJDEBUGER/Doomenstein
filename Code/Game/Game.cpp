@@ -1,8 +1,10 @@
 #include "Game/Game.hpp"
 #include "Game/GameCommon.hpp"
 #include "Game/App.hpp"
-#include "Game/Player.hpp"
 #include "Game/Map.hpp"
+#include "Game/PlayerController.hpp"
+#include "Game/Actor.hpp"
+#include "Game/Weapon.hpp"
 
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
@@ -38,8 +40,8 @@ Game::Game()
 
 	m_randomGenerator = new RandomNumberGenerator();
 
-	m_player = new Player(this, Vec3(12.5f, 42.5f, 2.5f));
-	m_curMap = new Map(this, &MapDefinition::s_definitions[g_gameConfig->m_defaultMap]);
+	m_curMap = new Map(this, MapDefinition::s_definitions[g_gameConfig->m_defaultMap]);
+	m_playerController = new PlayerController(m_curMap);
 
 	InitializeShaders();
 	InitializeShaderConstants();
@@ -57,8 +59,8 @@ Game::~Game()
 	delete m_curMap;
 	m_curMap = nullptr;
 
-	delete m_player;
-	m_player = nullptr;
+	delete m_playerController;
+	m_playerController = nullptr;
 
 	delete m_randomGenerator;
 	m_randomGenerator = nullptr;
@@ -94,7 +96,8 @@ void Game::Update()
 		}
 
 		//-------------------------------------------------------------------------------------------
-		m_player->Update();
+		m_playerController->UpdateInput();
+		m_playerController->UpdateCamera();
 		m_curMap->Update();
 		UpdateCameras();
 		UpdateShaderConstants();
@@ -126,17 +129,17 @@ void Game::Render() const
 		g_engine->m_renderer->EndShadowCamera(*(m_curMap->m_sunShadowCamera));
 
 		//For GameScene
-		g_engine->m_renderer->BeginCamera(*(m_player->m_playerCamera));
+		g_engine->m_renderer->BeginCamera(*(m_playerController->m_playerCamera));
 
 		RenderSkySphere();
 		RenderGamePlay();
 
-		g_engine->m_renderer->EndCamera(*(m_player->m_playerCamera));
+		g_engine->m_renderer->EndCamera(*(m_playerController->m_playerCamera));
 
-		DebugRenderWorld(*(m_player->m_playerCamera));
+		DebugRenderWorld(*(m_playerController->m_playerCamera));
 
 		//-------------------------------------------------------------------------------------------
-		//Post processing
+		//Post processing 
 		g_engine->m_renderer->ResolveSceneToPostProcessing();
 		g_engine->m_renderer->SetPostProcessingConstants(
 			m_postProcessingCBO->ScreenProjectionMatrix,
@@ -158,6 +161,7 @@ void Game::Render() const
 			g_engine->m_renderer->RenderPostProcessing(m_horizontalBlurWithDepthShader, SamplerMode::BILINEAR_CLAMP);
 			g_engine->m_renderer->RenderPostProcessing(m_verticalBlurWithDepthShader, SamplerMode::BILINEAR_CLAMP);
 		}
+
 		g_engine->m_renderer->RenderPostProcessing(m_SSDOBlendShader);
 		g_engine->m_renderer->CopyCurPPResultToOriginal();
 
@@ -181,6 +185,11 @@ void Game::Render() const
 		g_engine->m_renderer->RenderPostProcessing(m_fogShader, SamplerMode::BILINEAR_CLAMP);
 		g_engine->m_renderer->CopyCurPPResultToOriginal();
 
+		//Volume Light
+		g_engine->m_renderer->RenderPostProcessing(m_volumeLightShader, SamplerMode::BILINEAR_CLAMP);
+		g_engine->m_renderer->CopyCurPPResultToOriginal();
+
+		
 		//Bloom
 		g_engine->m_renderer->RenderPostProcessing(m_brightFilterShader, SamplerMode::BILINEAR_CLAMP);
 		for (int i = 0; i < 4; i++) {
@@ -241,11 +250,14 @@ void Game::AddCameraShake(float amp) {
 void Game::InitializeShaders() {
 	m_skySphereShader = g_engine->m_renderer->CreateShader("SkySphere", VertexType::PCUTBN);
 	m_fogShader = g_engine->m_renderer->CreateShader("Fog", VertexType::PCU);
+	m_volumeLightShader = g_engine->m_renderer->CreateShader("VolumeLight", VertexType::PCU);
 	m_brightFilterShader = g_engine->m_renderer->CreateShader("BrightFilter", VertexType::PCU);
 	m_horizontalBlurShader = g_engine->m_renderer->CreateShader("HorizontalGaussianBlur", VertexType::PCU);
 	m_verticalBlurShader = g_engine->m_renderer->CreateShader("VerticalGaussianBlur", VertexType::PCU);
 	m_horizontalBlurWithDepthShader = g_engine->m_renderer->CreateShader("HorizontalGaussianBlurWithDepth", VertexType::PCU);
 	m_verticalBlurWithDepthShader = g_engine->m_renderer->CreateShader("VerticalGaussianBlurWithDepth", VertexType::PCU);
+	m_horizobtalBilateralBlurShader = g_engine->m_renderer->CreateShader("HorizontalBilateralBlur", VertexType::PCU);
+	m_verticalBilateralBlurShader = g_engine->m_renderer->CreateShader("VerticalBilateralBlur", VertexType::PCU);
 	m_bloomShader = g_engine->m_renderer->CreateShader("Bloom", VertexType::PCU);
 	m_SSDOShader = g_engine->m_renderer->CreateShader("SSDO", VertexType::PCU);
 	m_SSDOBlendShader = g_engine->m_renderer->CreateShader("SSDOBlend", VertexType::PCU);
@@ -258,10 +270,10 @@ void Game::InitializeShaders() {
 //---------------------------------------------------------------------------------------------------
 void Game::InitializeShaderConstants() {
 	m_postProcessingCBO = new PostProcessingConstants();
-	m_postProcessingCBO->ScreenProjectionMatrix = m_player->m_playerCamera->GetProjectionMat();
-	m_postProcessingCBO->InverseScreenProjectionMatrix = m_player->m_playerCamera->GetInverseProjectionMat();
-	Mat44 worldToRenderer = m_player->m_playerCamera->GetCameraToRendererTransform();
-	worldToRenderer.Append(m_player->m_playerCamera->GetWorldToCameraTransform());
+	m_postProcessingCBO->ScreenProjectionMatrix = m_playerController->m_playerCamera->GetProjectionMat();
+	m_postProcessingCBO->InverseScreenProjectionMatrix = m_playerController->m_playerCamera->GetInverseProjectionMat();
+	Mat44 worldToRenderer = m_playerController->m_playerCamera->GetCameraToRendererTransform();
+	worldToRenderer.Append(m_playerController->m_playerCamera->GetWorldToCameraTransform());
 	m_postProcessingCBO->WorldToRendererTransform = worldToRenderer;
 	for (int i = 0; i < 64; ++i)
 	{
@@ -287,15 +299,19 @@ void Game::InitializeShaderConstants() {
 	m_postProcessingCBO->SSDO_Radius = 1.28f;
 	m_postProcessingCBO->SSDO_Bias = 0.04f;
 	m_postProcessingCBO->screenResolution = g_gameConfig->m_screenSize;
-	m_postProcessingCBO->cameraNear = m_player->m_playerCamera->GetPerspNear();
-	m_postProcessingCBO->cameraFar = m_player->m_playerCamera->GetPerspFar();
+	m_postProcessingCBO->cameraNear = m_playerController->m_playerCamera->GetPerspNear();
+	m_postProcessingCBO->cameraFar = m_playerController->m_playerCamera->GetPerspFar();
 }
 
 //---------------------------------------------------------------------------------------------------
 void Game::UpdateShaderConstants() {
-	Mat44 worldToRenderer = m_player->m_playerCamera->GetCameraToRendererTransform();
-	worldToRenderer.Append(m_player->m_playerCamera->GetWorldToCameraTransform());
+	m_postProcessingCBO->ScreenProjectionMatrix = m_playerController->m_playerCamera->GetProjectionMat();
+	m_postProcessingCBO->InverseScreenProjectionMatrix = m_playerController->m_playerCamera->GetInverseProjectionMat();
+	Mat44 worldToRenderer = m_playerController->m_playerCamera->GetCameraToRendererTransform();
+	worldToRenderer.Append(m_playerController->m_playerCamera->GetWorldToCameraTransform());
 	m_postProcessingCBO->WorldToRendererTransform = worldToRenderer;
+	m_postProcessingCBO->cameraNear = m_playerController->m_playerCamera->GetPerspNear();
+	m_postProcessingCBO->cameraFar = m_playerController->m_playerCamera->GetPerspFar();
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -303,7 +319,7 @@ void Game::InitializeSkySphere() {
 	AddVertexForSphere3D(
 		m_skySphereVerts,
 		m_skySphereIndexs,
-		m_player->m_playerCamera->GetPosition(),
+		m_playerController->m_playerCamera->GetPosition(),
 		500.f,
 		Rgba8::WHITE,
 		AABB2::ZERO_TO_ONE,
@@ -312,13 +328,13 @@ void Game::InitializeSkySphere() {
 		true
 	);
 
-	m_skySphereVertexBuffer = g_engine->m_renderer->CreateVertexBuffer(static_cast<unsigned int>(m_skySphereVerts.size()), sizeof(Vertex_TBN));
+	m_skySphereVertexBuffer = g_engine->m_renderer->CreateVertexBuffer(static_cast<unsigned int>(m_skySphereVerts.size()) * sizeof(Vertex_TBN), sizeof(Vertex_TBN));
 	g_engine->m_renderer->CopyCPUToGPU(
 		m_skySphereVerts.data(),
 		static_cast<unsigned int>(m_skySphereVerts.size() * sizeof(Vertex_TBN)),
 		m_skySphereVertexBuffer
 	);
-	m_skySphereIndexBuffer = g_engine->m_renderer->CreateIndexBuffer(static_cast<unsigned int>(m_skySphereIndexs.size()));
+	m_skySphereIndexBuffer = g_engine->m_renderer->CreateIndexBuffer(static_cast<unsigned int>(m_skySphereIndexs.size()) * sizeof(unsigned int));
 	g_engine->m_renderer->CopyCPUToGPU(
 		m_skySphereIndexs.data(),
 		static_cast<unsigned int>(m_skySphereIndexs.size() * sizeof(unsigned int)),
@@ -331,7 +347,7 @@ void Game::UpdateSkySphere() {
 	std::vector<Vertex_TBN> updatedVerts;
 	for (const Vertex_TBN& vert : m_skySphereVerts) {
 		Vertex_TBN updatedVert = vert;
-		updatedVert.m_position += m_player->m_playerCamera->GetPosition();
+		updatedVert.m_position += m_playerController->m_playerCamera->GetPosition();
 		updatedVerts.push_back(updatedVert);
 	}
 	g_engine->m_renderer->CopyCPUToGPU(
@@ -344,7 +360,7 @@ void Game::UpdateSkySphere() {
 //---------------------------------------------------------------------------------------------------
 void Game::UpdateCameras() {
 	DecayCameraShake();
-	m_player->m_playerCamera->Translate3D(
+	m_playerController->m_playerCamera->Translate3D(
 		Vec3(
 			m_randomGenerator->RollRandomFloatZeroToOne() * m_curCameraShakeAmp,
 		    m_randomGenerator->RollRandomFloatZeroToOne() * m_curCameraShakeAmp,
@@ -355,14 +371,33 @@ void Game::UpdateCameras() {
 //---------------------------------------------------------------------------------------------------
 void Game::UpdateDebugInfo() {
 	DebugAddScreenText(
-		Stringf("<color=0,255,255>[Game Clock] Time: %.2f | FPS: %.1f | Time Scale %.2f </color>", 
+		Stringf("<style:color=255,225,0;shadow=true>[Game Clock] Time: %.2f | FPS: %.1f | Time Scale %.2f </style>", 
 			m_gameClock->GetTotalSeconds(), 
 			1.0 / m_gameClock->GetDeltaSeconds(),
 			m_gameClock->GetTimeScale()
 		), 
 		AABB2(
-			Vec2(15.f, g_gameConfig->m_screenSize.y - 15.f),
+			Vec2(0.f, g_gameConfig->m_screenSize.y - 15.f),
 			Vec2(g_gameConfig->m_screenSize.x - 5.f, g_gameConfig->m_screenSize.y - 5.f)
+		),
+		10.f,
+		Vec2(1.f, 0.5f),
+		0.f
+	);
+
+	float mapSimulationHours = m_curMap->m_timeOfDay;
+	DebugAddScreenText(
+		Stringf("<style:color=255,225,0;shadow=true>[Map Simulation Time] %c%c:%c%c:%c%c </style>",
+			(mapSimulationHours / 10.f) >= 1.f ? (int)(mapSimulationHours / 10.f) % 10 + '0' : '0',
+			(int)mapSimulationHours % 10 + '0',
+			(mapSimulationHours * 60.f / 10.f) >= 1.f ? (int)(mapSimulationHours * 60.f / 10.f) % 6 + '0' : '0',
+			(int)(mapSimulationHours * 60.f) % 10 + '0',
+			(mapSimulationHours * 3600.f / 10.f) >= 1.f ? (int)(mapSimulationHours * 3600.f / 10.f) % 6 + '0' : '0',
+			(int)(mapSimulationHours * 3600.f) % 10 + '0'
+		),
+		AABB2(
+			Vec2(0.f, g_gameConfig->m_screenSize.y - 35.f),
+			Vec2(g_gameConfig->m_screenSize.x - 5.f, g_gameConfig->m_screenSize.y - 25.f)
 		),
 		10.f,
 		Vec2(1.f, 0.5f),
@@ -370,56 +405,53 @@ void Game::UpdateDebugInfo() {
 	);
 	
 	DebugAddScreenText(
-		Stringf("<color=255,255,0>[Sun Direction]</color> <color=255,0,0>x=%.2f (F2-/F3+)</color> | <color=0,255,0>y=%.2f (F4-/F5+)</color> | <color=0,0,255>z=%.2f</color>",
-			m_curMap->m_sunDirection.x,
-			m_curMap->m_sunDirection.y,
-			m_curMap->m_sunDirection.z
+		Stringf("<style:color=255,225,0;shadow=true>[Cur Actor] %s (UID: %d)</style>",
+			m_playerController->GetPossessedActor() != nullptr ? 
+			m_playerController->GetPossessedActor()->m_definition.m_name.c_str() :
+			"NULL",
+			m_playerController->GetPossessedActor() != nullptr ?
+			m_playerController->GetPossessedActor()->m_handle->GetUID() :
+			-1
 		),
 		AABB2(
-			Vec2(15.f, g_gameConfig->m_screenSize.y - 35.f),
-			Vec2(g_gameConfig->m_screenSize.x - 5.f, g_gameConfig->m_screenSize.y - 25.f)
+			Vec2(5.f, g_gameConfig->m_screenSize.y - 15.f),
+			Vec2(g_gameConfig->m_screenSize.x, g_gameConfig->m_screenSize.y - 5.f)
 		),
 		10.f,
-		Vec2(1.f, 0.5f),
+		Vec2(0.f, 0.5f),
 		0.f
 	);
 
 	DebugAddScreenText(
-		Stringf("<color=255,255,0>[Sun Intensity]</color> %.2f (F6-/F7+)",
-			m_curMap->m_sunIntensity
+		Stringf("<style:color=255,225,0;shadow=true>[Cur Weapon] %s</style>",
+			m_playerController->GetPossessedActor() != nullptr ?
+			m_playerController->GetPossessedActor()->m_equippedWeapon->m_definition.m_name.c_str() :
+			"NULL"
 		),
 		AABB2(
-			Vec2(15.f, g_gameConfig->m_screenSize.y - 55.f),
-			Vec2(g_gameConfig->m_screenSize.x - 5.f, g_gameConfig->m_screenSize.y - 45.f)
+			Vec2(5.f, g_gameConfig->m_screenSize.y - 35.f),
+			Vec2(g_gameConfig->m_screenSize.x, g_gameConfig->m_screenSize.y - 25.f)
 		),
 		10.f,
-		Vec2(1.f, 0.5f),
+		Vec2(0.f, 0.5f),
 		0.f
 	);
 
 	DebugAddScreenText(
-		Stringf("<color=255,255,0>[Ambient Intensity]</color> %.2f (F8-/F9+)",
-			m_curMap->m_ambientIntensity
+		Stringf("<style:color=200,0,0;shadow=true>[Health] %.1f / %.1f </style>",
+			m_playerController->GetPossessedActor() != nullptr ?
+			m_playerController->GetPossessedActor()->m_curHealth :
+			0.f,
+			m_playerController->GetPossessedActor() != nullptr ?
+			m_playerController->GetPossessedActor()->m_definition.m_health :
+			0.f
 		),
 		AABB2(
-			Vec2(15.f, g_gameConfig->m_screenSize.y - 75.f),
-			Vec2(g_gameConfig->m_screenSize.x - 5.f, g_gameConfig->m_screenSize.y - 65.f)
+			Vec2(5.f, g_gameConfig->m_screenSize.y - 55.f),
+			Vec2(g_gameConfig->m_screenSize.x, g_gameConfig->m_screenSize.y - 45.f)
 		),
 		10.f,
-		Vec2(1.f, 0.5f),
-		0.f
-	);
-
-	DebugAddScreenText(
-		Stringf("<color=255,0,255>[Control Target]</color> %s (F1 Switch)",
-			m_player->m_canMove ? "Player" : "Projectile"
-		),
-		AABB2(
-			Vec2(15.f, g_gameConfig->m_screenSize.y - 95.f),
-			Vec2(g_gameConfig->m_screenSize.x - 5.f, g_gameConfig->m_screenSize.y - 85.f)
-		),
-		10.f,
-		Vec2(1.f, 0.5f),
+		Vec2(0.f, 0.5f),
 		0.f
 	);
 }
@@ -561,7 +593,6 @@ void Game::RenderAttractMode() const {
 //---------------------------------------------------------------------------------------------------
 void Game::RenderGamePlay() const {
 	m_curMap->Render();
-	m_player->Render();
 }
 
 //---------------------------------------------------------------------------------------------------

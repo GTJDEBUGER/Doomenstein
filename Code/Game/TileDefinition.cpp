@@ -31,8 +31,8 @@ TileDefinition::TileDefinition(
 }
 
 //-----------------------------------------------------------------------------------------------
-void TileDefinition::InitializeTileDefs() {
-	Texture* m_tileTexture = g_engine->m_renderer->CreateOrGetTextureFromFile("Data/Images/Terrain_8x8.png");
+void TileDefinition::InitializeTileDefs(std::string configPath) {
+	Texture* m_tileTexture = g_engine->m_renderer->CreateOrGetTextureFromFile(configPath.data());
 	SpriteSheet m_tileSpriteSheet(*m_tileTexture, IntVec2(8, 8));
 
 	XmlDocument doc;

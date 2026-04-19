@@ -1,7 +1,7 @@
 #include "Game/Tile.hpp"
 
 //-----------------------------------------------------------------------------------------------
-Tile::Tile(IntVec2 position, float m_size, TileDefinition* def)
+Tile::Tile(IntVec2 position, float m_size, TileDefinition const& def)
 	: m_tileCoords(position)
 	, m_size(m_size)
 	, m_definition(def)

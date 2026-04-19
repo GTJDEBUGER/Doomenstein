@@ -31,9 +31,6 @@
     <ClCompile Include="Game.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
-    <ClCompile Include="Player.cpp">
-      <Filter>Gameplay</Filter>
-    </ClCompile>
     <ClCompile Include="Actor.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
@@ -49,10 +46,25 @@
     <ClCompile Include="Tile.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
-    <ClCompile Include="Demon.cpp">
+    <ClCompile Include="ActorHandle.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
-    <ClCompile Include="Projectile.cpp">
+    <ClCompile Include="ActorDefinition.cpp">
+      <Filter>Gameplay</Filter>
+    </ClCompile>
+    <ClCompile Include="Controller.cpp">
+      <Filter>Gameplay</Filter>
+    </ClCompile>
+    <ClCompile Include="AIController.cpp">
+      <Filter>Gameplay</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerController.cpp">
+      <Filter>Gameplay</Filter>
+    </ClCompile>
+    <ClCompile Include="WeaponDefinition.cpp">
+      <Filter>Gameplay</Filter>
+    </ClCompile>
+    <ClCompile Include="Weapon.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
   </ItemGroup>
@@ -67,9 +79,6 @@
       <Filter>Framework</Filter>
     </ClInclude>
     <ClInclude Include="Game.hpp">
-      <Filter>Gameplay</Filter>
-    </ClInclude>
-    <ClInclude Include="Player.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
     <ClInclude Include="Actor.hpp">
@@ -87,10 +96,25 @@
     <ClInclude Include="Tile.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
-    <ClInclude Include="Demon.hpp">
+    <ClInclude Include="ActorHandle.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
-    <ClInclude Include="Projectile.hpp">
+    <ClInclude Include="ActorDefinition.hpp">
+      <Filter>Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="Controller.hpp">
+      <Filter>Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="AIController.hpp">
+      <Filter>Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerController.hpp">
+      <Filter>Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="WeaponDefinition.hpp">
+      <Filter>Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="Weapon.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
   </ItemGroup>
@@ -176,6 +200,9 @@
       <Filter>Data\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\..\Run\Data\Shaders\FXAA.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\VolumeLight.hlsl">
       <Filter>Data\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

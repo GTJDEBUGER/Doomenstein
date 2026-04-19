@@ -8,7 +8,7 @@
 class Camera;
 class RandomNumberGenerator;
 class Clock;
-class Player;
+class PlayerController;
 class Map;
 class Shader;
 class VertexBuffer;
@@ -37,15 +37,18 @@ public:
 	Camera*                 m_UICamera                      = nullptr;
 	RandomNumberGenerator*  m_randomGenerator               = nullptr;
 	Clock*                  m_gameClock                     = nullptr;
-	Player*                 m_player                        = nullptr;
+	PlayerController*       m_playerController              = nullptr;
 	Map*                    m_curMap                        = nullptr;
 	Shader*                 m_skySphereShader               = nullptr;
 	Shader*                 m_fogShader                     = nullptr;
+	Shader*                 m_volumeLightShader             = nullptr;
 	Shader*                 m_brightFilterShader            = nullptr;
 	Shader*                 m_horizontalBlurShader          = nullptr;
 	Shader*                 m_verticalBlurShader            = nullptr;
 	Shader*                 m_horizontalBlurWithDepthShader = nullptr;
 	Shader*                 m_verticalBlurWithDepthShader   = nullptr;
+	Shader*                 m_horizobtalBilateralBlurShader = nullptr;
+	Shader*                 m_verticalBilateralBlurShader   = nullptr;
 	Shader*                 m_bloomShader                   = nullptr;
 	Shader*                 m_SSDOShader                    = nullptr;
 	Shader*                 m_SSDOBlendShader               = nullptr;
@@ -80,5 +83,5 @@ private:
 	IndexBuffer*              m_skySphereIndexBuffer          = nullptr;
 	PostProcessingConstants*  m_postProcessingCBO             = nullptr;
 						    
-	float                   m_curCameraShakeAmp             = 0.f;
+	float                     m_curCameraShakeAmp             = 0.f;
 };

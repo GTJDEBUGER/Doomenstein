@@ -16,6 +16,7 @@ MapDefinition::MapDefinition(
 	Texture* mapTexture,
 	Texture* mapNormalTexture,
 	Texture* mapAOTexture,
+	Texture* mapParallaxTexture,
 	Texture* mapRoughnessTexture,
 	Texture* mapMetallicTexture,
 	IntVec2 mapTextureDimentions,
@@ -28,6 +29,7 @@ MapDefinition::MapDefinition(
 	m_mapNormalTexture(mapNormalTexture),
 	m_mapTextureDimentions(mapTextureDimentions),
 	m_mapAOTexture(mapAOTexture),
+	m_mapParallaxTexture(mapParallaxTexture),
 	m_mapRoughnessTexture(mapRoughnessTexture),
 	m_mapMetallicTexture(mapMetallicTexture),
 	m_tileSize(tileSize){
@@ -38,9 +40,9 @@ MapDefinition::~MapDefinition() {
 }
 
 //-----------------------------------------------------------------------------------------------
-void MapDefinition::InitializeMapDefs() {
+void MapDefinition::InitializeMapDefs(std::string configPath) {
 	XmlDocument doc;
-	doc.LoadFile("Data/Definitions/MapDefinitions.xml");
+	doc.LoadFile(configPath.data());
 	XmlElement* rootElement = doc.FirstChildElement();
 	for (XmlElement* i = rootElement->FirstChildElement(); i != nullptr; i = i->NextSiblingElement()) {
 		s_definitions[ParseXmlAttribute(*i, "name", "undefineMap")] = MapDefinition(
@@ -50,6 +52,7 @@ void MapDefinition::InitializeMapDefs() {
 			g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*i, "spriteSheetTexture", "Error").data()),
 			g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*i, "spriteSheetNormalTexture", "Error").data()),
 			g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*i, "spriteSheetAOTexture", "Error").data()),
+			g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*i, "spriteSheetParallaxTexture", "Error").data()),
 			g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*i, "spriteSheetRoughnessTexture", "Error").data()),
 			g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*i, "spriteSheetMetallicTexture", "Error").data()),
 			ParseXmlAttribute(*i, "spriteSheetTextureDimentions", IntVec2(0, 0)),
@@ -64,8 +67,7 @@ void MapDefinition::InitializeMapDefs() {
 					ParseXmlAttribute(*j, "actor", "undefineActor"),
 					ParseXmlAttribute(*j, "position", Vec3(0.f, 0.f, 0.f)),
 					ParseXmlAttribute(*j, "orientation", EulerAngles(0.f, 0.f, 0.f)),
-					ParseXmlAttribute(*j, "scale", Vec3(1.f,1.f,1.f)),
-					ParseXmlAttribute(*j, "isPhysicsSimul", false)
+					ParseXmlAttribute(*j, "scale", Vec3(1.f,1.f,1.f))
 				}
 			);
 		}

@@ -1,8 +1,10 @@
 #include "Game/App.hpp"
 #include "Game/Game.hpp"
 #include "Game/GameCommon.hpp"
-#include "Game/Player.hpp"
+#include "Game/PlayerController.hpp"
 #include "Game/Map.hpp"
+#include "Game/Actor.hpp"
+#include "Game/Weapon.hpp"
 
 #include "Engine/Core/EngineCommon.hpp"
 #include "Engine/Core/Engine.hpp"
@@ -18,7 +20,6 @@
 #include "Engine/Core/Clock.hpp"
 #include "Engine/Renderer/DebugRenderSystem.hpp"
 #include "Engine/Core/StringUtils.hpp"
-#include "Engine/Renderer/DebugRenderSystem.hpp"
 
 GameConfig* g_gameConfig = nullptr;
 App* g_app = nullptr;
@@ -43,8 +44,11 @@ App::App()
 	g_engine->m_eventSystem->SubscribeEventCallbackFunction("quit", &Command_Quit, "Close whole game application.", true);
 	g_engine->m_eventSystem->SubscribeEventCallbackFunction("guide", &Command_Guide, "Show how to control the game.", true);
 
-	TileDefinition::InitializeTileDefs();
-	MapDefinition::InitializeMapDefs();
+	TileDefinition::InitializeTileDefs("Data/Images/Terrain_8x8.png");
+	MapDefinition::InitializeMapDefs("Data/Definitions/MapDefinitions.xml");
+	ActorDefinition::InitializeActorDefs("Data/Definitions/ActorDefinitions.xml");
+	ActorDefinition::InitializeActorDefs("Data/Definitions/ProjectileActorDefinitions.xml");
+	WeaponDefinition::InitializeWeaponDefs("Data/Definitions/WeaponDefinitions.xml");
 
 	g_defaultFont = g_engine->m_renderer->CreateOrGetBitmapFontFromFile("Data/Fonts/SquirrelFixedFont.png");
 	m_game = new Game();
@@ -141,57 +145,6 @@ void App::HandlePlayerInput(){
 		g_engine->m_devConsole->ToggleOpen();
 	}
 
-	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F1)) {
-		m_game->m_player->m_canMove = !m_game->m_player->m_canMove;
-	}
-
-	if (g_engine->m_input->IsKeyDown(KEYCODE_F2)) {
-		m_game->m_curMap->m_sunDirection.x -= 0.025f;
-	}
-
-	if (g_engine->m_input->IsKeyDown(KEYCODE_F3)) {
-		m_game->m_curMap->m_sunDirection.x += 0.025f;
-	}
-
-	if (g_engine->m_input->IsKeyDown(KEYCODE_F4)) {
-		m_game->m_curMap->m_sunDirection.y -= 0.025f;
-	}
-
-	if (g_engine->m_input->IsKeyDown(KEYCODE_F5)) {
-		m_game->m_curMap->m_sunDirection.y += 0.025f;
-	}
-
-	if (g_engine->m_input->IsKeyDown(KEYCODE_F6)) {
-		m_game->m_curMap->m_sunIntensity -= 0.05f;
-		if (m_game->m_curMap->m_sunIntensity < 0.f) {
-			m_game->m_curMap->m_sunIntensity = 0.f;
-		}
-	}
-
-	if (g_engine->m_input->IsKeyDown(KEYCODE_F7)) {
-		m_game->m_curMap->m_sunIntensity += 0.05f;
-	}
-
-	if (g_engine->m_input->IsKeyDown(KEYCODE_F8)) {
-		m_game->m_curMap->m_ambientIntensity -= 0.05f;
-		if (m_game->m_curMap->m_ambientIntensity < 0.f) {
-			m_game->m_curMap->m_ambientIntensity = 0.f;
-		}
-	}
-
-	if (g_engine->m_input->IsKeyDown(KEYCODE_F9)) {
-		m_game->m_curMap->m_ambientIntensity += 0.05f;
-	}
-
-	DebugAddWorldArrow(
-		m_game->m_curMap->GetMapWorldCenter() + Vec3(0,0,20.f),
-		m_game->m_curMap->GetMapWorldCenter() + Vec3(0, 0, 20.f) + m_game->m_curMap->m_sunDirection.GetNormalized() * 10.f,
-		0.5f,
-		0.f,
-		Rgba8::YELLOW,
-		Rgba8::YELLOW
-	);
-
 	if (g_engine->m_input->IsKeyDown('T') || g_engine->m_input->WasKeyJustPressed('T')) {
 		if (g_engine->m_input->WasKeyJustPressed('T')) {
 			SoundID slowDownAudio = g_engine->m_audio->CreateOrGetSound("Data/Audio/Debug_TestAudio.mp3");
@@ -199,6 +152,14 @@ void App::HandlePlayerInput(){
 		}
 
 		m_game->m_gameClock->SetTimeScale(g_gameConfig->m_debugSlowdownTimescale);
+	}
+
+	if (g_engine->m_input->IsKeyDown('H') || g_engine->m_input->WasKeyJustPressed('H')) {
+		if (g_engine->m_input->WasKeyJustPressed('H')) {
+			SoundID slowDownAudio = g_engine->m_audio->CreateOrGetSound("Data/Audio/Debug_TestAudio.mp3");
+			g_engine->m_audio->StartSound(slowDownAudio, false);
+		}
+		m_game->m_gameClock->SetTimeScale(g_gameConfig->m_debugSpeedupTimescale);
 	}
 
 	if (g_engine->m_input->WasKeyJustPressed('P')) {
@@ -213,104 +174,8 @@ void App::HandlePlayerInput(){
 		m_game->m_gameClock->SetTimeScale(1.f);
 	}
 
-	if (g_engine->m_input->WasKeyJustPressed('1')) {
-		DebugAddWorldCylinder(
-			m_game->m_player->m_position,
-			m_game->m_player->m_position + m_game->m_player->m_orientation.GetForwardDir_IFwd_JLeft_KUp() * 20.f,
-			0.0625f,
-			10.f,
-			Rgba8::YELLOW,
-			Rgba8::YELLOW,
-			DebugRenderMode::X_RAY
-		);
-	}
-
-	if (g_engine->m_input->IsKeyDown('2')) {
-		DebugAddWorldSphere(
-			Vec3(
-				m_game->m_player->m_position.x,
-				m_game->m_player->m_position.y,
-				0.f
-			),
-			0.25f,
-			60.f,
-			Rgba8(150, 75, 0),
-			Rgba8(150, 75, 0),
-			DebugRenderMode::USE_DEPTH
-		);
-	}
-
-	if (g_engine->m_input->WasKeyJustPressed('3')) {
-		DebugAddWorldWireSphere(
-			m_game->m_player->m_position + m_game->m_player->m_orientation.GetForwardDir_IFwd_JLeft_KUp() * 2.f,
-			1.f,
-			5.f,
-			Rgba8::GREEN,
-			Rgba8::RED,
-			DebugRenderMode::USE_DEPTH
-		);
-	}
-
-	if (g_engine->m_input->WasKeyJustPressed('4')) {
-		DebugAddBasis(
-			Mat44::MakeTransform3D(
-				m_game->m_player->m_position,
-				m_game->m_player->m_orientation,
-				Vec3(1.f, 1.f, 1.f)
-			),
-			20.f,
-			1.f,
-			0.1f
-		);
-	}
-
-	if (g_engine->m_input->WasKeyJustPressed('5')) {
-		DebugAddWorldBillboardText(
-			Stringf(
-				"Position(%.1f, %.1f, %.1f) Orientation(%.1f, %.1f, %.1f)", 
-				m_game->m_player->m_position.x, 
-				m_game->m_player->m_position.y, 
-				m_game->m_player->m_position.z,
-				m_game->m_player->m_orientation.m_yawDegrees,
-				m_game->m_player->m_orientation.m_pitchDegrees,
-				m_game->m_player->m_orientation.m_rollDegrees
-			),
-			m_game->m_player->m_position + m_game->m_player->m_orientation.GetForwardDir_IFwd_JLeft_KUp() * 3.f,
-			0.1f,
-			Vec2(0.5f,0.5f),
-			10.f,
-			Rgba8::WHITE,
-			Rgba8::RED,
-			DebugRenderMode::USE_DEPTH
-		);
-	}
-
-	if (g_engine->m_input->WasKeyJustPressed('6')) {
-		DebugAddWorldWireCylinder(
-			m_game->m_player->m_position + Vec3(0,0,-0.5f),
-			m_game->m_player->m_position + Vec3(0,0,0.5f),
-			0.5f,
-			10.f,
-			Rgba8::WHITE,
-			Rgba8::RED,
-			DebugRenderMode::USE_DEPTH
-		);
-	}
-
-	if (g_engine->m_input->WasKeyJustPressed('7')) {
-		DebugAddMessage(
-			Stringf(
-				"Current Camera Orientation(%.2f, %.2f, %.2f)",
-				m_game->m_player->m_playerCamera->GetOrientation().m_yawDegrees,
-				m_game->m_player->m_playerCamera->GetOrientation().m_pitchDegrees,
-				m_game->m_player->m_playerCamera->GetOrientation().m_rollDegrees
-			),
-			5.f
-		);
-	}
-
-	if (g_engine->m_input->WasKeyJustPressed('8')) {
-		m_game->AddCameraShake(20.f);
+	if (g_engine->m_input->WasKeyJustReleased('H')) {
+		m_game->m_gameClock->SetTimeScale(1.f);
 	}
 
 	//Control Game-------------------------------------------------------------------------------
@@ -331,147 +196,98 @@ void App::HandlePlayerInput(){
 		}
 	}
 
+	//Toggle player camera mode
+	if (g_engine->m_input->WasKeyJustPressed('F')) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
+			if (m_game->m_playerController->m_cameraMode == PlayerCameraMode::ACTOR_CAMERA) {
+				m_game->m_playerController->m_cameraMode = PlayerCameraMode::FREE_CAMERA;
+			}
+			else if (m_game->m_playerController->m_cameraMode == PlayerCameraMode::FREE_CAMERA){
+				m_game->m_playerController->m_cameraMode = PlayerCameraMode::ACTOR_CAMERA;
+			}
+		}
+	}
+
+	//Switch player controller possessed actor to next one
+	if (g_engine->m_input->WasKeyJustPressed('N')) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerController->m_cameraMode != PlayerCameraMode::FREE_CAMERA) {
+			m_game->m_playerController->SwitchToNextPossessibleActor();
+		}
+	}
+
 	//Player move input
 	Vec3 moveInput = Vec3(0,0,0);
 	if (g_engine->m_input->IsKeyDown('A')) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			moveInput.x -= 1.f;
+			moveInput.y += 1.f;
 		}
 	}
 	if (g_engine->m_input->IsKeyDown('D')) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			moveInput.x += 1.f;
+			moveInput.y -= 1.f;
 		}
 	}
 	if (g_engine->m_input->IsKeyDown('W')) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			moveInput.z -= 1.f;
+			moveInput.x += 1.f;
 		}
 	}
 	if (g_engine->m_input->IsKeyDown('S')) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			moveInput.z += 1.f;
+			moveInput.x -= 1.f;
 		}
 	}
 	if (g_engine->m_input->IsKeyDown('Z')) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			moveInput.y -= 1.f;
+			moveInput.z += 1.f;
 		}
 	}
 	if (g_engine->m_input->IsKeyDown('C')) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			moveInput.y += 1.f;
+			moveInput.z -= 1.f;
 		}
 	}
-	m_game->m_player->m_moveInput = moveInput.GetNormalized();
+	m_game->m_playerController->m_inputActions.moveInput = moveInput.GetNormalized();
 
 	//Player view input
-	m_game->m_player->m_viewInput = g_engine->m_input->GetCursorClientDelta();
+	m_game->m_playerController->m_inputActions.viewInput = g_engine->m_input->GetCursorClientDelta();
 
-	//Do Raycast test
-	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_LEFT_MOUSE) && m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-		RaycastResult3D result = m_game->m_curMap->RaycastAll(
-			m_game->m_player->m_position, 
-			m_game->m_player->m_orientation.GetForwardDir_IFwd_JLeft_KUp(), 
-			50.f, 
-			nullptr
-		);
-
-		DebugAddWorldCylinder(
-			result.m_rayStartPos,
-			result.m_rayStartPos + result.m_rayFwdNormal * result.m_rayMaxLength,
-			0.01f,
-			10.f,
-			Rgba8::WHITE,
-			Rgba8::WHITE,
-			DebugRenderMode::X_RAY
-		);
-
-		if (result.m_didImpact) {
-			DebugAddWorldSphere(
-				result.m_impactPos,
-				0.08f,
-				10.f
-			);
-
-			DebugAddWorldArrow(
-				result.m_impactPos,
-				result.m_impactPos + result.m_impactNormal * 0.5f,
-				0.08f,
-				10.f,
-				Rgba8::BLUE,
-				Rgba8::BLUE
-			);
-		}
-	}
-
-	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_RIGHT_MOUSE) && m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-		RaycastResult3D result = m_game->m_curMap->RaycastAll(
-			m_game->m_player->m_position,
-			m_game->m_player->m_orientation.GetForwardDir_IFwd_JLeft_KUp(),
-			1.25f,
-			nullptr
-		);
-
-		DebugAddWorldCylinder(
-			result.m_rayStartPos,
-			result.m_rayStartPos + result.m_rayFwdNormal * result.m_rayMaxLength,
-			0.01f,
-			10.f,
-			Rgba8::WHITE,
-			Rgba8::WHITE,
-			DebugRenderMode::X_RAY
-		);
-
-		if (result.m_didImpact) {
-			DebugAddWorldSphere(
-				result.m_impactPos,
-				0.08f,
-				10.f
-			);
-
-			DebugAddWorldArrow(
-				result.m_impactPos,
-				result.m_impactPos + result.m_impactNormal * 0.5f,
-				0.08f,
-				10.f,
-				Rgba8::BLUE,
-				Rgba8::BLUE
-			);
-		}
-	}
-
-	//Player roll view input
-	float viewRollInput = 0.f;
-	if (g_engine->m_input->IsKeyDown('Q')) {
-		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			viewRollInput -= 1.f;
-		}
-	}
-	if (g_engine->m_input->IsKeyDown('E')) {
-		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			viewRollInput += 1.f;
-		}
-	}
-	m_game->m_player->m_viewRollInput = viewRollInput;
-
-	//Player reset transform input
-	if (g_engine->m_input->WasKeyJustPressed('H')) {
-		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_player->m_isResetTransform = true;
-		}
-	}
-
-	//Player run
+	//Player run input
 	if (g_engine->m_input->IsKeyDown(KEYCODE_SHIFT)) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_player->m_isRun = true;
+			m_game->m_playerController->m_inputActions.isRun = true;
 		}
 	}
 	if (g_engine->m_input->WasKeyJustReleased(KEYCODE_SHIFT)) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_player->m_isRun = false;
+			m_game->m_playerController->m_inputActions.isRun = false;
 		}
+	}
+
+	//Player equip weapon input
+	if (g_engine->m_input->WasKeyJustPressed('1')) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
+			m_game->m_playerController->GetPossessedActor()->EquipWeapon(0);
+		}
+	}
+	else if (g_engine->m_input->WasKeyJustPressed('2')) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
+			m_game->m_playerController->GetPossessedActor()->EquipWeapon(1);
+		}
+	}
+
+	//PLayer attack input
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_LEFT_MOUSE) && m_game->GetCurGameState() == GAME_PLAYING_MODE) {
+		m_game->m_playerController->m_inputActions.isAttack = true;
+	}
+	else if (g_engine->m_input->WasKeyJustReleased(KEYCODE_LEFT_MOUSE) && m_game->GetCurGameState() == GAME_PLAYING_MODE) {
+		m_game->m_playerController->m_inputActions.isAttack = false;
+	}
+
+	//Player jump input
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_SPACE) && m_game->GetCurGameState() == GAME_PLAYING_MODE) {
+		if (m_game->m_playerController->m_playerStates.isGrounded)
+			m_game->m_playerController->m_inputActions.isJump = true;
 	}
 
 	//Xbox controller input
@@ -479,58 +295,39 @@ void App::HandlePlayerInput(){
 	//Control Game-------------------------------------------------------------------------------
 	if (g_engine->m_input->GetController(0).GetLeftStick().GetMagnitude() > 0.f) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_player->m_moveInput.x = g_engine->m_input->GetController(0).GetLeftStick().GetPosition().x;
-			m_game->m_player->m_moveInput.z = -g_engine->m_input->GetController(0).GetLeftStick().GetPosition().y;
+			m_game->m_playerController->m_inputActions.moveInput.x = g_engine->m_input->GetController(0).GetLeftStick().GetPosition().x;
+			m_game->m_playerController->m_inputActions.moveInput.z = -g_engine->m_input->GetController(0).GetLeftStick().GetPosition().y;
 		}
 	}
 
-	if (m_game->m_player->m_moveInput.y == 0) {
+	if (m_game->m_playerController->m_inputActions.moveInput.y == 0) {
 		if (g_engine->m_input->GetController(0).IsButtonDown(GAMEPAD_LEFT_SHOULDER)) {
 			if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-				m_game->m_player->m_moveInput.y -= 1.f;
+				m_game->m_playerController->m_inputActions.moveInput.y -= 1.f;
 			}
 		}
 		if (g_engine->m_input->GetController(0).IsButtonDown(GAMEPAD_RIGHT_SHOULDER)) {
 			if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-				m_game->m_player->m_moveInput.y += 1.f;
-			}
-		}
-	}
-
-	if (m_game->m_player->m_viewRollInput == 0.f) {
-		if (g_engine->m_input->GetController(0).GetLeftTrigger() > 0.f) {
-			if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-				m_game->m_player->m_viewRollInput -= 1.f;
-			}
-		}
-		if (g_engine->m_input->GetController(0).GetRightTrigger() > 0.f) {
-			if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-				m_game->m_player->m_viewRollInput += 1.f;
+				m_game->m_playerController->m_inputActions.moveInput.y += 1.f;
 			}
 		}
 	}
 
 	if (g_engine->m_input->GetController(0).GetRightStick().GetMagnitude() > 0.f) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_player->m_viewInput.x = -g_gameConfig->m_playerViewControllerMultiplier * g_engine->m_input->GetController(0).GetRightStick().GetPosition().x;
-			m_game->m_player->m_viewInput.y = g_gameConfig->m_playerViewControllerMultiplier * g_engine->m_input->GetController(0).GetRightStick().GetPosition().y;
-		}
-	}
-	
-	if (g_engine->m_input->GetController(0).WasButtonJustPressed(XboxButtonID::GAMEPAD_START)) {
-		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_player->m_isResetTransform = true;
+			m_game->m_playerController->m_inputActions.viewInput.x = -g_gameConfig->m_playerViewControllerMultiplier * g_engine->m_input->GetController(0).GetRightStick().GetPosition().x;
+			m_game->m_playerController->m_inputActions.viewInput.y = g_gameConfig->m_playerViewControllerMultiplier * g_engine->m_input->GetController(0).GetRightStick().GetPosition().y;
 		}
 	}
 
 	if (g_engine->m_input->GetController(0).WasButtonJustPressed(XboxButtonID::GAMEPAD_A)) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_player->m_isRun = true;
+			m_game->m_playerController->m_inputActions.isRun = true;
 		}
 	}
 	if (g_engine->m_input->GetController(0).WasButtonJustReleased(XboxButtonID::GAMEPAD_A)) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_player->m_isRun = false;
+			m_game->m_playerController->m_inputActions.isRun = false;
 		}
 	}
 }
@@ -560,7 +357,8 @@ void App::LoadGameConfig() {
 
 	g_gameConfig->m_defaultMap = g_gameConfigBlackboard.GetValue("defaultMap", "?");
 	g_gameConfig->m_windowName = g_gameConfigBlackboard.GetValue("windowName", "?");
-	g_gameConfig->m_debugSlowdownTimescale = g_gameConfigBlackboard.GetValue("debugSlowdownTimescale", 0.f);
+	g_gameConfig->m_debugSlowdownTimescale = g_gameConfigBlackboard.GetValue("debugSlowdownTimescale", 1.f);
+	g_gameConfig->m_debugSpeedupTimescale = g_gameConfigBlackboard.GetValue("debugSpeedupTimescale", 1.f);
 	g_gameConfig->m_screenSize = g_gameConfigBlackboard.GetValue("screenSize", Vec2(0.f, 0.f));
 	g_gameConfig->m_screenCenter = g_gameConfig->m_screenSize * 0.5f;
 	g_gameConfig->m_screenAspect = g_gameConfig->m_screenSize.x / g_gameConfig->m_screenSize.y;
@@ -590,26 +388,19 @@ void App::LoadAudioResources() {
 void App::PrintGameControlGuide() {
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "Doomenstein");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "Control Guide:");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-SPACE Start game at attract mode");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-ESC Switch from game mode to attract mode or shut down application in attract mode");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-Mouse(XAxis) Control player view yaw");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-Mouse(YAxis) Control player view pitch");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-Mouse(LeftButton) Raycast from player forward direction (10 unit)");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-Mouse(RightButton) Raycast from player forward direction (0.25 unit)");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-Q/E Control player view roll");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-A/D Move left or right, relative to player orientation");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-W/S Move forward or back, relative to player orientation");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-Z/C Move down or up, relative to the world");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-H Reset position and orientation to zero");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-SHIFT Increase speed by a factor of 10 while held");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-P Pause the game");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-O Single step frame");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-T Slow motion mode while held");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-1 Spawn a line from the player along their forward direction");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-2 Spawn a sphere directly below the player position on the world XY-plane");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-3 Spawn a wireframe sphere in front of the player");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-4 Spawn a basis using the player current model matrix");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-5 Spawn a billboard text in font of player showing their position and orientation");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-6 Spawn a wireframe cylinder at the player position");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "\t-7 Add a screen message with the current camera orientation");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-SPACE-            \tStart game at attract mode");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-ESC-              \tSwitch from game mode to attract mode or shut down application in attract mode");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-Mouse(XAxis)-     \tControl player view yaw");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-Mouse(YAxis)-     \tControl player view pitch");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-Mouse(LeftButton)-\tFire current possessed actors equipped weapon");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-A/D-              \tMove left or right, relative to player orientation");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-W/S-              \tMove forward or back, relative to player orientation");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-Z/C-              \tMove up or down, relative to the world");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-SHIFT-            \tIncrease speed while held");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-F-                \tToggle free camera mode");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-N-                \tPossess next valid actor in map");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-P-                \tPause the game");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-O-                \tSingle step frame");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-T-                \tSlow down game while held");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-H-                \tSpeed up game while held");
 }

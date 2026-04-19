@@ -82,7 +82,7 @@ float4 PixelMain(v2p_t input) : SV_Target0
     
     if (length(normal.xyz) < 0.1f) 
         return sceneColor;
-    
+
     float4 clipPos = float4(input.uv.x * 2.0 - 1.0, 1.0 - input.uv.y * 2.0, rawDepth, 1.0);
     float4 viewPos = mul(invProjectionMatrix, clipPos);
     viewPos.xyz /= viewPos.w;
@@ -91,12 +91,10 @@ float4 PixelMain(v2p_t input) : SV_Target0
     
     float3x3 viewToWorld = transpose((float3x3) worldToViewMatrix);
     float3 viewDir = normalize(mul(viewToWorld, viewPos.xyz));
-    
     float3 worldPos = CameraWorldPosition + viewDir * dist;
     
     float FOG_DENSITY = 0.075f;
     float FOG_FALLOFF = 0.05f;
-    
     float opticalDepth = CalculateHeightFog(CameraWorldPosition, viewDir, dist, FOG_DENSITY, FOG_FALLOFF);
     float transmittance = exp(-max(opticalDepth, 0.0));
     float fogFactor = saturate(1.0 - transmittance);
@@ -104,20 +102,29 @@ float4 PixelMain(v2p_t input) : SV_Target0
     float3 sunDir = normalize(-SunDirection);
     float sunDot = dot(viewDir, sunDir);
     
-    float dayFactor = smoothstep(-0.1, 0.2, sunDir.z);
-    float sunsetFactor = saturate(1.0 - abs(sunDir.z * 3.0));
+    float dayFactor = smoothstep(-0.15, 0.2, sunDir.z);
+    float sunsetFactor = saturate(1.0 - abs(sunDir.z * 4.0));
+    float viewHeight = saturate(viewDir.z);
     
     float3 horizonColorDay = float3(0.6, 0.7, 0.85);
-    float3 sunsetColor = float3(1.0, 0.4, 0.1);
-    float3 nightSky = float3(0.02, 0.05, 0.2);
+    float3 sunsetColor = float3(1.0, 0.45, 0.1);
+    float3 sunsetRed = float3(1.0, 0.15, 0.05);
+    float3 nightSky = float3(0.02, 0.04, 0.2);
     
     float3 currentHorizon = lerp(horizonColorDay, sunsetColor, sunsetFactor);
+    
+    float glowDist = pow(saturate(sunDot), 4.0);
+    float3 sunsetGlow = lerp(sunsetColor, sunsetRed, sunsetFactor);
+    currentHorizon = lerp(currentHorizon, sunsetGlow, glowDist * sunsetFactor * (1.0 - viewHeight * 0.5));
+    
     float3 ambientFogColor = lerp(nightSky, currentHorizon, dayFactor);
     
     float cosTheta = saturate(sunDot);
     float mieScattering = pow(cosTheta, 8.0) * 1.5 + pow(cosTheta, 4.0) * 0.2;
     
-    float3 fogColor = ambientFogColor * AmbientIntensity + (float3(1.0, 0.9, 0.7) * mieScattering * dayFactor * SunIntensity);
+    float3 mieColor = lerp(float3(1.0, 0.95, 0.8), sunsetRed, sunsetFactor);
+    
+    float3 fogColor = ambientFogColor * AmbientIntensity + (mieColor * mieScattering * dayFactor * SunIntensity);
     
     float3 finalColor = lerp(sceneColor.rgb, fogColor, fogFactor);
 

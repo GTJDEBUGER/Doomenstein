@@ -10,7 +10,7 @@ class Tile {
 public:
 	Tile() = default;
 	~Tile() = default;
-	Tile(IntVec2 position, float size, TileDefinition* def);
+	Tile(IntVec2 position, float size, TileDefinition const& def);
 
 	AABB3 GetWorldMesh() const;
 	Vec3  GetCenterWorldPosition() const;
@@ -18,5 +18,5 @@ public:
 public:
 	IntVec2         m_tileCoords = IntVec2(0, 0);
 	float           m_size = 0.f;
-	TileDefinition* m_definition = nullptr;
+	TileDefinition const& m_definition;
 };

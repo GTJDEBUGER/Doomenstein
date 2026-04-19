@@ -29,6 +29,12 @@ struct p_out
 };
 
 //------------------------------------------------------------------------------------------------
+cbuffer GameConstants : register(b0)
+{
+    float GameRunTime;
+};
+
+//------------------------------------------------------------------------------------------------
 cbuffer LightConstants : register(b1)
 {
     float3 SunDirection;
@@ -57,7 +63,7 @@ cbuffer ModelConstants : register(b3)
 Texture2D diffuseTexture : register(t0);
 Texture2D normalTexture : register(t1);
 Texture2D aoTexture : register(t2);
-Texture2D displacementTexture : register(t3);
+Texture2D parallaxTexture : register(t3);
 Texture2D roughnessTexture : register(t4);
 Texture2D metallicTexture : register(t5);
 Texture2D shadowMapTexture : register(t6);
@@ -117,7 +123,12 @@ float FindBlockerDistance(float2 uv, float zReceiver, float searchRadius)
     return result;
 }
 
-float CalculateShadow(float4 lightSpacePos, float depthBias)
+float RandomNoise(float2 pos)
+{
+    return frac(sin(dot(pos, float2(12.9898, 78.233))) * 43758.5453);
+}
+
+float CalculateShadow(float4 lightSpacePos, float depthBias, float2 worldPosXY)
 {
     float finalShadow = 1.0;
 
@@ -143,10 +154,18 @@ float CalculateShadow(float4 lightSpacePos, float depthBias)
             }
             
             float totalShadow = 0.0;
+    
+            float noise = RandomNoise(worldPosXY * 50.0);
+            float angle = noise * 6.2831853;
+            float s, c;
+            sincos(angle, s, c);
+            float2x2 rotMat = float2x2(c, -s, s, c);
+
             [unroll]
             for (int j = 0; j < 32; j++)
             {
-                float2 sampleUV = projCoords.xy + PoissonDisk[j] * spread;
+                float2 rotatedOffset = mul(PoissonDisk[j], rotMat);
+                float2 sampleUV = projCoords.xy + rotatedOffset * spread;
                 totalShadow += shadowMapTexture.SampleCmp(shadowMapSampler, sampleUV, zReceiver);
             }
             
@@ -160,17 +179,24 @@ float CalculateShadow(float4 lightSpacePos, float depthBias)
 //------------------------------------------------------------------------------------------------
 float3 GetProceduralAmbient(float3 worldNormal, float3 sunDir)
 {
-    float dayFactor = smoothstep(-0.1, 0.2, sunDir.z);
-    float sunsetFactor = saturate(1.0 - abs(sunDir.z * 3.0));
-    
-    float3 zenithColor = float3(0.05, 0.2, 0.6);
-    float3 horizonColorDay = float3(0.6, 0.7, 0.85);
-    float3 sunsetColor = float3(1.0, 0.4, 0.1);
-    float3 nightSky = float3(0.02, 0.05, 0.2);
-    
+    float sunDot = dot(worldNormal, sunDir);
+    float dayFactor = smoothstep(-0.15, 0.2, sunDir.z);
+    float sunsetFactor = saturate(1.0 - abs(sunDir.z * 4.0));
     float viewHeight = saturate(worldNormal.z);
+    
+    float3 zenithColor = float3(0.25, 0.45, 0.8);
+    float3 horizonColorDay = float3(0.6, 0.7, 0.85);
+    
+    float3 sunsetColor = float3(1.0, 0.45, 0.1);
+    float3 sunsetRed = float3(1.0, 0.15, 0.05);
+    float3 nightSky = float3(0.02, 0.04, 0.2);
+    
     float3 currentHorizon = lerp(horizonColorDay, sunsetColor, sunsetFactor);
-    float3 daySky = lerp(currentHorizon, zenithColor, pow(viewHeight, 0.8));
+    float3 daySky = lerp(currentHorizon, zenithColor, pow(viewHeight, 0.5));
+    
+    float glowDist = pow(saturate(sunDot), 4.0);
+    float3 sunsetGlow = lerp(sunsetColor, sunsetRed, sunsetFactor);
+    daySky = lerp(daySky, sunsetGlow, glowDist * sunsetFactor * (1.0 - viewHeight * 0.5));
     
     return lerp(nightSky, daySky, dayFactor) * AmbientIntensity;
 }
@@ -259,6 +285,7 @@ p_out PixelMain(v2p_t input)
     // --- PBR Help Vectors ---
     float3 V = normalize(CameraWorldPosition - input.worldPosition.xyz);
     float3 L = normalize(-SunDirection);
+    float sunVisibility = smoothstep(-0.02, 0.05, L.z);
     float3 H = normalize(V + L);
     float NdotV = max(dot(N, V), 0.0001);
     float NdotL = max(dot(N, L), 0.0);
@@ -283,14 +310,24 @@ p_out PixelMain(v2p_t input)
     slope = clamp(slope, 0.0, 5.0);
     float depthBiasScale = 0.001;
     float normalBiasScale = 0.015;
-    float currentDepthBias = depthBiasScale * slope;
-    float currentNormalBias = normalBiasScale * (1.0 - NdotL);
-    float texelSize = 1.0 / 2048.0;
-    float3 normalOffset = worldNormal * currentNormalBias * texelSize * 2.0;
+    
+    float baseNormalBias = 0.005;
+    float baseDepthBias = 0.0005;
+
+    float currentDepthBias = depthBiasScale * slope + baseDepthBias;
+    float currentNormalBias = (normalBiasScale * (1.0 - NdotL)) + baseNormalBias;
+
+    float worldTexelSize = 300.0 / 2048.0;
+    float3 normalOffset = worldNormal * currentNormalBias * worldTexelSize * 2.0;
     float3 biasedWorldPos = input.worldPosition.xyz + normalOffset;
     float4 lightSpacePos = mul(SunViewProjMatrix, float4(biasedWorldPos, 1.0));
-    float shadow = CalculateShadow(lightSpacePos, currentDepthBias);
-    float3 directLight = (kD * albedo / PI + specular) * SunIntensity * NdotL * shadow;
+    float shadow = 0.0;
+    if (sunVisibility > 0.0)
+    {
+        float4 lightSpacePos = mul(SunViewProjMatrix, float4(biasedWorldPos, 1.0));
+        shadow = CalculateShadow(lightSpacePos, currentDepthBias, input.worldPosition.xy);
+    }
+    float3 directLight = (kD * albedo / PI + specular) * SunIntensity * NdotL * shadow * sunVisibility;
 
     // --- Calculate Ambient Light ---
     float3 skyAmbient = GetProceduralAmbient(N, L);

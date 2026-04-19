@@ -21,7 +21,7 @@ public:
 		AABB2 bottomUV,
 		Rgba8 tintColor = Rgba8::WHITE
 	);
-	static void InitializeTileDefs();
+	static void InitializeTileDefs(std::string configPath);
 
 public:
 	static std::map<std::string, TileDefinition> s_definitions;
