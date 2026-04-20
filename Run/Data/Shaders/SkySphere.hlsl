@@ -115,42 +115,53 @@ float fbm(float3 p, int octaves)
 
 float2 RaySphereIntersection(float3 ro, float3 rd, float radius)
 {
+    float2 result;
     float b = dot(ro, rd);
     float c = dot(ro, ro) - radius * radius;
     float h = b * b - c;
+    
     if (h < 0.0)
-        return float2(-1.0, -1.0);
-    h = sqrt(h);
-    return float2(-b - h, -b + h);
+    {
+        result = float2(-1.0, -1.0);
+    }
+    else
+    {
+        h = sqrt(h);
+        result = float2(-b - h, -b + h);
+    }
+    
+    return result;
 }
 
 float GetCloudDensity(float3 p, float heightFrac, bool useDetail, float3 baseMove, float3 detailMove, float coverage)
 {
-    float3 pBase = p + baseMove;
+    float result;
     
+    float3 pBase = p + baseMove;
     float warp = noise(pBase * 0.00005);
     float3 pWarped = pBase + float3(warp, warp, warp) * 1500.0;
-    
     int baseOctaves = useDetail ? 4 : 2;
     float baseNoise = fbm(pWarped * 0.0003, baseOctaves);
-    
     float heightGradient = smoothstep(0.0, 0.075, heightFrac) * smoothstep(1.0, 0.4, heightFrac);
     
     float baseDensity = saturate((baseNoise - coverage) * 2.095) * heightGradient;
     
     if (!useDetail || baseDensity <= 0.0)
     {
-        return baseDensity * 6.0;
+        result = baseDensity * 6.0;
     }
+    else
+    {
+        float3 pDetail = p + detailMove;
+        float detailNoise = fbm(pDetail * 0.00275, 4);
         
-    float3 pDetail = p + detailMove;
-    float detailNoise = fbm(pDetail * 0.00275, 4);
+        float erosionWeight = 1.0 - baseDensity;
+        float erosionAmount = detailNoise * erosionWeight * 0.75;
+        float finalDensity = saturate((baseDensity - erosionAmount) / (1.0 - erosionAmount));
+        result = finalDensity * 6.0;
+    }
     
-    float erosionWeight = 1.0 - baseDensity;
-    float erosionAmount = detailNoise * erosionWeight * 0.75;
-    float finalDensity = saturate((baseDensity - erosionAmount) / (1.0 - erosionAmount));
-    
-    return finalDensity * 6.0;
+    return result;
 }
 
 float PhaseHG(float cosTheta, float g)
@@ -161,6 +172,8 @@ float PhaseHG(float cosTheta, float g)
 
 float4 RenderClouds(float3 ro, float3 rd, float3 sunDir, float3 moonDir, float dayFactor, float3 sunsetColor, float2 screenPos)
 {
+    float4 finalResult = float4(0.0, 0.0, 0.0, 0.0);
+    
     float earthRadius = 600000.0;
     float cloudMinHeight = 5000.0;
     float cloudMaxHeight = 15000.0;
@@ -170,95 +183,97 @@ float4 RenderClouds(float3 ro, float3 rd, float3 sunDir, float3 moonDir, float d
     float2 tBottom = RaySphereIntersection(localRo, rd, earthRadius + cloudMinHeight);
     float2 tTop = RaySphereIntersection(localRo, rd, earthRadius + cloudMaxHeight);
     
-    if (tTop.y < 0.0)
-        return float4(0.0, 0.0, 0.0, 0.0);
-        
-    float startDist = max(0.0, tBottom.y > 0.0 ? tBottom.y : tTop.x);
-    float endDist = tTop.y;
-    
-    float maxRenderDist = 12000.0;
-    endDist = min(endDist, startDist + maxRenderDist);
-   
-    int steps = (int) lerp(48.0, 72.0, saturate(rd.z * 2.0));
-    float stepSize = (endDist - startDist) / float(steps);
-    
-    float3 seed = float3(screenPos, GameRunTime * 10.0);
-    float jitter = hash(seed) * stepSize;
-    float currentDist = startDist + jitter;
-    
-    float3 activeLightDir = lerp(moonDir, sunDir, smoothstep(0.0, 0.2, dayFactor));
-    float cosTheta = dot(rd, activeLightDir);
-    float phase = lerp(PhaseHG(cosTheta, 0.4), PhaseHG(cosTheta, 0.7), 0.5);
-    
-    float3 ambientDay = float3(0.55, 0.6, 0.7);
-    float3 ambientNight = float3(0.05, 0.08, 0.15);
-    float3 baseColor = lerp(ambientNight, ambientDay, dayFactor);
-    
-    float3 lightDay = float3(1.0, 1.0, 1.0);
-    float3 lightNight = float3(0.15, 0.25, 0.4);
-    float3 highlightColor = lerp(lightNight, lightDay, dayFactor);
-    
-    float sunsetFactor = saturate(1.0 - abs(sunDir.z * 4.0)) * smoothstep(-0.1, 0.0, sunDir.z);
-    highlightColor = lerp(highlightColor, sunsetColor * 1.5, sunsetFactor);
-    baseColor = lerp(baseColor, sunsetColor * 0.35, sunsetFactor);
-    float scatteringBoost = lerp(1.2, 1.8, dayFactor * (1.0 - sunsetFactor));
-    
-    float4 cloudResult = float4(0.0, 0.0, 0.0, 0.0);
-    
-    float3 initialMove = float3(12000.0, 18000.0, 0.0);
-    float3 baseMove = initialMove + float3(GameRunTime * 120.0, GameRunTime * 180.0, 0.0);
-    float3 detailMove = baseMove * 1.1 + float3(0.0, 0.0, GameRunTime * -80.0);
-
-    float currentCoverage = lerp(0.45, 0.4125, dayFactor);
-    for (int i = 0; i < steps; i++)
+    if (tTop.y >= 0.0)
     {
-        float3 p = ro + rd * currentDist;
-        float heightFrac = (length(p - earthCenter) - (earthRadius + cloudMinHeight)) / (cloudMaxHeight - cloudMinHeight);
-        
-        float density = GetCloudDensity(p, saturate(heightFrac), true, baseMove, detailMove, currentCoverage);
-        
-        if (density > 0.01)
+        float startDist = max(0.0, tBottom.y > 0.0 ? tBottom.y : tTop.x);
+        float endDist = tTop.y;
+    
+        float maxRenderDist = 12000.0;
+        endDist = min(endDist, startDist + maxRenderDist);
+   
+        int steps = (int) lerp(48.0, 72.0, saturate(rd.z * 2.0));
+        float stepSize = (endDist - startDist) / float(steps);
+    
+        float3 seed = float3(screenPos, GameRunTime * 10.0);
+        float jitter = hash(seed) * stepSize;
+        float currentDist = startDist + jitter;
+    
+        float3 activeLightDir = lerp(moonDir, sunDir, smoothstep(0.0, 0.2, dayFactor));
+        float cosTheta = dot(rd, activeLightDir);
+        float phase = lerp(PhaseHG(cosTheta, 0.4), PhaseHG(cosTheta, 0.7), 0.5);
+    
+        float3 ambientDay = float3(0.55, 0.6, 0.7);
+        float3 ambientNight = float3(0.05, 0.08, 0.15);
+        float3 baseColor = lerp(ambientNight, ambientDay, dayFactor);
+    
+        float3 lightDay = float3(1.0, 1.0, 1.0);
+        float3 lightNight = float3(0.15, 0.25, 0.4);
+        float3 highlightColor = lerp(lightNight, lightDay, dayFactor);
+    
+        float sunsetFactor = saturate(1.0 - abs(sunDir.z * 4.0)) * smoothstep(-0.1, 0.0, sunDir.z);
+        highlightColor = lerp(highlightColor, sunsetColor * 1.5, sunsetFactor);
+        baseColor = lerp(baseColor, sunsetColor * 0.35, sunsetFactor);
+        float scatteringBoost = lerp(1.2, 1.8, dayFactor * (1.0 - sunsetFactor));
+    
+        float4 cloudResult = float4(0.0, 0.0, 0.0, 0.0);
+    
+        float3 initialMove = float3(12000.0, 18000.0, 0.0);
+        float3 baseMove = initialMove + float3(GameRunTime * 120.0, GameRunTime * 180.0, 0.0);
+        float3 detailMove = baseMove * 1.1 + float3(0.0, 0.0, GameRunTime * -80.0);
+
+        float currentCoverage = lerp(0.45, 0.4125, dayFactor);
+        for (int i = 0; i < steps; i++)
         {
-            float shadowDist = 300.0;
-            float shadowHeightFrac = saturate(heightFrac + (activeLightDir.z * shadowDist) / (cloudMaxHeight - cloudMinHeight));
-            float shadowDensity = GetCloudDensity(p + activeLightDir * shadowDist, shadowHeightFrac, false, baseMove, detailMove, currentCoverage);
+            float3 p = ro + rd * currentDist;
+            float heightFrac = (length(p - earthCenter) - (earthRadius + cloudMinHeight)) / (cloudMaxHeight - cloudMinHeight);
+        
+            float density = GetCloudDensity(p, saturate(heightFrac), true, baseMove, detailMove, currentCoverage);
+        
+            if (density > 0.01)
+            {
+                float shadowDist = 300.0;
+                float shadowHeightFrac = saturate(heightFrac + (activeLightDir.z * shadowDist) / (cloudMaxHeight - cloudMinHeight));
+                float shadowDensity = GetCloudDensity(p + activeLightDir * shadowDist, shadowHeightFrac, false, baseMove, detailMove, currentCoverage);
             
-            float primaryLight = exp(-(density * 0.6 + shadowDensity) * 2.0);
-            float scatterLight = exp(-(density * 0.1 + shadowDensity * 0.2)) * 0.065;
-            float transmittance = primaryLight + scatterLight;
+                float primaryLight = exp(-(density * 0.6 + shadowDensity) * 2.0);
+                float scatterLight = exp(-(density * 0.1 + shadowDensity * 0.2)) * 0.065;
+                float transmittance = primaryLight + scatterLight;
             
-            float powder = 1.0 - exp(-density * 1.5);
-            float distFade = smoothstep(maxRenderDist, maxRenderDist * 0.4, currentDist - startDist);
-            float dynamicPhase = lerp(1.0, phase, transmittance);
+                float powder = 1.0 - exp(-density * 1.5);
+                float distFade = smoothstep(maxRenderDist, maxRenderDist * 0.4, currentDist - startDist);
+                float dynamicPhase = lerp(1.0, phase, transmittance);
             
-            float ambientHeightGradient = lerp(0.5, 1.0, saturate(heightFrac));
-            float ambientOcclusion = lerp(0.4, 1.0, exp(-density * 0.5));
+                float ambientHeightGradient = lerp(0.5, 1.0, saturate(heightFrac));
+                float ambientOcclusion = lerp(0.4, 1.0, exp(-density * 0.5));
             
-            float3 localAmbient = baseColor * ambientHeightGradient * ambientOcclusion * lerp(1.0, 1.75, dayFactor);
-            float3 localDirect = highlightColor * transmittance * powder * dynamicPhase * scatteringBoost;
+                float3 localAmbient = baseColor * ambientHeightGradient * ambientOcclusion * lerp(1.0, 1.75, dayFactor);
+                float3 localDirect = highlightColor * transmittance * powder * dynamicPhase * scatteringBoost;
             
-            float stepAlpha = saturate(density * stepSize * 0.005 * distFade);
-            float directWeight = density * stepSize * 0.01 * distFade;
+                float stepAlpha = saturate(density * stepSize * 0.005 * distFade);
+                float directWeight = density * stepSize * 0.01 * distFade;
             
-            float3 particleColor = localAmbient * stepAlpha + localDirect * directWeight;
+                float3 particleColor = localAmbient * stepAlpha + localDirect * directWeight;
             
-            cloudResult.rgb += particleColor * (1.0 - cloudResult.a);
-            cloudResult.a += stepAlpha * (1.0 - cloudResult.a);
+                cloudResult.rgb += particleColor * (1.0 - cloudResult.a);
+                cloudResult.a += stepAlpha * (1.0 - cloudResult.a);
             
-            if (cloudResult.a > 0.95)
-                break;
+                if (cloudResult.a > 0.95)
+                    break;
+            }
+            currentDist += stepSize;
         }
-        currentDist += stepSize;
+    
+        float viewSunDot = dot(rd, sunDir);
+        float directionalGlow = pow(saturate(viewSunDot), 3.0) * sunsetFactor;
+        cloudResult.rgb = lerp(cloudResult.rgb, sunsetColor * 1.2, directionalGlow * 0.6 * cloudResult.a);
+    
+        float horizonFade = smoothstep(0.08, 0.25, rd.z + 0.02);
+        cloudResult.rgb *= horizonFade;
+
+        finalResult = float4(cloudResult.rgb, saturate(cloudResult.a * horizonFade));
     }
     
-    float viewSunDot = dot(rd, sunDir);
-    float directionalGlow = pow(saturate(viewSunDot), 3.0) * sunsetFactor;
-    cloudResult.rgb = lerp(cloudResult.rgb, sunsetColor * 1.2, directionalGlow * 0.6 * cloudResult.a);
-    
-    float horizonFade = smoothstep(0.08, 0.25, rd.z + 0.02);
-    cloudResult.rgb *= horizonFade;
-
-    return float4(cloudResult.rgb, saturate(cloudResult.a * horizonFade));
+    return finalResult;
 }
 //------------------------------------------------------------------------------------------------
 // Pixel Shader

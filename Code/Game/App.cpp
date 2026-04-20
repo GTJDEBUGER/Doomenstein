@@ -397,6 +397,7 @@ void App::PrintGameControlGuide() {
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-W/S-              \tMove forward or back, relative to player orientation");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-Z/C-              \tMove up or down, relative to the world");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-SHIFT-            \tIncrease speed while held");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-SPACE-            \tJump");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-F-                \tToggle free camera mode");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-N-                \tPossess next valid actor in map");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-P-                \tPause the game");
