@@ -188,7 +188,7 @@ float3 GetProceduralAmbient(float3 worldNormal, float3 sunDir)
     float3 horizonColorDay = float3(0.6, 0.7, 0.85);
     
     float3 sunsetColor = float3(1.0, 0.45, 0.1);
-    float3 sunsetRed = float3(1.0, 0.15, 0.05);
+    float3 sunsetRed = float3(0.95, 0.3, 0.1);
     float3 nightSky = float3(0.02, 0.04, 0.2);
     
     float3 currentHorizon = lerp(horizonColorDay, sunsetColor, sunsetFactor);
