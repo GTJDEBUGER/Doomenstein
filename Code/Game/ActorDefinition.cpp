@@ -10,19 +10,11 @@
 std::map<std::string, ActorDefinition> ActorDefinition::s_definitions;
 
 //-----------------------------------------------------------------------------------------------
-ActorAnimation::~ActorAnimation() {
-	if (m_animation != nullptr) {
-		delete m_animation;
-		m_animation = nullptr;
-	}
-}
-
-//-----------------------------------------------------------------------------------------------
 Actor2DAnimationGroup::~Actor2DAnimationGroup() {
-	for (ActorAnimation* anim : m_animations) {
-		if (anim != nullptr) {
-			delete anim;
-			anim = nullptr;
+	for (auto& pair : m_animations) {
+		if (pair.second != nullptr) {
+			delete pair.second;
+			pair.second = nullptr;
 		}
 	}
 	m_animations.clear();
@@ -30,12 +22,13 @@ Actor2DAnimationGroup::~Actor2DAnimationGroup() {
 
 //-----------------------------------------------------------------------------------------------
 Actor2DRenderInfo::~Actor2DRenderInfo() {
-	for (Actor2DAnimationGroup* animGroup : m_animationGroups) {
-		if (animGroup != nullptr) {
-			delete animGroup;
-			animGroup = nullptr;
+	for (auto& pair : m_animationGroups) {
+		if (pair.second != nullptr) {
+			delete pair.second;
+			pair.second = nullptr;
 		}
 	}
+	m_animationGroups.clear();
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -137,11 +130,20 @@ void ActorDefinition::InitializeActorDefs(std::string configPath) {
 			else if (actorRenderBillboardTypeName == "WorldUpOpposing") {
 				actorRenderBillboardType = BillboardType::WORLD_UP_OPPOSING;
 			}
-			else {
-				ERROR_AND_DIE(Stringf("Unknown billboard type \"%s\" for actor \"%s\"", actorRenderBillboardTypeName.c_str(), actorName.c_str()));
-			}
+
 			bool renderLit = ParseXmlAttribute(*actor2DRenderInfo, "renderLit", true);
-			Texture* spriteSheetTexture = g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*actor2DRenderInfo, "spriteSheet", "Error").data());
+			std::string spriteSheetPath = ParseXmlAttribute(*actor2DRenderInfo, "spriteSheet", "Error");
+			Texture* spriteSheetTexture = spriteSheetPath != "Error" ? g_engine->m_renderer->CreateOrGetTextureFromFile(spriteSheetPath.data()) : nullptr;
+			std::string spriteSheetNormalPath = ParseXmlAttribute(*actor2DRenderInfo, "spriteSheetNormalTexture", "Error");
+			Texture* spriteSheetNormalTexture = spriteSheetNormalPath != "Error" ? g_engine->m_renderer->CreateOrGetTextureFromFile(spriteSheetNormalPath.data()) : nullptr;
+			std::string spriteSheetAOPath = ParseXmlAttribute(*actor2DRenderInfo, "spriteSheetAOTexture", "Error");
+			Texture* spriteSheetAOTexture = spriteSheetAOPath != "Error" ? g_engine->m_renderer->CreateOrGetTextureFromFile(spriteSheetAOPath.data()) : nullptr;
+			std::string spriteSheetRoughnessPath = ParseXmlAttribute(*actor2DRenderInfo, "spriteSheetRoughnessTexture", "Error");
+			Texture* spriteSheetRoughnessTexture = spriteSheetRoughnessPath != "Error" ? g_engine->m_renderer->CreateOrGetTextureFromFile(spriteSheetRoughnessPath.data()) : nullptr;
+			std::string spriteSheetMetallicPath = ParseXmlAttribute(*actor2DRenderInfo, "spriteSheetMetallicTexture", "Error");
+			Texture* spriteSheetMetallicTexture = spriteSheetMetallicPath != "Error" ? g_engine->m_renderer->CreateOrGetTextureFromFile(spriteSheetMetallicPath.data()) : nullptr;
+			std::string spriteSheetEmissivePath = ParseXmlAttribute(*actor2DRenderInfo, "spriteSheetEmissiveTexture", "Error");
+			Texture* spriteSheetEmissiveTexture = spriteSheetEmissivePath != "Error" ? g_engine->m_renderer->CreateOrGetTextureFromFile(spriteSheetEmissivePath.data()) : nullptr;
 			IntVec2 spriteSheetCellCount = ParseXmlAttribute(*actor2DRenderInfo, "cellCount", IntVec2(1, 1));
 			s_definitions[actorName].m_actor2DRenderInfo = Actor2DRenderInfo{
 				ParseXmlAttribute(*actor2DRenderInfo, "size", Vec2(1.f,1.f)),
@@ -150,6 +152,12 @@ void ActorDefinition::InitializeActorDefs(std::string configPath) {
 				renderLit,
 				ParseXmlAttribute(*actor2DRenderInfo, "renderRounded", true),
 				g_engine->m_renderer->CreateShader(ParseXmlAttribute(*actor2DRenderInfo, "shader", "Error").data(), renderLit ? VertexType::PCUTBN : VertexType::PCU),
+				spriteSheetTexture,
+				spriteSheetNormalTexture,
+				spriteSheetAOTexture,
+				spriteSheetRoughnessTexture,
+				spriteSheetMetallicTexture,
+				spriteSheetEmissiveTexture,
 				new SpriteSheet(*spriteSheetTexture, spriteSheetCellCount)
 			};
 
@@ -172,30 +180,26 @@ void ActorDefinition::InitializeActorDefs(std::string configPath) {
 					ERROR_AND_DIE(Stringf("Unknown playback type \"%s\" for animation group \"%s\" of actor \"%s\"", playbackTypeName.c_str(), animationGroupName.c_str(), actorName.c_str()));
 				}
 
-				s_definitions[actorName].m_actor2DRenderInfo.m_animationGroups.push_back(
+				s_definitions[actorName].m_actor2DRenderInfo.m_animationGroups[animationGroupName] = 
 					new Actor2DAnimationGroup{
 						animationGroupName,
 						scaleBySpeed
-					}
-				);
+					};
 
 				for (XmlElement* k = j->FirstChildElement(); k != nullptr; k = k->NextSiblingElement()) {
-					Vec3 animDirection = ParseXmlAttribute(*k, "direction", Vec3(0.f, 0.f, 0.f));
+					Vec3 animDirection = ParseXmlAttribute(*k, "vector", Vec3(0.f, 0.f, 0.f));
+					int directionCount = RoundDownToInt((animDirection.GetOrientationAboutZDegrees() + 180.f) / 45.f) % 8;
 					XmlElement* animation = k->FirstChildElement("Animation");
 					int startFrame = ParseXmlAttribute(*animation, "startFrame", 0);
 					int endFrame = ParseXmlAttribute(*animation, "endFrame", 0);
-					s_definitions[actorName].m_actor2DRenderInfo.m_animationGroups.back()->m_animations.push_back(
-						new ActorAnimation{
-							animDirection,
-							new SpriteAnimDefinition(
-								*s_definitions[actorName].m_actor2DRenderInfo.m_spriteSheet,
-								startFrame,
-								endFrame,
-								secondsPerFrame,
-								playbackType
-							)
-						}
-					);
+					s_definitions[actorName].m_actor2DRenderInfo.m_animationGroups[animationGroupName]->m_animations[directionCount] =
+						new SpriteAnimDefinition(
+							*s_definitions[actorName].m_actor2DRenderInfo.m_spriteSheet,
+							startFrame,
+							endFrame,
+							1.f / secondsPerFrame,
+							playbackType
+						);
 				}
 			}
 		}
@@ -220,6 +224,16 @@ void ActorDefinition::InitializeActorDefs(std::string configPath) {
 				std::string weaponName = ParseXmlAttribute(*j, "name", "undefinedWeapon");
 				s_definitions[actorName].m_inventory.push_back(weaponName);
 			}
+		}
+
+		XmlElement* actorPointLight = i->FirstChildElement("PointLight");
+		if (actorPointLight != nullptr) {
+			s_definitions[actorName].m_pointLight = ActorPointLight{
+				ParseXmlAttribute(*actorPointLight, "radius", 0.f),
+				ParseXmlAttribute(*actorPointLight, "color", Rgba8::WHITE),
+				ParseXmlAttribute(*actorPointLight, "intensity", 0.f),
+				ParseXmlAttribute(*actorPointLight, "volumetric", false)
+			};
 		}
 	}
 }

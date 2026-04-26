@@ -11,32 +11,25 @@
 class Shader;
 class Texture;
 class SpriteSheet;
+class SpriteAnimDefinition;
 
 //-----------------------------------------------------------------------------------------------
-struct WeaponAnimation {
-	std::string  m_name            = "undefinedAnimation";
-	Shader*      m_shader          = nullptr;
-	SpriteSheet* m_spriteSheet     = nullptr;
-	IntVec2      m_cellCount       = IntVec2(0, 0);
-	float        m_secondsPerFrame = 0.f;
-	int          m_startFrame      = 0;
-	int          m_endFrame        = 0;
-};
-
 struct WeaponSound {
 	std::string m_sound     = "undefinedSound";
 	SoundID     m_soundID   = 0;
 };
 
 struct WeaponHUD {
-	Shader*  m_shader         = nullptr;
-	Texture* m_baseTexture    = nullptr;
-	Texture* m_reticleTexture = nullptr;
-	IntVec2  m_reticleSize    = IntVec2(0, 0);
-	IntVec2  m_spriteSize     = IntVec2(256, 256);
-	Vec2     m_spritePivot    = Vec2(0.5f, 0.0f);
-
-	std::vector<WeaponAnimation> m_animations;
+	Shader*  m_shader                     = nullptr;
+	Texture* m_baseTexture                = nullptr;
+	Texture* m_reticleTexture             = nullptr;
+	IntVec2  m_reticleSize                = IntVec2(0, 0);
+	SpriteSheet* m_spriteSheet            = nullptr;
+	Texture* m_spriteSheetNormalTexture   = nullptr;
+	Texture* m_spriteSheetEmissiveTexture = nullptr;
+	IntVec2  m_spriteSize                 = IntVec2(256, 256);
+	Vec2     m_spritePivot                = Vec2(0.5f, 0.0f);
+	std::map<std::string, SpriteAnimDefinition*> m_animations;
 };
 
 //-----------------------------------------------------------------------------------------------

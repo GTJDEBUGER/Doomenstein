@@ -57,7 +57,8 @@ void PlayerController::UpdateInput() {
 		}
 
 		newOrientation = m_orientation;
-		m_inputActions.viewInput *= possessedActor->m_definition.m_physics.m_turnSpeed;
+		m_inputActions.viewInput.x *= g_gameConfig->m_playerViewYawSpeed;
+		m_inputActions.viewInput.y *= g_gameConfig->m_playerViewPitchSpeed;
 		newOrientation.m_yawDegrees += m_inputActions.viewInput.x * (float)m_map->m_game->m_gameClock->GetDeltaSeconds();
 		newOrientation.m_pitchDegrees -= m_inputActions.viewInput.y * (float)m_map->m_game->m_gameClock->GetDeltaSeconds();
 		if (newOrientation.m_pitchDegrees > 85.f) {
@@ -70,7 +71,7 @@ void PlayerController::UpdateInput() {
 
 		newOrientation.m_pitchDegrees = 0.f;
 		newOrientation.GetAsVectors_IFwd_JLeft_KUp(viewForwardDir, viewLeftDir, viewUpDir);
-		possessedActor->TurnInDirection(viewForwardDir, possessedActor->m_definition.m_physics.m_turnSpeed * (float)m_map->m_game->m_gameClock->GetDeltaSeconds());
+		possessedActor->TurnInDirection(viewForwardDir, -1.f);
 		possessedActor->MoveInDirection(
 			(viewForwardDir * m_inputActions.moveInput.x + viewLeftDir * m_inputActions.moveInput.y).GetNormalized(),
 			m_inputActions.isRun ? possessedActor->m_definition.m_physics.m_runSpeed : possessedActor->m_definition.m_physics.m_walkSpeed

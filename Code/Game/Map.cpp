@@ -27,7 +27,6 @@ Map::Map(Game* game, MapDefinition const& definition)
 	CreateCameras();
 	CreateTiles();
 	CreateGeometry();
-	CreateBuffers();
 	SpawnActors();
 }
 
@@ -40,10 +39,6 @@ Map::~Map() {
 	}
 	delete m_sunShadowCamera;
 	m_sunShadowCamera = nullptr;
-	delete m_mapVertexBuffer;
-	m_mapVertexBuffer = nullptr;
-	delete m_mapIndexBuffer;
-	m_mapIndexBuffer = nullptr;
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -214,12 +209,6 @@ void Map::AddGeometryForBottom(AABB3 const& bounds, AABB2 const& UVs) {
 }
 
 //-----------------------------------------------------------------------------------------------
-void Map::CreateBuffers() {
-	m_mapVertexBuffer = g_engine->m_renderer->CreateVertexBuffer(static_cast<unsigned int>(m_mapVerts.size()) * sizeof(Vertex_TBN), sizeof(Vertex_TBN));
-	m_mapIndexBuffer = g_engine->m_renderer->CreateIndexBuffer(static_cast<unsigned int>(m_mapIndexs.size()) * sizeof(unsigned int));
-}
-
-//-----------------------------------------------------------------------------------------------
 bool Map::ShouldRenderFaceAgainstNeighbor(int x, int y) const {
 	Tile const* neighbor = GetTile(x, y);
 	return neighbor == nullptr || !neighbor->m_definition.m_isSolid;
@@ -298,14 +287,16 @@ void Map::Update() {
 
 	m_sunDirection = -Vec3(sunX, sunY, sunZ).GetNormalized();
 
-	DebugAddWorldArrow(
-		GetMapWorldCenter() + Vec3(0.f, 0.f, 20.f),
-		GetMapWorldCenter() + Vec3(0.f, 0.f, 20.f) + m_sunDirection * 7.5f,
-		0.5f,
-		0.f,
-		Rgba8::YELLOW,
-		Rgba8::YELLOW
-	);
+	if (m_game->m_isDrawDebug) {
+		DebugAddWorldArrow(
+			GetMapWorldCenter() + Vec3(0.f, 0.f, 20.f),
+			GetMapWorldCenter() + Vec3(0.f, 0.f, 20.f) + m_sunDirection * 7.5f,
+			0.5f,
+			0.f,
+			Rgba8::YELLOW,
+			Rgba8::YELLOW
+		);
+	}
 
 	UpdateSunShadowCamera();
 
@@ -315,6 +306,7 @@ void Map::Update() {
 
 	ClearDeadActors();
 	RespawnPlayers();
+	UpdatePointLights();
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -518,7 +510,7 @@ void Map::UpdateSunShadowCamera() {
 
 	Vec3 shadowSunDir = -Vec3(sunX, sunY, sunZ).GetNormalized();
 
-	Vec3 idealSunPos = GetMapWorldCenter() - (shadowSunDir * 180.f);
+	Vec3 idealSunPos = GetMapWorldCenter() - (shadowSunDir * 200.f);
 	EulerAngles sunOrientation = EulerAngles::MakeLookDirectionEulerAngles(shadowSunDir);
 
 	float orthoWidth = 300.f;
@@ -551,11 +543,17 @@ void Map::Render() const {
 		m_sunDirection.GetNormalized(),
 		m_sunIntensity,
 		m_ambientIntensity,
-		GetSunShadowCameraViewProjMatrix()
+		GetSunShadowCameraViewProjMatrix(),
+		(unsigned int)m_pointLights.size(),
+		m_pointLights.data()
 	);
-
-	g_engine->m_renderer->BindShader(m_definition.m_mapShader);
-
+	g_engine->m_renderer->SetModelConstants(
+		Mat44::MakeTransform3D(
+			Vec3(),
+			EulerAngles(),
+			Vec3(1.f, 1.f, 1.f)
+		)
+	);
 	g_engine->m_renderer->SetSamplerMode(SamplerMode::POINT_CLAMP, SamplerSlot::SLOT0);
 	g_engine->m_renderer->SetSamplerMode(SamplerMode::ANISOTROPIC_WARP, SamplerSlot::SLOT1);
 	g_engine->m_renderer->SetSamplerMode(SamplerMode::SHADOWMAP, SamplerSlot::SLOT2);
@@ -566,8 +564,9 @@ void Map::Render() const {
 	g_engine->m_renderer->BindTexture(m_definition.m_mapParallaxTexture, TextureSlot::PARALLAX_SCREENNORMAL);
 	g_engine->m_renderer->BindTexture(m_definition.m_mapRoughnessTexture, TextureSlot::ROUGHNESS);
 	g_engine->m_renderer->BindTexture(m_definition.m_mapMetallicTexture, TextureSlot::METALLIC);
+	g_engine->m_renderer->BindTexture(nullptr, TextureSlot::EMISSIVE);
 	g_engine->m_renderer->BindTexture(nullptr, TextureSlot::SHADOWMAP);
-	g_engine->m_renderer->DrawIndexedVertexBuffer(m_mapVertexBuffer, m_mapIndexBuffer, static_cast<unsigned int>(m_mapIndexs.size()));
+	g_engine->m_renderer->DrawVertexArray(m_mapVerts, m_mapIndexs, m_definition.m_mapShader);
 	g_engine->m_renderer->SetSamplerMode(SamplerMode::POINT_CLAMP);
 
 	Vec3 cameraPos = m_game->m_playerController->m_playerCamera->GetPosition();
@@ -613,21 +612,13 @@ void Map::Render() const {
 
 //-----------------------------------------------------------------------------------------------
 void Map::RenderShadowmap() const {
-	g_engine->m_renderer->BindShader(m_shadowMapShader, true, false);
 	g_engine->m_renderer->SetSamplerMode(SamplerMode::POINT_CLAMP);
-	g_engine->m_renderer->CopyCPUToGPU(
-		m_mapVerts.data(),
-		static_cast<unsigned int>(m_mapVerts.size() * sizeof(Vertex_TBN)),
-		m_mapVertexBuffer
-	);
-	g_engine->m_renderer->BindVertexBuffer(m_mapVertexBuffer);
-	g_engine->m_renderer->CopyCPUToGPU(
-		m_mapIndexs.data(),
-		static_cast<unsigned int>(m_mapIndexs.size() * sizeof(unsigned int)),
-		m_mapIndexBuffer
-	);
-	g_engine->m_renderer->BindIndexBuffer(m_mapIndexBuffer);
-	g_engine->m_renderer->DrawIndexedVertexBuffer(m_mapVertexBuffer, m_mapIndexBuffer, static_cast<unsigned int>(m_mapIndexs.size()));
+	g_engine->m_renderer->DrawVertexArray(m_mapVerts, m_mapIndexs, m_shadowMapShader, true, false);
+	for (Actor* actor : m_actors) {
+		if (actor != nullptr) {
+			actor->RenderShadowmap();
+		}
+	}
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -983,4 +974,33 @@ Actor* Map::GetNearestActor(Actor* source, std::string const& faction) const {
 		}
 	}
 	return nearestActor;
+}
+
+//-----------------------------------------------------------------------------------------------
+void Map::UpdatePointLights() {
+	m_pointLights.clear();
+
+	for (Actor* actor : m_actors) {
+		if (actor != nullptr) {
+			if (actor->m_definition.m_pointLight.m_intensity > 0.f) {
+				m_pointLights.push_back(
+					PointLight{
+						actor->m_position + Vec3(0.f,0.f,actor->m_definition.m_collision.m_height * 0.5f),
+						actor->m_definition.m_pointLight.m_radius,
+					    {
+						(float)actor->m_definition.m_pointLight.m_color.r / 255.f,
+						(float)actor->m_definition.m_pointLight.m_color.g / 255.f,
+						(float)actor->m_definition.m_pointLight.m_color.b / 255.f,
+						1.f
+					    },
+						actor->m_definition.m_pointLight.m_intensity,
+						actor->m_definition.m_pointLight.m_volumetric
+					}
+				);
+			}
+			if (m_pointLights.size() >= MAX_POINT_LIGHTS){
+				break;
+			}
+		}
+	}
 }

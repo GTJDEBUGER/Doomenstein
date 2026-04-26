@@ -22,12 +22,33 @@ struct v2p_t
 };
 
 //------------------------------------------------------------------------------------------------
+#define MAX_POINT_LIGHTS 256
+
+struct PointLight
+{
+    float3 Position;
+    float Range;
+    float4 Color;
+    float Intensity;
+    int Volumetric;
+    float2 padding;
+};
+
 cbuffer LightConstants : register(b1)
 {
     float3 SunDirection;
     float SunIntensity;
+    
     float AmbientIntensity;
+    float3 _Padding1;
+    
     float4x4 SunViewProjMatrix;
+    
+    uint NumPointLights;
+    float3 _Padding2;
+    
+    PointLight PointLights[MAX_POINT_LIGHTS];
+    float4 _Padding3;
 };
 
 //------------------------------------------------------------------------------------------------

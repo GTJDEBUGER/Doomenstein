@@ -6,6 +6,7 @@
 #include "Engine/Core/NamedStrings.hpp"
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Renderer/SpriteSheet.hpp"
+#include "Engine/Renderer/SpriteAnimDefinition.hpp"
 
 //-----------------------------------------------------------------------------------------------
 std::map<std::string, WeaponDefinition> WeaponDefinition::s_definitions;
@@ -54,8 +55,9 @@ void WeaponDefinition::InitializeWeaponDefs(std::string configPath) {
 	doc.LoadFile(configPath.data());
 	XmlElement* rootElement = doc.FirstChildElement();
 	for (XmlElement* i = rootElement->FirstChildElement(); i != nullptr; i = i->NextSiblingElement()) {
-		s_definitions[ParseXmlAttribute(*i, "name", "undefineWeapon")] = WeaponDefinition(
-			ParseXmlAttribute(*i, "name", "undefineWeapon"),
+		std::string weaponName = ParseXmlAttribute(*i, "name", "undefineWeapon");
+		s_definitions[weaponName] = WeaponDefinition(
+			weaponName,
 			ParseXmlAttribute(*i, "refireTime", 0.f),
 			ParseXmlAttribute(*i, "rayCount", 0),
 			ParseXmlAttribute(*i, "rayCone", 0.f),
@@ -75,34 +77,37 @@ void WeaponDefinition::InitializeWeaponDefs(std::string configPath) {
 
 		XmlElement* weaponHUD = i->FirstChildElement("HUD");
 		if (weaponHUD != nullptr) {
-			s_definitions[ParseXmlAttribute(*i, "name", "undefineWeapon")].m_hud = WeaponHUD{
+			Texture* spriteSheetTexture = g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*weaponHUD, "spriteSheet", "Error").data());
+			Texture* spriteSheetNormalTexture = g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*weaponHUD, "spriteSheetNormal", "Error").data());
+			Texture* spriteSheetEmissiveTexture = g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*weaponHUD, "spriteSheetEmissive", "Error").data());
+			IntVec2 cellCount = ParseXmlAttribute(*weaponHUD, "cellCount", IntVec2(0, 0));
+			s_definitions[weaponName].m_hud = WeaponHUD{
 				g_engine->m_renderer->CreateShader(ParseXmlAttribute(*weaponHUD, "shader", "Error").data(), VertexType::PCUTBN),
 				g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*weaponHUD, "baseTexture", "Error").data()),
 				g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*weaponHUD, "reticleTexture", "Error").data()),
 				ParseXmlAttribute(*weaponHUD, "reticleSize", IntVec2(0, 0)),
+				new SpriteSheet(
+					*spriteSheetTexture,
+					cellCount
+				),
+				spriteSheetNormalTexture,
+				spriteSheetEmissiveTexture,
 				ParseXmlAttribute(*weaponHUD, "spriteSize", IntVec2(256, 256)),
 				ParseXmlAttribute(*weaponHUD, "spritePivot", Vec2(0.5f, 0.f))
 			};
+
 			for (XmlElement* j = weaponHUD->FirstChildElement("Animation"); j != nullptr; j = j->NextSiblingElement()) {
 				std::string animationName = ParseXmlAttribute(*j, "name", "undefinedAnimation");
-				IntVec2 cellCount = ParseXmlAttribute(*j, "cellCount", IntVec2(0, 0));
 				float secondsPerFrame = ParseXmlAttribute(*j, "secondsPerFrame", 0.f);
 				int startFrame = ParseXmlAttribute(*j, "startFrame", 0);
 				int endFrame = ParseXmlAttribute(*j, "endFrame", 0);
-				s_definitions[ParseXmlAttribute(*i, "name", "undefineWeapon")].m_hud.m_animations.push_back(
-					WeaponAnimation{
-						animationName,
-						g_engine->m_renderer->CreateShader(ParseXmlAttribute(*j, "shader", "Error").data(), VertexType::PCUTBN),
-						new SpriteSheet(
-							*(g_engine->m_renderer->CreateOrGetTextureFromFile(ParseXmlAttribute(*j, "spriteSheet", "Error").data())),
-							cellCount
-						),
-						cellCount,
-						secondsPerFrame,
+				s_definitions[weaponName].m_hud.m_animations[animationName] = new
+					SpriteAnimDefinition(
+						*s_definitions[weaponName].m_hud.m_spriteSheet,
 						startFrame,
-						endFrame
-					}
-				);
+						endFrame,
+						1.f / secondsPerFrame
+					);
 			}
 		}
 
@@ -110,7 +115,7 @@ void WeaponDefinition::InitializeWeaponDefs(std::string configPath) {
 		if (weaponSounds != nullptr) {
 			for (XmlElement* j = weaponSounds->FirstChildElement("Sound"); j != nullptr; j = j->NextSiblingElement()) {
 				std::string soundName = ParseXmlAttribute(*j, "name", "undefinedSound");
-				s_definitions[ParseXmlAttribute(*i, "name", "undefineWeapon")].m_sounds.push_back(
+				s_definitions[weaponName].m_sounds.push_back(
 					WeaponSound{
 						soundName,
 						g_engine->m_audio->CreateOrGetSound(ParseXmlAttribute(*j, "filePath", "Error").data())

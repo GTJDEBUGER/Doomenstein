@@ -1,9 +1,13 @@
 <Definitions>
   <!-- Pistol -->
   <WeaponDefinition name="Pistol" refireTime="0.5" rayCount="1" rayCone="0.0" rayRange="40.0" rayDamage="10.0~15.0" rayImpulse="40.0">
-    <HUD shader="Diffuse" baseTexture="Data/Images/Hud_Base.png" reticleTexture="Data/Images/Reticle.png" reticleSize="16,16" spriteSize="256,256" spritePivot="0.5,0.0">
-      <Animation name="Idle" shader="Diffuse" spriteSheet="Data/Images/Weapon_Pistol.png" cellCount="5,1" secondsPerFrame="0.1" startFrame="0" endFrame="0"/>
-      <Animation name="Attack" shader="Diffuse" spriteSheet="Data/Images/Weapon_Pistol.png" cellCount="5,1" secondsPerFrame="0.1" startFrame="1" endFrame="3" />
+    <HUD shader="Diffuse" baseTexture="Data/Images/Hud_Base.png" reticleTexture="Data/Images/Reticle.png" reticleSize="16,16" 
+		 spriteSheet="Data/Images/Weapon_Pistol.png" 
+		 spriteSheetNormal="Data/Images/Weapon_Pistol_normal.png" 
+		 spriteSheetEmissive="Data/Images/Weapon_Pistol_emissive.png" 
+		 cellCount="5,1" spriteSize="256,256" spritePivot="0.5,0.0">
+      <Animation name="Idle" shader="Diffuse" secondsPerFrame="0.1" startFrame="0" endFrame="0"/>
+      <Animation name="Attack" shader="Diffuse" secondsPerFrame="0.1" startFrame="1" endFrame="4" />
     </HUD>
     <Sounds>
       <Sound sound="Fire" name="Data/Audio/PistolFire.wav"/>
@@ -11,9 +15,13 @@
   </WeaponDefinition>
   <!-- Plasma Rifle -->
   <WeaponDefinition name="PlasmaRifle" refireTime="0.1" projectileCount="1" projectileActor="PlasmaProjectile" projectileCone="4.0" projectileSpeed="40.0">
-    <HUD shader="Diffuse" baseTexture="Data/Images/Hud_Base.png" reticleTexture="Data/Images/Reticle.png" reticleSize="16,16" spriteSize="256,256" spritePivot="0.5,0.0">
-      <Animation name="Idle" shader="Diffuse" spriteSheet="Data/Images/Weapon_Plasma.png" cellCount="4,1" secondsPerFrame="0.125" startFrame="0" endFrame="0" />
-      <Animation name="Attack" shader="Diffuse" spriteSheet="Data/Images/Weapon_Plasma.png" cellCount="4,1" secondsPerFrame="0.125" startFrame="1" endFrame="2" />
+    <HUD shader="Diffuse" baseTexture="Data/Images/Hud_Base.png" reticleTexture="Data/Images/Reticle.png" reticleSize="16,16" 
+		 spriteSheet="Data/Images/Weapon_Plasma.png" 
+		 spriteSheetNormal="Data/Images/Weapon_Plasma_normal.png" 
+		 spriteSheetEmissive="Data/Images/Weapon_Plasma_emissive.png" 
+		 cellCount="4,1" spriteSize="256,256" spritePivot="0.5,0.0">
+      <Animation name="Idle" shader="Diffuse" secondsPerFrame="0.075" startFrame="0" endFrame="0" />
+      <Animation name="Attack" shader="Diffuse" secondsPerFrame="0.075" startFrame="1" endFrame="3" />
     </HUD>
     <Sounds>
       <Sound sound="Fire" name="Data/Audio/PlasmaFire.wav"/>
@@ -21,6 +29,12 @@
   </WeaponDefinition>
   <!-- Demon Melee -->
   <WeaponDefinition name="DemonMelee" refireTime="2.0" meleeCount="1" meleeArc="180.0" meleeRange="3.75" meleeDamage="20.0~30.0" meleeImpulse="30">
+	<HUD shader="Diffuse" baseTexture="Data/Images/Hud_Base.png" reticleTexture="Data/Images/Reticle.png" reticleSize="16,16"
+		spriteSheet="Data/Images/Default.png"
+		spriteSheetNormal="Data/Images/Default.png"
+		spriteSheetEmissive="Data/Images/Default.png"
+		cellCount="4,1" spriteSize="256,256" spritePivot="0.5,0.0">
+	</HUD>
     <Sounds>
       <Sound sound="Fire" name="Data/Audio/DemonAttack.wav"/>
     </Sounds>

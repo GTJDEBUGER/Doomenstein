@@ -3,6 +3,7 @@
 #include "Engine/Math/MathUtils.hpp"
 #include "Engine/Renderer/SpriteAnimDefinition.hpp"
 #include "Engine/Audio/AudioSystem.hpp"
+#include "Engine/Core/Rgba8.hpp"
 #include <string>
 #include <vector>
 #include <map>
@@ -46,24 +47,13 @@ struct ActorAI
 	float m_sightAngle = 0.f;
 };
 
-struct ActorAnimation
-{
-public:
-	Vec3 m_direction;
-	SpriteAnimDefinition* m_animation;
-
-public:
-	ActorAnimation() = default;
-	~ActorAnimation();
-};
-
 struct Actor2DAnimationGroup
 {
 public:
 	std::string m_name                    = "undefinedAnimationGroup";
 	bool m_scaleBySpeed                   = true;
 
-	std::vector<ActorAnimation*> m_animations;
+	std::map<int, SpriteAnimDefinition*> m_animations;
 
 public:
 	Actor2DAnimationGroup() = default;
@@ -73,15 +63,21 @@ public:
 struct Actor2DRenderInfo
 {
 public:
-	Vec2 m_size                   = Vec2(1.f, 1.f);
-	Vec2 m_pivot                  = Vec2(0.5f, 0.5f);
-	BillboardType m_billboardType = BillboardType::WORLD_UP_FACING;
-	bool m_renderLit              = true;
-	bool m_renderRounded          = true;
-	Shader* m_shader              = nullptr;
-	SpriteSheet* m_spriteSheet    = nullptr;
+	Vec2 m_size                            = Vec2(1.f, 1.f);
+	Vec2 m_pivot                           = Vec2(0.5f, 0.5f);
+	BillboardType m_billboardType          = BillboardType::WORLD_UP_FACING;
+	bool m_renderLit                       = true;
+	bool m_renderRounded                   = true;
+	Shader* m_shader                       = nullptr;
+	Texture* m_spriteSheetTexture          = nullptr;
+	Texture* m_spriteSheetNormalTexture    = nullptr;
+	Texture* m_spriteSheetAOTexture        = nullptr;
+	Texture* m_spriteSheetRoughnessTexture = nullptr;
+	Texture* m_spriteSheetMetallicTexture = nullptr;
+	Texture* m_spriteSheetEmissiveTexture  = nullptr;
+	SpriteSheet* m_spriteSheet             = nullptr;
 
-	std::vector<Actor2DAnimationGroup*> m_animationGroups;
+	std::map<std::string, Actor2DAnimationGroup*> m_animationGroups;
 
 public:
 	Actor2DRenderInfo() = default;
@@ -92,6 +88,14 @@ struct ActorSound
 {
 	std::string m_sound = "undefinedSound";
 	SoundID m_soundID   = 0;
+};
+
+struct ActorPointLight
+{
+	float m_radius = 0.f;
+	Rgba8 m_color = Rgba8(255,255,255);
+	float m_intensity = 0.f;
+	bool  m_volumetric = false;
 };
 
 //-----------------------------------------------------------------------------------------------
@@ -128,4 +132,5 @@ public:
 	Actor2DRenderInfo m_actor2DRenderInfo;
 	std::vector<ActorSound> m_sounds;
 	std::vector<std::string> m_inventory;
+	ActorPointLight m_pointLight;
 };

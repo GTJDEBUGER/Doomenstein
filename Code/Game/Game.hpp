@@ -1,6 +1,7 @@
 #pragma once
 #include "Game/GameCommon.hpp"
 #include "Engine/Core/Rgba8.hpp"
+#include "Engine/Core/Vertex.hpp"
 #include "Engine/Core/Vertex_TBN.hpp"
 #include "Engine/Math/Vec2.hpp"
 #include <vector>
@@ -55,16 +56,18 @@ public:
 	//Shader*                 m_SSGIShader                    = nullptr;
 	//Shader*                 m_SSGIBlendShader               = nullptr;
 	Shader*                 m_FXAAShader                    = nullptr;
-	Shader*                 m_crosshairShader               = nullptr;
+
+	bool                    m_isDrawDebug                   = false;
 
 private:
 	void                    InitializeShaders();
 	void                    InitializeShaderConstants();
-	void                    UpdateShaderConstants();
 	void                    InitializeSkySphere();
-	void                    UpdateSkySphere();
+	void                    InitializeUIs();
+	void                    UpdateShaderConstants();
 	void                    UpdateCameras();
 	void                    UpdateDebugInfo();
+	void                    UpdateUIs();
 
 	void                    RenderAttractMode() const;
 	void                    RenderGamePlay() const;
@@ -82,6 +85,9 @@ private:
 	VertexBuffer*             m_skySphereVertexBuffer         = nullptr;
 	IndexBuffer*              m_skySphereIndexBuffer          = nullptr;
 	PostProcessingConstants*  m_postProcessingCBO             = nullptr;
+	std::vector<Vertex>       m_HUDVerts;
+	std::vector<Vertex>       m_HUDTextVerts;
+	std::vector<Vertex>       m_reticleVerts;
 						    
 	float                     m_curCameraShakeAmp             = 0.f;
 };

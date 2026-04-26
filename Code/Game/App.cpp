@@ -145,6 +145,10 @@ void App::HandlePlayerInput(){
 		g_engine->m_devConsole->ToggleOpen();
 	}
 
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F1)) {
+		m_game->m_isDrawDebug = !m_game->m_isDrawDebug;
+	}
+
 	if (g_engine->m_input->IsKeyDown('T') || g_engine->m_input->WasKeyJustPressed('T')) {
 		if (g_engine->m_input->WasKeyJustPressed('T')) {
 			SoundID slowDownAudio = g_engine->m_audio->CreateOrGetSound("Data/Audio/Debug_TestAudio.mp3");

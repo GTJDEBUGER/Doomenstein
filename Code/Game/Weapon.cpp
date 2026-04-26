@@ -23,9 +23,9 @@ Weapon::~Weapon() {
 }
 
 //-----------------------------------------------------------------------------------------------
-void Weapon::Fire(Vec3 aimDirection) {
+bool Weapon::Fire(Vec3 aimDirection) {
 	if (m_fireClock->GetTotalSeconds() < m_definition.m_refireTime) {
-		return;
+		return false;
 	}
 	m_fireClock->Reset();
 
@@ -34,36 +34,65 @@ void Weapon::Fire(Vec3 aimDirection) {
 		for (unsigned int i = 0; i < m_definition.m_rayCount; i++) {
 			Vec3 randomDirection = GetRandomDirectionInCone(aimDirection, m_definition.m_rayCone);
 			Actor* hitActor = nullptr;
-			RaycastResult3D result = m_owner->m_map->RaycastWorldActors(
+			RaycastResult3D hitActorResult = m_owner->m_map->RaycastWorldActors(
 				m_owner->m_position + Vec3(0.f,0.f,m_owner->m_definition.m_actorCamera.m_eyeHeight),
 				randomDirection,
 				m_definition.m_rayRange,
 				m_owner,
 				&hitActor
 			);
-
-
-			DebugAddWorldArrow(
+			RaycastResult3D hitWorldXYResult = m_owner->m_map->RaycastWorldXY(
 				m_owner->m_position + Vec3(0.f, 0.f, m_owner->m_definition.m_actorCamera.m_eyeHeight),
-				m_owner->m_position + Vec3(0.f, 0.f, m_owner->m_definition.m_actorCamera.m_eyeHeight) + randomDirection * m_definition.m_rayRange,
-				0.05f,
-				1.f,
-				Rgba8::WHITE,
-				Rgba8::WHITE,
-				DebugRenderMode::X_RAY
+				randomDirection,
+				m_definition.m_rayRange
+			);
+			RaycastResult3D hitWorldZResult = m_owner->m_map->RaycastWorldZ(
+				m_owner->m_position + Vec3(0.f, 0.f, m_owner->m_definition.m_actorCamera.m_eyeHeight),
+				randomDirection,
+				m_definition.m_rayRange
+			);
+			RaycastResult3D* nearestResult = &hitActorResult;
+			if (hitWorldXYResult.m_didImpact && 
+				(nearestResult->m_didImpact && hitWorldXYResult.m_impactDist < nearestResult->m_impactDist) ||
+				(!nearestResult->m_didImpact)) {
+				nearestResult = &hitWorldXYResult;
+			}
+			if (hitWorldZResult.m_didImpact &&
+				(nearestResult->m_didImpact && hitWorldZResult.m_impactDist < nearestResult->m_impactDist) ||
+				(!nearestResult->m_didImpact)) {
+				nearestResult = &hitWorldZResult;
+			}
+
+			m_owner->m_map->SpawnActor(
+				SpawnInfo{
+					"PistalFireLight",
+					m_owner->m_position +
+					Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.725f) +
+					randomDirection * m_owner->m_definition.m_collision.m_radius * 1.6f
+				}
 			);
 
-			if (result.m_didImpact && hitActor!=nullptr){
+			if (hitActorResult.m_didImpact && nearestResult == &hitActorResult && hitActor != nullptr) {
+				m_owner->m_map->SpawnActor(
+					SpawnInfo{
+						"BloodSplatter",
+						nearestResult->m_impactPos + nearestResult->m_impactNormal*0.05f
+					}
+				);
+
 				float randomDamage = m_randomGenerator->RollRandomFloatInRange(m_definition.m_rayDamage.m_min, m_definition.m_rayDamage.m_max);
 				hitActor->Damage(randomDamage, m_owner);
 				hitActor->AddImpulse(randomDirection * m_definition.m_rayImpulse);
+			}
 
-				DebugAddWorldSphere(
-					result.m_impactPos,
-					0.1f,
-					1.f,
-					Rgba8::BLUE,
-					Rgba8::BLUE
+			if (nearestResult->m_didImpact) {
+				EulerAngles splatterRotation = nearestResult->m_impactNormal.GetOrientationDegrees();
+				m_owner->m_map->SpawnActor(
+					SpawnInfo{
+						"BulletHit",
+						nearestResult->m_impactPos + nearestResult->m_impactNormal * 0.1f,
+						splatterRotation
+					}
 				);
 			}
 		}
@@ -78,7 +107,9 @@ void Weapon::Fire(Vec3 aimDirection) {
 			Actor* projectileActor = m_owner->m_map->SpawnActor(projectileSpawnInfo);
 			projectileActor->m_velocity = randomDirection * m_definition.m_projectileSpeed;
 			projectileActor->m_owner = m_owner;
-			projectileActor->m_position = m_owner->m_position + Vec3(0.f, 0.f, m_owner->m_definition.m_actorCamera.m_eyeHeight - projectileActor->m_definition.m_collision.m_height*0.5f);
+			projectileActor->m_position = m_owner->m_position + 
+				Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.6f) +
+				randomDirection * m_owner->m_definition.m_collision.m_radius;
 		}
 	}
 
@@ -90,17 +121,6 @@ void Weapon::Fire(Vec3 aimDirection) {
 			aimDirection.z = 0.f;
 			aimDirection = aimDirection.GetNormalized();
 
-			DebugAddWorldWireSector(
-				m_owner->m_position + Vec3(0.f,0.f,m_owner->m_definition.m_collision.m_height *0.5f),
-				aimDirection,
-				m_definition.m_meleeRange,
-				m_definition.m_meleeArc,
-				0.1f,
-				1.f,
-				Rgba8::WHITE,
-				Rgba8::WHITE
-			);
-
 			if (m_owner->m_map->SectorDetectWorldActors(
 				m_owner->m_position + Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.5f),
 				aimDirection,
@@ -111,12 +131,23 @@ void Weapon::Fire(Vec3 aimDirection) {
 			)) {
 				for (Actor* hitActor : hitActors) {
 					float randomDamage = m_randomGenerator->RollRandomFloatInRange(m_definition.m_meleeDamage.m_min, m_definition.m_meleeDamage.m_max);
+					Vec3 toHitActor = (hitActor->m_position - m_owner->m_position).GetNormalized();
 					hitActor->Damage(randomDamage, m_owner);
-					hitActor->AddImpulse((hitActor->m_position - m_owner->m_position) * m_definition.m_meleeImpulse);
+					hitActor->AddImpulse(toHitActor * m_definition.m_meleeImpulse);
+
+					m_owner->m_map->SpawnActor(
+						SpawnInfo{
+							"BloodSplatter",
+							hitActor->m_position + Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.5f) + 
+							-toHitActor * hitActor->m_definition.m_collision.m_radius,
+						}
+					);
 				}
 			}
 		}
 	}
+
+	return true;
 }
 
 //-----------------------------------------------------------------------------------------------

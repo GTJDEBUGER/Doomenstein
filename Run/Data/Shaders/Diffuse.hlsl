@@ -35,12 +35,33 @@ cbuffer GameConstants : register(b0)
 };
 
 //------------------------------------------------------------------------------------------------
+#define MAX_POINT_LIGHTS 256
+
+struct PointLight
+{
+    float3 Position;
+    float Range;
+    float4 Color;
+    float Intensity;
+    int Volumetric;
+    float2 padding;
+};
+
 cbuffer LightConstants : register(b1)
 {
     float3 SunDirection;
     float SunIntensity;
+    
     float AmbientIntensity;
+    float3 _Padding1;
+    
     float4x4 SunViewProjMatrix;
+    
+    uint NumPointLights;
+    float3 _Padding2;
+    
+    PointLight PointLights[MAX_POINT_LIGHTS];
+    float4 _Padding3;
 };
 
 //------------------------------------------------------------------------------------------------
@@ -67,6 +88,7 @@ Texture2D parallaxTexture : register(t3);
 Texture2D roughnessTexture : register(t4);
 Texture2D metallicTexture : register(t5);
 Texture2D shadowMapTexture : register(t6);
+Texture2D emissiveTexture : register(t7);
 
 //------------------------------------------------------------------------------------------------
 SamplerState pointSampler : register(s0);
@@ -233,6 +255,38 @@ float3 FresnelSchlick(float cosTheta, float3 F0)
 }
 
 //------------------------------------------------------------------------------------------------
+float3 CalculatePointLight(PointLight light, float3 worldPos, float3 N, float3 V, float3 albedo, float roughness, float metallic, float3 F0)
+{
+    float3 lightVector = light.Position - worldPos;
+    float distance = length(lightVector);
+    float3 L = lightVector / distance;
+    float3 H = normalize(V + L);
+    
+    float distanceSquare = distance * distance;
+    float rangeSquare = light.Range * light.Range;
+    float attenuation = pow(saturate(1.0 - pow(distanceSquare / rangeSquare, 2.0)), 2.0) / (distanceSquare + 0.0001);
+    
+    float3 radiance = light.Color.rgb * light.Intensity * attenuation;
+    
+    float NdotV = max(dot(N, V), 0.0001);
+    float NdotL = max(dot(N, L), 0.0);
+    
+    float D = DistributionGGX(N, H, roughness);
+    float G = GeometrySmith(N, V, L, roughness);
+    float3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
+    
+    float3 numerator = D * G * F;
+    float denominator = 4.0 * NdotV * NdotL + 0.0001;
+    float3 specular = numerator / denominator;
+    
+    float3 kS = F;
+    float3 kD = float3(1.0, 1.0, 1.0) - kS;
+    kD *= 1.0 - metallic;
+    
+    return (kD * albedo / PI + specular) * radiance * NdotL;
+}
+
+//------------------------------------------------------------------------------------------------
 v2p_t VertexMain(vs_input_t input)
 {
     float4 modelPosition = float4(input.modelPosition.xyz, 1.0f);
@@ -263,6 +317,7 @@ v2p_t VertexMain(vs_input_t input)
 p_out PixelMain(v2p_t input)
 {
     p_out output;
+    
     // --- Sampler Blend Factor ---
     float2 dx = ddx(input.uv);
     float2 dy = ddy(input.uv);
@@ -281,6 +336,8 @@ p_out PixelMain(v2p_t input)
     float ao = lerp(aoTexture.Sample(pointSampler, input.uv).r, aoTexture.Sample(anisoSampler, input.uv).r, blendFactor);
     float roughness = lerp(roughnessTexture.Sample(pointSampler, input.uv).r, roughnessTexture.Sample(anisoSampler, input.uv).r, blendFactor);
     float metallic = lerp(metallicTexture.Sample(pointSampler, input.uv).r, metallicTexture.Sample(anisoSampler, input.uv).r, blendFactor);
+    float3 emissiveMask = lerp(emissiveTexture.Sample(pointSampler, input.uv).rgb, emissiveTexture.Sample(anisoSampler, input.uv).rgb, blendFactor);
+    float emissiveIntensity = 5.0f;
 
     // --- PBR Help Vectors ---
     float3 V = normalize(CameraWorldPosition - input.worldPosition.xyz);
@@ -329,15 +386,24 @@ p_out PixelMain(v2p_t input)
     }
     float3 directLight = (kD * albedo / PI + specular) * SunIntensity * NdotL * shadow * sunVisibility;
 
+    // --- Calculate Point Lights ---
+    float3 pointLightsContribution = float3(0.0, 0.0, 0.0);
+    for (uint i = 0; i < NumPointLights; ++i)
+    {
+        pointLightsContribution += CalculatePointLight(
+            PointLights[i],
+            input.worldPosition.xyz,
+            N, V, albedo, roughness, metallic, F0
+        );
+    }
+    
     // --- Calculate Ambient Light ---
     float3 skyAmbient = GetProceduralAmbient(N, L);
     float3 ambient = skyAmbient * albedo * ao;
 
     // --- Final Blend ---
-    float3 finalRgb = ambient + directLight;
-    
-    // Exposure Tone Mapping
-    finalRgb = finalRgb / (finalRgb + float3(1.0, 1.0, 1.0));
+    float3 emissiveLight = emissiveMask * albedo * emissiveIntensity;
+    float3 finalRgb = ambient + directLight + pointLightsContribution + emissiveLight;
     // Gamma Correction
     finalRgb = pow(finalRgb, 1.0 / 2.5);
     

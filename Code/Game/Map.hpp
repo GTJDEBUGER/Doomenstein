@@ -6,6 +6,8 @@
 #include "Engine/Math/MathUtils.hpp"
 #include "Engine/Core/Vertex_TBN.hpp"
 #include "Engine/Math/EulerAngles.hpp"
+#include "Engine/Renderer/Renderer.hpp"
+
 #include <vector>
 #include <string>
 
@@ -19,6 +21,7 @@ class VertexBuffer;
 class IndexBuffer;
 class Camera;
 class PlayerController;
+struct PointLight;
 
 //-----------------------------------------------------------------------------------------------
 class Map {
@@ -37,7 +40,6 @@ public:
 	void AddGeometryForCeiling(AABB3 const& bounds, AABB2 const& UVs);
 	void AddGeometryForTop(AABB3 const& bounds, AABB2 const& UVs);
 	void AddGeometryForBottom(AABB3 const& bounds, AABB2 const& UVs);
-	void CreateBuffers();
 
 	bool ShouldRenderFaceAgainstNeighbor(int x, int y) const;
 	bool IsPositionInBounds(Vec3 const& position) const;
@@ -77,6 +79,7 @@ public:
 	Actor* GetNextValidActorLoop(ActorHandle const curHandle) const;
 	Actor* GetNearestActor(Actor* source, std::string const& faction) const;
 
+	void UpdatePointLights();
 public:
 	Game* m_game = nullptr;
 	Vec3  m_sunDirection = Vec3(1.0f, 2.0f, -1.f);
@@ -87,6 +90,7 @@ public:
 	float m_simulatLatitude = 30.659462f;
 	float m_simulatDeclination = 0.f;
 	Camera* m_sunShadowCamera = nullptr;
+	Shader* m_shadowMapShader = nullptr;
 
 protected:
 	MapDefinition const& m_definition;
@@ -95,11 +99,10 @@ protected:
 
 	std::vector<Vertex_TBN> m_mapVerts;
 	std::vector<unsigned int> m_mapIndexs;
-	VertexBuffer* m_mapVertexBuffer = nullptr;
-	IndexBuffer* m_mapIndexBuffer = nullptr;
-	Shader* m_shadowMapShader = nullptr;
 
 	std::vector<Actor*> m_actors;
 	std::vector<ActorHandle*> m_respawnActorsHandle;
 	unsigned int m_nextActorUID = 1;
+
+	std::vector<PointLight> m_pointLights;
 };

@@ -13,7 +13,7 @@ public:
 	Weapon(WeaponDefinition const& definition, Actor* owner);
 	~Weapon();
 
-	void Fire(Vec3 aimDirection);
+	bool Fire(Vec3 aimDirection);
 	Vec3 GetRandomDirectionInCone(Vec3 const& forward, float coneDegrees) const;
 
 public:
