@@ -48,6 +48,7 @@ cbuffer PostProcessingBuffer : register(b4)
     float2 screenResolution;
     float cameraNear;
     float cameraFar;
+    float4 viewportBoundsUV;
 };
 
 //----------------------------------------------------------------
@@ -84,7 +85,10 @@ float3 GetViewPos(float2 uv)
 {
     float depth = depthTexture.SampleLevel(screenSampler, uv, 0).r;
     
-    float4 clipPos = float4(uv.x * 2.0 - 1.0, (1.0 - uv.y) * 2.0 - 1.0, depth, 1.0);
+    float2 viewportSize = viewportBoundsUV.zw - viewportBoundsUV.xy;
+    float2 viewportUV = (uv - viewportBoundsUV.xy) / viewportSize;
+    
+    float4 clipPos = float4(viewportUV.x * 2.0 - 1.0, 1.0 - viewportUV.y * 2.0, depth, 1.0);
     float4 viewPos = mul(invProjectionMatrix, clipPos);
     return viewPos.xyz / viewPos.w;
 }
@@ -134,10 +138,19 @@ float4 PixelMain(v2p_t input) : SV_Target0
         float3 samplePos = viewPos + (sampleOffset * radius) + (viewNormal * dynamicBias);
         
         float4 offsetProj = mul(projectionMatrix, float4(samplePos, 1.0));
-        float2 offsetUV = (offsetProj.xy / offsetProj.w) * 0.5 + 0.5;
-        offsetUV.y = 1.0 - offsetUV.y;
+        float2 viewportOffsetUV = (offsetProj.xy / offsetProj.w) * 0.5 + 0.5;
+        viewportOffsetUV.y = 1.0 - viewportOffsetUV.y;
         
-        float3 sceneViewPos = GetViewPos(offsetUV);
+        float2 viewportSize = viewportBoundsUV.zw - viewportBoundsUV.xy;
+        float2 realScreenUV = viewportOffsetUV * viewportSize + viewportBoundsUV.xy;
+        
+        if (realScreenUV.x < viewportBoundsUV.x || realScreenUV.x > viewportBoundsUV.z ||
+            realScreenUV.y < viewportBoundsUV.y || realScreenUV.y > viewportBoundsUV.w)
+        {
+            continue;
+        }
+        
+        float3 sceneViewPos = GetViewPos(realScreenUV);
         float depthDiff = abs(viewPos.z - sceneViewPos.z);
         
         float rangeCheck = smoothstep(0.0, 1.0, 1.0 - min(1.0, (depthDiff * depthDiff) / (radius * radius)));
@@ -158,11 +171,11 @@ float4 PixelMain(v2p_t input) : SV_Target0
             float distSq = dot(viewPos - sceneViewPos, viewPos - sceneViewPos);
             float bounceAtten = 1.0 / (1.0 + distSq * 5.0);
             
-            float3 sceneWorldNormal = originalScreenNormal.SampleLevel(screenSampler, offsetUV, 0).xyz;
+            float3 sceneWorldNormal = originalScreenNormal.SampleLevel(screenSampler, realScreenUV, 0).xyz;
             float3 sceneViewNormal = normalize(mul((float3x3) worldToViewMatrix, sceneWorldNormal));
             
             float bounceFacing = saturate(dot(sceneViewNormal, dirFromOccluder));
-            float3 bounceColor = originalScreenColor.SampleLevel(screenSampler, offsetUV, 0).rgb;
+            float3 bounceColor = originalScreenColor.SampleLevel(screenSampler, realScreenUV, 0).rgb;
             
             colorBleeding += bounceColor * weight * bounceFacing * bounceAtten * rangeCheck;
         }

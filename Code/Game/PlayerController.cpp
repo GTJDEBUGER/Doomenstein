@@ -3,22 +3,16 @@
 #include "Game/Actor.hpp"
 #include "Game/App.hpp"
 #include "Game/Game.hpp"
+#include "Game/Weapon.hpp"
 #include "Engine/Renderer/Camera.hpp"
 #include "Engine/Core/Clock.hpp"
+#include "Engine/Core/Engine.hpp"
 
 //-----------------------------------------------------------------------------------------------
 PlayerController::PlayerController(Map* map) :
 	Controller(map) {
 	m_playerClock = new Clock();
 	m_playerCamera = new Camera(g_gameConfig->m_screenAspect, 60.f, 0.1f, 1000.f);
-
-	SpawnInfo playerSpawnInfo;
-	playerSpawnInfo.m_actorName = "Marine";
-	Actor* spawnPoint = m_map->GetRandomSpwanPoint();
-	playerSpawnInfo.m_spawnPosition = spawnPoint != nullptr ? spawnPoint->m_position : Vec3(0.f, 0.f, 0.f);
-	playerSpawnInfo.m_spawnOrientation = spawnPoint != nullptr ? spawnPoint->m_orientation : EulerAngles(0.f, 0.f, 0.f);
-
-	m_map->SpawnPlayerActor(playerSpawnInfo, this);
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -113,6 +107,38 @@ void PlayerController::UpdateInput() {
 	default:
 		break;
 	}
+
+	if (m_gamepadID!=-1) {
+		if (m_vibrationTimer > 0.f) {
+			m_vibrationTimer -= (float)m_playerClock->GetDeltaSeconds();
+			g_engine->m_input->GetController(m_gamepadID).SetVibration(m_leftMotorVibration, m_rightMotorVibration);
+		}
+		else {
+			m_vibrationTimer = 0.f;
+			g_engine->m_input->GetController(m_gamepadID).SetVibration(0.f, 0.f);
+		}
+
+		if (m_possessedActorHandle != nullptr && m_possessedActorHandle->IsValid()) {
+			possessedActor = GetPossessedActor();
+			if (possessedActor != nullptr) {
+				if (possessedActor->m_equippedWeapon->m_definition.m_name == "Pistol") {
+					g_engine->m_input->SetFlydigiAdaptiveTrigger(
+						0, 0, 0, 0, 0,
+						2, 5, 5, 50, 2
+					);
+				}
+				else if (possessedActor->m_equippedWeapon->m_definition.m_name == "PlasmaRifle") {
+					g_engine->m_input->SetFlydigiAdaptiveTrigger(
+						0, 0, 0, 0, 0,
+						2, 5, 5, 50, 17
+					);
+				}
+				else {
+					g_engine->m_input->SetFlydigiAdaptiveTrigger();
+				}
+			}
+		}
+	}
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -143,4 +169,9 @@ void PlayerController::UpdateCamera() {
 	}
 }
 
-
+//-----------------------------------------------------------------------------------------------
+void PlayerController::SetVibration(float leftMotor, float rightMotor, float duration) {
+	m_leftMotorVibration = leftMotor;
+	m_rightMotorVibration = rightMotor;
+	m_vibrationTimer = duration;
+}

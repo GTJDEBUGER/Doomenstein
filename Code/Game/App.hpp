@@ -25,7 +25,7 @@ struct GameConfig
 	float m_playerViewYawSpeed;
 	float m_playerViewPitchSpeed;
 	float m_playerViewRollSpeed;
-	float m_playerViewControllerMultiplier;
+	float m_playerViewControllerSensitivity;
 };
 
 //-----------------------------------------------------------------------------------------------

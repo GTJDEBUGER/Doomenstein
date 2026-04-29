@@ -205,5 +205,8 @@
     <FxCompile Include="..\..\Run\Data\Shaders\VolumeLight.hlsl">
       <Filter>Data\Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\Vignette.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

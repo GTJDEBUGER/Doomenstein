@@ -74,7 +74,22 @@ void AIController::Update() {
 
 			currentForward = possessedActor->m_orientation.GetForwardDir_IFwd_JLeft_KUp();
 			if (squrDistanceToTarget > maxAttackDistance) {
-				possessedActor->MoveInDirection(currentForward, possessedActor->m_definition.m_physics.m_walkSpeed);
+				if (possessedActor->m_curHealth > possessedActor->m_definition.m_health * 0.25f) {
+					possessedActor->MoveInDirection(currentForward, possessedActor->m_definition.m_physics.m_walkSpeed);
+				}
+				else {
+					possessedActor->MoveInDirection(currentForward, possessedActor->m_definition.m_physics.m_runSpeed);
+				}
+
+				RaycastResult3D faceBlockResult = m_map->RaycastWorldXY(
+					possessedActor->m_position + Vec3(0.f, 0.f, possessedActor->m_definition.m_actorCamera.m_eyeHeight),
+					currentForward,
+					possessedActor->m_definition.m_collision.m_radius * 1.25f
+				);
+				if (faceBlockResult.m_didImpact && possessedActor->m_isGrounded) {
+					possessedActor->AddImpulse(Vec3(0.f, 0.f, 25.f));
+					possessedActor->m_isGrounded = false;
+				}
 			}
 			else {
 				possessedActor->Attack(targetDirection);

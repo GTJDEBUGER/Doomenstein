@@ -51,7 +51,7 @@ struct Actor2DAnimationGroup
 {
 public:
 	std::string m_name                    = "undefinedAnimationGroup";
-	bool m_scaleBySpeed                   = true;
+	bool m_scaleBySpeed                   = false;
 
 	std::map<int, SpriteAnimDefinition*> m_animations;
 

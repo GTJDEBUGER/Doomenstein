@@ -18,4 +18,5 @@ public:
 public:
 	ActorHandle* m_possessedActorHandle = nullptr;
 	Map*         m_map                  = nullptr;
+	int          m_handleIndex          = -1;
 };

@@ -43,7 +43,7 @@ Map::~Map() {
 
 //-----------------------------------------------------------------------------------------------
 void Map::CreateCameras() {
-	m_sunShadowCamera = new Camera(Vec2(-150.f, -150.f), Vec2(150.f, 150.f), 0.001f, 350.f);
+	m_sunShadowCamera = new Camera(Vec2(-150.f, -150.f), Vec2(150.f, 150.f), 0.001f, 300.f);
 	UpdateSunShadowCamera();
 }
 
@@ -538,7 +538,7 @@ void Map::UpdateSunShadowCamera() {
 }
 
 //-----------------------------------------------------------------------------------------------
-void Map::Render() const {
+void Map::Render(Camera const& viewCamera) const {
 	g_engine->m_renderer->SetLightConstants(
 		m_sunDirection.GetNormalized(),
 		m_sunIntensity,
@@ -569,7 +569,7 @@ void Map::Render() const {
 	g_engine->m_renderer->DrawVertexArray(m_mapVerts, m_mapIndexs, m_definition.m_mapShader);
 	g_engine->m_renderer->SetSamplerMode(SamplerMode::POINT_CLAMP);
 
-	Vec3 cameraPos = m_game->m_playerController->m_playerCamera->GetPosition();
+	Vec3 cameraPos = viewCamera.GetPosition();
 
 	int actorCount = (int)m_actors.size();
 	if (actorCount <= 0) return;
@@ -606,7 +606,7 @@ void Map::Render() const {
 	}
 
 	for (int i = 0; i < actualActorNum; ++i) {
-		tempActors[i]->Render();
+		tempActors[i]->Render(viewCamera);
 	}
 }
 
@@ -811,7 +811,7 @@ bool Map::SectorDetectWorldActors(Vec3 const& center, Vec3 const& forward, float
 		if (actor == nullptr || actor == owner || actor->m_definition.m_name=="SpawnPoint" || actor->m_isDead) {
 			continue;
 		}
-		if (center.z <= actor->m_position.z || center.z >= actor->m_definition.m_collision.m_height) {
+		if (center.z <= actor->m_position.z || center.z >= actor->m_position.z + actor->m_definition.m_collision.m_height) {
 			continue;
 		}
 		Vec3 toActor = actor->m_position - center;
@@ -850,8 +850,18 @@ void Map::RespawnPlayers() {
 			playerSpawnInfo.m_spawnOrientation = playerSpawnPoint == nullptr ? EulerAngles() : playerSpawnPoint->m_orientation;
 			Actor* playerActor = SpawnActor(playerSpawnInfo);
 			m_respawnActorsHandle[i] = playerActor->m_handle;
-			if (m_game->m_playerController->m_possessedActorHandle == oldHandle) {
-				m_game->m_playerController->Possess(playerActor->m_handle);
+			if (m_game->m_playerKeyboardController != nullptr &&
+				m_game->m_playerKeyboardController->m_possessedActorHandle == oldHandle) {
+				m_game->m_playerKeyboardController->Possess(playerActor->m_handle);
+				m_game->m_playerKeyboardController->m_deadCount += 1;
+			}
+			else if (m_game->m_playerGamepadController != nullptr &&
+				m_game->m_playerGamepadController->m_possessedActorHandle == oldHandle) {
+				m_game->m_playerGamepadController->Possess(playerActor->m_handle);
+				m_game->m_playerGamepadController->m_deadCount += 1;
+			}
+			else {
+				ERROR_AND_DIE("Player respawn failed due to invalid controller possessed handle!");
 			}
 		}
 	}

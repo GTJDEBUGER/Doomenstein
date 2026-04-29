@@ -37,6 +37,13 @@ App::App()
 	config.m_devConsoleConfig.m_camera = m_screenCamera;
 	new Engine(config);
 
+	m_screenCamera->SetViewPort(
+		AABB2(
+			Vec2(0.f, 0.f),
+			Vec2((float)g_engine->m_window->GetClientDimensions().x, (float)g_engine->m_window->GetClientDimensions().y)
+		)
+	);
+
 	DebugRenderConfig debugRenderConfig;
 	debugRenderConfig.m_renderer = g_engine->m_renderer;
 	DebugRenderSystemStartup(debugRenderConfig);
@@ -196,26 +203,42 @@ void App::HandlePlayerInput(){
 		if (m_game->GetCurGameState() == GAME_ATTRACT_MODE) {
 			delete m_game;
 			m_game = new Game();
+			m_game->m_playerKeyboardController = new PlayerController(m_game->m_curMap);
+			m_game->m_playerKeyboardController->m_handleIndex = 0;
+			m_game->m_controllerHandleSequence.push_back(m_game->m_playerKeyboardController);
+			m_game->m_activePlayerNum += 1;
+			m_game->SetNextGameState(GAME_LOBBY_MODE);
+		}
+		else if (m_game->GetCurGameState() == GAME_LOBBY_MODE && m_game->m_playerKeyboardController==nullptr) {
+			m_game->m_playerKeyboardController = new PlayerController(m_game->m_curMap);
+			m_game->m_playerKeyboardController->m_handleIndex = 1;
+			m_game->m_controllerHandleSequence.push_back(m_game->m_playerKeyboardController);
+			m_game->m_activePlayerNum += 1;
+		}
+		else if (m_game->GetCurGameState() == GAME_LOBBY_MODE && m_game->m_playerKeyboardController != nullptr) {
+			m_game->InitializePlayerActors();
 			m_game->SetNextGameState(GAME_PLAYING_MODE);
 		}
 	}
 
 	//Toggle player camera mode
 	if (g_engine->m_input->WasKeyJustPressed('F')) {
-		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			if (m_game->m_playerController->m_cameraMode == PlayerCameraMode::ACTOR_CAMERA) {
-				m_game->m_playerController->m_cameraMode = PlayerCameraMode::FREE_CAMERA;
-			}
-			else if (m_game->m_playerController->m_cameraMode == PlayerCameraMode::FREE_CAMERA){
-				m_game->m_playerController->m_cameraMode = PlayerCameraMode::ACTOR_CAMERA;
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_activePlayerNum == 1) {
+			if (m_game->m_playerKeyboardController != nullptr) {
+				if (m_game->m_playerKeyboardController->m_cameraMode == PlayerCameraMode::ACTOR_CAMERA) {
+					m_game->m_playerKeyboardController->m_cameraMode = PlayerCameraMode::FREE_CAMERA;
+				}
+				else if (m_game->m_playerKeyboardController->m_cameraMode == PlayerCameraMode::FREE_CAMERA) {
+					m_game->m_playerKeyboardController->m_cameraMode = PlayerCameraMode::ACTOR_CAMERA;
+				}
 			}
 		}
 	}
 
 	//Switch player controller possessed actor to next one
-	if (g_engine->m_input->WasKeyJustPressed('N')) {
-		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerController->m_cameraMode != PlayerCameraMode::FREE_CAMERA) {
-			m_game->m_playerController->SwitchToNextPossessibleActor();
+	if (g_engine->m_input->WasKeyJustPressed('N') && m_game->m_activePlayerNum == 1) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerKeyboardController->m_cameraMode != PlayerCameraMode::FREE_CAMERA) {
+			m_game->m_playerKeyboardController->SwitchToNextPossessibleActor();
 		}
 	}
 
@@ -251,87 +274,154 @@ void App::HandlePlayerInput(){
 			moveInput.z -= 1.f;
 		}
 	}
-	m_game->m_playerController->m_inputActions.moveInput = moveInput.GetNormalized();
+	if (m_game->m_playerKeyboardController !=nullptr)
+		m_game->m_playerKeyboardController->m_inputActions.moveInput = moveInput.GetNormalized();
 
 	//Player view input
-	m_game->m_playerController->m_inputActions.viewInput = g_engine->m_input->GetCursorClientDelta();
+	if (m_game->m_playerKeyboardController != nullptr)
+		m_game->m_playerKeyboardController->m_inputActions.viewInput = g_engine->m_input->GetCursorClientDelta();
 
 	//Player run input
 	if (g_engine->m_input->IsKeyDown(KEYCODE_SHIFT)) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_playerController->m_inputActions.isRun = true;
+			m_game->m_playerKeyboardController->m_inputActions.isRun = true;
 		}
 	}
 	if (g_engine->m_input->WasKeyJustReleased(KEYCODE_SHIFT)) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_playerController->m_inputActions.isRun = false;
+			m_game->m_playerKeyboardController->m_inputActions.isRun = false;
 		}
 	}
 
 	//Player equip weapon input
 	if (g_engine->m_input->WasKeyJustPressed('1')) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_playerController->GetPossessedActor()->EquipWeapon(0);
+			m_game->m_playerKeyboardController->GetPossessedActor()->EquipWeapon(0);
 		}
 	}
 	else if (g_engine->m_input->WasKeyJustPressed('2')) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_playerController->GetPossessedActor()->EquipWeapon(1);
+			m_game->m_playerKeyboardController->GetPossessedActor()->EquipWeapon(1);
 		}
 	}
 
 	//PLayer attack input
 	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_LEFT_MOUSE) && m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-		m_game->m_playerController->m_inputActions.isAttack = true;
+		m_game->m_playerKeyboardController->m_inputActions.isAttack = true;
 	}
 	else if (g_engine->m_input->WasKeyJustReleased(KEYCODE_LEFT_MOUSE) && m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-		m_game->m_playerController->m_inputActions.isAttack = false;
+		m_game->m_playerKeyboardController->m_inputActions.isAttack = false;
 	}
 
 	//Player jump input
 	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_SPACE) && m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-		if (m_game->m_playerController->m_playerStates.isGrounded)
-			m_game->m_playerController->m_inputActions.isJump = true;
+		if (m_game->m_playerKeyboardController != nullptr && m_game->m_playerKeyboardController->m_playerStates.isGrounded)
+			m_game->m_playerKeyboardController->m_inputActions.isJump = true;
 	}
 
 	//Xbox controller input
 	//-------------------------------------------------------------------------------------------
 	//Control Game-------------------------------------------------------------------------------
-	if (g_engine->m_input->GetController(0).GetLeftStick().GetMagnitude() > 0.f) {
-		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_playerController->m_inputActions.moveInput.x = g_engine->m_input->GetController(0).GetLeftStick().GetPosition().x;
-			m_game->m_playerController->m_inputActions.moveInput.z = -g_engine->m_input->GetController(0).GetLeftStick().GetPosition().y;
+	if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_B)) {
+		if (m_game->GetCurGameState() == GAME_ATTRACT_MODE) {
+			m_isQuitting = true;
+		}
+		else {
+			m_game->SetNextGameState(GAME_ATTRACT_MODE);
 		}
 	}
 
-	if (m_game->m_playerController->m_inputActions.moveInput.y == 0) {
-		if (g_engine->m_input->GetController(0).IsButtonDown(GAMEPAD_LEFT_SHOULDER)) {
-			if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-				m_game->m_playerController->m_inputActions.moveInput.y -= 1.f;
-			}
+	if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_START)) {
+		if (m_game->GetCurGameState() == GAME_ATTRACT_MODE) {
+			delete m_game;
+			m_game = new Game();
+			m_game->m_playerGamepadController = new PlayerController(m_game->m_curMap);
+			m_game->m_playerGamepadController->m_handleIndex = 0;
+			m_game->m_playerGamepadController->m_gamepadID = 0;
+			m_game->m_controllerHandleSequence.push_back(m_game->m_playerGamepadController);
+			m_game->m_activePlayerNum += 1;
+			m_game->SetNextGameState(GAME_LOBBY_MODE);
 		}
-		if (g_engine->m_input->GetController(0).IsButtonDown(GAMEPAD_RIGHT_SHOULDER)) {
-			if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-				m_game->m_playerController->m_inputActions.moveInput.y += 1.f;
-			}
+		else if (m_game->GetCurGameState() == GAME_LOBBY_MODE && m_game->m_playerGamepadController == nullptr) {
+			m_game->m_playerGamepadController = new PlayerController(m_game->m_curMap);
+			m_game->m_playerGamepadController->m_handleIndex = 1;
+			m_game->m_playerGamepadController->m_gamepadID = 0;
+			m_game->m_controllerHandleSequence.push_back(m_game->m_playerGamepadController);
+			m_game->m_activePlayerNum += 1;
+		}
+		else if (m_game->GetCurGameState() == GAME_LOBBY_MODE && m_game->m_playerGamepadController != nullptr) {
+			m_game->SetNextGameState(GAME_PLAYING_MODE);
+			m_game->InitializePlayerActors();
+		}
+	}
+
+	if (g_engine->m_input->GetController(0).GetLeftStick().GetMagnitude() > 0.1f) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController !=nullptr) {
+			m_game->m_playerGamepadController->m_inputActions.moveInput.y = -g_engine->m_input->GetController(0).GetLeftStick().GetPosition().x;
+			m_game->m_playerGamepadController->m_inputActions.moveInput.x = g_engine->m_input->GetController(0).GetLeftStick().GetPosition().y;
+		}
+	} 
+	else {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
+			m_game->m_playerGamepadController->m_inputActions.moveInput = Vec3(0.f, 0.f, 0.f);
+		}
+	}
+
+	if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_DPAD_DOWN)) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
+			if (m_game->m_playerGamepadController->m_playerStates.isGrounded)
+				m_game->m_playerGamepadController->m_inputActions.isJump = true;
+		}
+	}
+	else if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_A)) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
+			if (m_game->m_playerGamepadController->m_playerStates.isGrounded)
+				m_game->m_playerGamepadController->m_inputActions.isJump = true;
+		}
+	}
+
+	if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_LEFT_SHOULDER)) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
+			m_game->m_playerGamepadController->GetPossessedActor()->EquipWeapon(0);
+		}
+	}
+	else if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_RIGHT_SHOULDER)) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
+			m_game->m_playerGamepadController->GetPossessedActor()->EquipWeapon(1);
 		}
 	}
 
 	if (g_engine->m_input->GetController(0).GetRightStick().GetMagnitude() > 0.f) {
-		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_playerController->m_inputActions.viewInput.x = -g_gameConfig->m_playerViewControllerMultiplier * g_engine->m_input->GetController(0).GetRightStick().GetPosition().x;
-			m_game->m_playerController->m_inputActions.viewInput.y = g_gameConfig->m_playerViewControllerMultiplier * g_engine->m_input->GetController(0).GetRightStick().GetPosition().y;
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
+			m_game->m_playerGamepadController->m_inputActions.viewInput.x = -g_gameConfig->m_playerViewControllerSensitivity * g_engine->m_input->GetController(0).GetRightStick().GetPosition().x;
+			m_game->m_playerGamepadController->m_inputActions.viewInput.y = g_gameConfig->m_playerViewControllerSensitivity * g_engine->m_input->GetController(0).GetRightStick().GetPosition().y;
+		}
+	}else {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
+			m_game->m_playerGamepadController->m_inputActions.viewInput = Vec2(0.f, 0.f);
 		}
 	}
 
-	if (g_engine->m_input->GetController(0).WasButtonJustPressed(XboxButtonID::GAMEPAD_A)) {
-		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_playerController->m_inputActions.isRun = true;
+	if (g_engine->m_input->GetController(0).GetLeftTrigger() > 0.1f) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
+			m_game->m_playerGamepadController->m_inputActions.isRun = true;
 		}
 	}
-	if (g_engine->m_input->GetController(0).WasButtonJustReleased(XboxButtonID::GAMEPAD_A)) {
-		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
-			m_game->m_playerController->m_inputActions.isRun = false;
+	else {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
+			m_game->m_playerGamepadController->m_inputActions.isRun = false;
+		}
+	}
+
+	if (g_engine->m_input->GetController(0).GetRightTrigger() > 0.99f) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
+			m_game->m_playerGamepadController->m_inputActions.isAttack = true;
+		}
+	}
+	else
+	{
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
+			m_game->m_playerGamepadController->m_inputActions.isAttack = false;
 		}
 	}
 }
@@ -373,7 +463,7 @@ void App::LoadGameConfig() {
 	g_gameConfig->m_playerViewYawSpeed = g_gameConfigBlackboard.GetValue("playerViewYawSpeed", 0.f);
 	g_gameConfig->m_playerViewPitchSpeed = g_gameConfigBlackboard.GetValue("playerViewPitchSpeed", 0.f);
 	g_gameConfig->m_playerViewRollSpeed = g_gameConfigBlackboard.GetValue("playerViewRollSpeed", 0.f);
-	g_gameConfig->m_playerViewControllerMultiplier = g_gameConfigBlackboard.GetValue("playerViewControllerMultiplier", 0.f);
+	g_gameConfig->m_playerViewControllerSensitivity = g_gameConfigBlackboard.GetValue("playerViewControllerSensitivity", 0.f);
 }
 
 //-----------------------------------------------------------------------------------------------

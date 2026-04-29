@@ -61,7 +61,7 @@ public:
 	bool PushActorOutofFloor(Actor* actor, int tileX, int tileY);
 	void UpdateSunShadowCamera();
 
-	void Render() const;
+	void Render(Camera const& viewCamera) const;
 	void RenderShadowmap() const;
 
 	RaycastResult3D RaycastAll(Vec3 const& start, Vec3 const& direction, float distance, Actor* owner = nullptr) const;

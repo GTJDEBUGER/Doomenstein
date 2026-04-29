@@ -34,20 +34,23 @@ Game::Game()
 {
 	m_gameClock = new Clock();
 
-	m_UICamera = new Camera(
+	m_UICamera1 = new Camera(
 		Vec2(0.f, 0.f), 
+		g_gameConfig->m_screenSize
+	);
+
+	m_UICamera2 = new Camera(
+		Vec2(0.f, 0.f),
 		g_gameConfig->m_screenSize
 	);
 
 	m_randomGenerator = new RandomNumberGenerator();
 
 	m_curMap = new Map(this, MapDefinition::s_definitions[g_gameConfig->m_defaultMap]);
-	m_playerController = new PlayerController(m_curMap);
 
 	InitializeShaders();
 	InitializeShaderConstants();
 	InitializeSkySphere();
-	InitializeUIs();
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -61,14 +64,24 @@ Game::~Game()
 	delete m_curMap;
 	m_curMap = nullptr;
 
-	delete m_playerController;
-	m_playerController = nullptr;
+	if (m_playerKeyboardController != nullptr) {
+		delete m_playerKeyboardController;
+		m_playerKeyboardController = nullptr;
+	}
+	if (m_playerGamepadController != nullptr) {
+		delete m_playerGamepadController;
+		m_playerGamepadController = nullptr;
+	}
+	m_controllerHandleSequence.clear();
 
 	delete m_randomGenerator;
 	m_randomGenerator = nullptr;
 
-	delete m_UICamera;
-	m_UICamera = nullptr;
+	delete m_UICamera2;
+	m_UICamera2 = nullptr;
+
+	delete m_UICamera1;
+	m_UICamera1 = nullptr;
 
 	delete m_gameClock;
 	m_gameClock = nullptr;
@@ -98,20 +111,30 @@ void Game::Update()
 		}
 
 		//-------------------------------------------------------------------------------------------
-		m_playerController->UpdateInput();
-		m_playerController->UpdateCamera();
+		if (m_playerKeyboardController != nullptr) {
+			m_playerKeyboardController->UpdateInput();
+			m_playerKeyboardController->UpdateCamera();
+		}
+		if (m_playerGamepadController != nullptr) {
+			m_playerGamepadController->UpdateInput();
+			m_playerGamepadController->UpdateCamera();
+		}
 		m_curMap->Update();
-		UpdateCameras();
+		UpdateCamerasShake();
 		UpdateShaderConstants();
 		UpdateUIs();
 		UpdateDebugInfo();
 	}
 	
 	//-----------------------------------------------------------------------------------------------
+	//Update lobby mode (if needed)
+
+	//-----------------------------------------------------------------------------------------------
 	//Update attract mode
 	if(m_curGameState == GAME_ATTRACT_MODE) {
 		//Handle cursor mode 
 		g_engine->m_input->SetCursorMode(CursorMode::POINTER);
+		g_engine->m_input->SetFlydigiAdaptiveTrigger();
 
 	}
 }
@@ -121,6 +144,29 @@ void Game::Render() const
 {
 	//-----------------------------------------------------------------------------------------------
 	if (m_curGameState == GAME_PLAYING_MODE) {
+		if (m_controllerHandleSequence.size() == 1) {
+			m_controllerHandleSequence[0]->m_playerCamera->SetViewPort(
+				AABB2(
+					Vec2(0.f, 0.f),
+					Vec2((float)g_engine->m_window->GetClientDimensions().x, (float)g_engine->m_window->GetClientDimensions().y)
+				)
+			);
+		}
+		else {
+			m_controllerHandleSequence[0]->m_playerCamera->SetViewPort(
+				AABB2(
+					Vec2(0.f, 0.f),
+					Vec2((float)g_engine->m_window->GetClientDimensions().x, (float)g_engine->m_window->GetClientDimensions().y * 0.5f)
+				)
+			);
+
+			m_controllerHandleSequence[1]->m_playerCamera->SetViewPort(
+				AABB2(
+					Vec2(0.f, g_engine->m_window->GetClientDimensions().y * 0.5f),
+					Vec2((float)g_engine->m_window->GetClientDimensions().x, (float)g_engine->m_window->GetClientDimensions().y)
+				)
+			);
+		}
 		//-------------------------------------------------------------------------------------------
 		g_engine->m_renderer->ClearScreen(Rgba8(50, 50, 50));
 		//For ShadowMap
@@ -130,102 +176,194 @@ void Game::Render() const
 
 		g_engine->m_renderer->EndShadowCamera(*(m_curMap->m_sunShadowCamera));
 
-		//For GameScene
-		g_engine->m_renderer->BeginCamera(*(m_playerController->m_playerCamera));
+		for (int i = 0; i < m_controllerHandleSequence.size(); i++) {
+			PlayerController* controller = m_controllerHandleSequence[i];
+			//For GameScene
+			g_engine->m_renderer->BeginCamera(*controller->m_playerCamera);
 
-		RenderSkySphere();
-		RenderGamePlay();
+			RenderSkySphere(*controller->m_playerCamera);
+			RenderGamePlay(*controller->m_playerCamera);
 
-		g_engine->m_renderer->EndCamera(*(m_playerController->m_playerCamera));
+			g_engine->m_renderer->EndCamera(*controller->m_playerCamera);
 
-		DebugRenderWorld(*(m_playerController->m_playerCamera));
+			DebugRenderWorld(*controller->m_playerCamera);
 
-		//-------------------------------------------------------------------------------------------
-		//Post processing 
-		g_engine->m_renderer->ResolveSceneToPostProcessing();
-		g_engine->m_renderer->SetPostProcessingConstants(
-			m_postProcessingCBO->ScreenProjectionMatrix,
-			m_postProcessingCBO->InverseScreenProjectionMatrix,
-			m_postProcessingCBO->WorldToRendererTransform,
-			m_postProcessingCBO->SSDO_Samples,
-			m_postProcessingCBO->SSDO_NoiseScale,
-			m_postProcessingCBO->SSDO_Radius,
-			m_postProcessingCBO->SSDO_Bias,
-			m_postProcessingCBO->screenResolution,
-			m_postProcessingCBO->cameraNear,
-			m_postProcessingCBO->cameraFar
-		);
+			//-------------------------------------------------------------------------------------------
+			//Post processing 
+			Vec2 screenDims((float)g_engine->m_window->GetClientDimensions().x, (float)g_engine->m_window->GetClientDimensions().y);
+			AABB2 vp = controller->m_playerCamera->GetViewPort();
+			Vec4 vpBoundsUV(vp.m_mins.x / screenDims.x, vp.m_mins.y / screenDims.y, vp.m_maxs.x / screenDims.x, vp.m_maxs.y / screenDims.y);
 
-		//SSDO
-		g_engine->m_renderer->RenderPostProcessing(m_SSDOShader, SamplerMode::BILINEAR_CLAMP);
-		
-		for (int i = 0; i < 8; i++) {
-			g_engine->m_renderer->RenderPostProcessing(m_horizontalBlurWithDepthShader, SamplerMode::BILINEAR_CLAMP);
-			g_engine->m_renderer->RenderPostProcessing(m_verticalBlurWithDepthShader, SamplerMode::BILINEAR_CLAMP);
+			g_engine->m_renderer->ResolveSceneToPostProcessing(controller->m_playerCamera->GetViewPort());
+			g_engine->m_renderer->SetPostProcessingConstants(
+				m_postProcessingCBOs[i]->ScreenProjectionMatrix,
+				m_postProcessingCBOs[i]->InverseScreenProjectionMatrix,
+				m_postProcessingCBOs[i]->WorldToRendererTransform,
+				m_postProcessingCBOs[i]->SSDO_Samples,
+				m_postProcessingCBOs[i]->SSDO_NoiseScale,
+				m_postProcessingCBOs[i]->SSDO_Radius,
+				m_postProcessingCBOs[i]->SSDO_Bias,
+				m_postProcessingCBOs[i]->ScreenResolution,
+				m_postProcessingCBOs[i]->CameraNear,
+				m_postProcessingCBOs[i]->CameraFar,
+				vpBoundsUV,
+				Rgba8::BLACK,
+				controller->GetPossessedActor()->m_isDead ? 
+					1.f - controller->GetPossessedActor()->m_deadTimer / controller->GetPossessedActor()->m_definition.m_corpseLifetime :
+					0.f,
+				1.0f,
+				0.4f
+			);
+			g_engine->m_renderer->SetStatesIfChanged();
+
+			//SSDO
+			g_engine->m_renderer->RenderPostProcessing(controller->m_playerCamera->GetViewPort(), m_SSDOShader, SamplerMode::BILINEAR_CLAMP);
+
+			for (int j = 0; j < 8; j++) {
+				g_engine->m_renderer->RenderPostProcessing(controller->m_playerCamera->GetViewPort(), m_horizontalBlurWithDepthShader, SamplerMode::BILINEAR_CLAMP);
+				g_engine->m_renderer->RenderPostProcessing(controller->m_playerCamera->GetViewPort(), m_verticalBlurWithDepthShader, SamplerMode::BILINEAR_CLAMP);
+			}
+
+			g_engine->m_renderer->RenderPostProcessing(controller->m_playerCamera->GetViewPort(), m_SSDOBlendShader);
+			g_engine->m_renderer->CopyCurPPResultToOriginal();
+
+			//SSGI
+			/*
+			g_engine->m_renderer->RenderPostProcessing(m_SSGIShader, SamplerMode::BILINEAR_CLAMP);
+			for (int i = 0; i < 2; i++) {
+				g_engine->m_renderer->RenderPostProcessing(m_horizontalBlurShader, SamplerMode::BILINEAR_CLAMP);
+				g_engine->m_renderer->RenderPostProcessing(m_verticalBlurShader, SamplerMode::BILINEAR_CLAMP);
+			}
+			for (int i = 0; i < 2; i++) {
+				g_engine->m_renderer->RenderPostProcessing(m_horizontalBlurWithDepthShader, SamplerMode::BILINEAR_CLAMP);
+				g_engine->m_renderer->RenderPostProcessing(m_verticalBlurWithDepthShader, SamplerMode::BILINEAR_CLAMP);
+			}
+			g_engine->m_renderer->RenderPostProcessing(m_SSGIBlendShader);
+
+			g_engine->m_renderer->CopyCurPPResultToOriginal();*/
+
+
+			//Fog
+			g_engine->m_renderer->RenderPostProcessing(controller->m_playerCamera->GetViewPort(), m_fogShader, SamplerMode::BILINEAR_CLAMP);
+			g_engine->m_renderer->CopyCurPPResultToOriginal();
+
+			//Volume Light
+			g_engine->m_renderer->RenderPostProcessing(controller->m_playerCamera->GetViewPort(), m_volumeLightShader, SamplerMode::BILINEAR_CLAMP);
+			g_engine->m_renderer->CopyCurPPResultToOriginal();
+
+
+			//Bloom
+			g_engine->m_renderer->RenderPostProcessing(controller->m_playerCamera->GetViewPort(), m_brightFilterShader, SamplerMode::BILINEAR_CLAMP);
+			for (int j = 0; j < 4; j++) {
+				g_engine->m_renderer->RenderPostProcessing(controller->m_playerCamera->GetViewPort(), m_horizontalBlurShader, SamplerMode::BILINEAR_CLAMP);
+				g_engine->m_renderer->RenderPostProcessing(controller->m_playerCamera->GetViewPort(), m_verticalBlurShader, SamplerMode::BILINEAR_CLAMP);
+			}
+			g_engine->m_renderer->RenderPostProcessing(controller->m_playerCamera->GetViewPort(), m_bloomShader);
+
+			//FXAA
+			g_engine->m_renderer->RenderPostProcessing(controller->m_playerCamera->GetViewPort(), m_FXAAShader, SamplerMode::BILINEAR_CLAMP);
+
+			//Vignette
+			g_engine->m_renderer->RenderPostProcessing(controller->m_playerCamera->GetViewPort(), m_vignetteShader, SamplerMode::BILINEAR_CLAMP);
+
+			g_engine->m_renderer->RenderPostProcessingToBackBuffer(controller->m_playerCamera->GetViewPort());
 		}
-
-		g_engine->m_renderer->RenderPostProcessing(m_SSDOBlendShader);
-		g_engine->m_renderer->CopyCurPPResultToOriginal();
-
-		//SSGI
-		/*
-		g_engine->m_renderer->RenderPostProcessing(m_SSGIShader, SamplerMode::BILINEAR_CLAMP);
-		for (int i = 0; i < 2; i++) {
-			g_engine->m_renderer->RenderPostProcessing(m_horizontalBlurShader, SamplerMode::BILINEAR_CLAMP);
-			g_engine->m_renderer->RenderPostProcessing(m_verticalBlurShader, SamplerMode::BILINEAR_CLAMP);
-		}
-		for (int i = 0; i < 2; i++) {
-			g_engine->m_renderer->RenderPostProcessing(m_horizontalBlurWithDepthShader, SamplerMode::BILINEAR_CLAMP);
-			g_engine->m_renderer->RenderPostProcessing(m_verticalBlurWithDepthShader, SamplerMode::BILINEAR_CLAMP);
-		}
-		g_engine->m_renderer->RenderPostProcessing(m_SSGIBlendShader);
-
-		g_engine->m_renderer->CopyCurPPResultToOriginal();*/
-
-		
-		//Fog
-		g_engine->m_renderer->RenderPostProcessing(m_fogShader, SamplerMode::BILINEAR_CLAMP);
-		g_engine->m_renderer->CopyCurPPResultToOriginal();
-
-		//Volume Light
-		g_engine->m_renderer->RenderPostProcessing(m_volumeLightShader, SamplerMode::BILINEAR_CLAMP);
-		g_engine->m_renderer->CopyCurPPResultToOriginal();
-
-		
-		//Bloom
-		g_engine->m_renderer->RenderPostProcessing(m_brightFilterShader, SamplerMode::BILINEAR_CLAMP);
-		for (int i = 0; i < 4; i++) {
-			g_engine->m_renderer->RenderPostProcessing(m_horizontalBlurShader, SamplerMode::BILINEAR_CLAMP);
-			g_engine->m_renderer->RenderPostProcessing(m_verticalBlurShader, SamplerMode::BILINEAR_CLAMP);
-		}
-		g_engine->m_renderer->RenderPostProcessing(m_bloomShader);
-
-		//FXAA
-		g_engine->m_renderer->RenderPostProcessing(m_FXAAShader, SamplerMode::BILINEAR_CLAMP);
-
-		g_engine->m_renderer->PresentPostProcessingToScreen();
 
 		//-------------------------------------------------------------------------------------------
 		//For UI
-		g_engine->m_renderer->BeginCamera(*m_UICamera, true);
-		
-		RenderGameUI();
+		if (m_activePlayerNum == 1) {
+			m_UICamera1->SetViewPort(
+				AABB2(
+					Vec2(0.f, 0.f),
+					Vec2((float)g_engine->m_window->GetClientDimensions().x, (float)g_engine->m_window->GetClientDimensions().y)
+				)
+			);
 
-		g_engine->m_renderer->EndCamera(*m_UICamera);
 
-		DebugRenderScreen(*(m_UICamera));
+			g_engine->m_renderer->BeginCamera(*m_UICamera1, true);
+			RenderGameUI(0);
+			g_engine->m_renderer->EndCamera(*m_UICamera1);
+		}
+		else if (m_activePlayerNum == 2) {
+			m_UICamera1->SetViewPort(
+				AABB2(
+					Vec2(0.f, 0.f),
+					Vec2((float)g_engine->m_window->GetClientDimensions().x, (float)g_engine->m_window->GetClientDimensions().y * 0.5f)
+				)
+			);
+			m_UICamera2->SetViewPort(
+				AABB2(
+					Vec2(0.f, (float)g_engine->m_window->GetClientDimensions().y * 0.5f),
+					Vec2((float)g_engine->m_window->GetClientDimensions().x, (float)g_engine->m_window->GetClientDimensions().y)
+				)
+			);
+			g_engine->m_renderer->BeginCamera(*m_UICamera1, true);
+			RenderGameUI(0);
+			g_engine->m_renderer->EndCamera(*m_UICamera1);
+
+			g_engine->m_renderer->BeginCamera(*m_UICamera2, true);
+			RenderGameUI(1);
+			g_engine->m_renderer->EndCamera(*m_UICamera2);
+		}
+
+		DebugRenderScreen(*(g_app->m_screenCamera));
 	}
+
+	//-----------------------------------------------------------------------------------------------
+	if (m_curGameState == GAME_LOBBY_MODE) {
+		//-------------------------------------------------------------------------------------------
+		g_engine->m_renderer->ClearScreen(Rgba8(100, 100, 100));
+		if (m_activePlayerNum == 1) {
+			m_UICamera1->SetViewPort(
+				AABB2(
+					Vec2(0.f, 0.f),
+					Vec2((float)g_engine->m_window->GetClientDimensions().x, (float)g_engine->m_window->GetClientDimensions().y)
+				)
+			);
+			g_engine->m_renderer->BeginCamera(*m_UICamera1, true);
+			RenderLobbyMode(0);
+			g_engine->m_renderer->EndCamera(*m_UICamera1);
+		}
+		else if (m_activePlayerNum == 2) {
+			m_UICamera1->SetViewPort(
+				AABB2(
+					Vec2(0.f, 0.f),
+					Vec2((float)g_engine->m_window->GetClientDimensions().x, (float)g_engine->m_window->GetClientDimensions().y * 0.5f)
+				)
+			);
+			m_UICamera2->SetViewPort(
+				AABB2(
+					Vec2(0.f, (float)g_engine->m_window->GetClientDimensions().y * 0.5f),
+					Vec2((float)g_engine->m_window->GetClientDimensions().x, (float)g_engine->m_window->GetClientDimensions().y)
+				)
+			);
+
+			g_engine->m_renderer->BeginCamera(*m_UICamera1, true);
+			RenderLobbyMode(0);
+			g_engine->m_renderer->EndCamera(*m_UICamera1);
+			g_engine->m_renderer->BeginCamera(*m_UICamera2, true);
+			RenderLobbyMode(1);
+			g_engine->m_renderer->EndCamera(*m_UICamera2);
+		}
+	}
+
 
 	//-----------------------------------------------------------------------------------------------
 	if (m_curGameState == GAME_ATTRACT_MODE) {
 		//-------------------------------------------------------------------------------------------
 		g_engine->m_renderer->ClearScreen(Rgba8(100, 100, 100));
+		m_UICamera1->SetViewPort(
+			AABB2(
+				Vec2(0.f, 0.f),
+				Vec2((float)g_engine->m_window->GetClientDimensions().x, (float)g_engine->m_window->GetClientDimensions().y)
+			)
+		);
 		//For AttractMode
-		g_engine->m_renderer->BeginCamera(*m_UICamera);
+		g_engine->m_renderer->BeginCamera(*m_UICamera1,true);
 
 		RenderAttractMode();
 
-		g_engine->m_renderer->EndCamera(*m_UICamera);
+		g_engine->m_renderer->EndCamera(*m_UICamera1);
 	}
 }
 
@@ -241,8 +379,26 @@ GameState const Game::GetCurGameState() const {
 }
 
 //--------------------------------------------------------------------------------------------------
-void Game::AddCameraShake(float amp) {
-	m_curCameraShakeAmp = GetClamped(m_curCameraShakeAmp + amp, 0.f, g_gameConfig->m_cameraShakeAmp);
+void Game::AddCameraShake(float amp, int controllerIndex) {
+	if (controllerIndex == 0) {
+		m_curCamera1ShakeAmp = GetClamped(m_curCamera1ShakeAmp + amp, 0.f, g_gameConfig->m_cameraShakeAmp);
+	}
+	else if (controllerIndex == 1) {
+		m_curCamera2ShakeAmp = GetClamped(m_curCamera2ShakeAmp + amp, 0.f, g_gameConfig->m_cameraShakeAmp);
+	}
+}
+
+//--------------------------------------------------------------------------------------------------
+void Game::InitializePlayerActors() {
+	for (int i = 0; i < m_activePlayerNum; i++) {
+		SpawnInfo playerSpawnInfo;
+		playerSpawnInfo.m_actorName = "Marine";
+		Actor* spawnPoint = m_curMap->GetRandomSpwanPoint();
+		playerSpawnInfo.m_spawnPosition = spawnPoint != nullptr ? spawnPoint->m_position : Vec3(0.f, 0.f, 0.f);
+		playerSpawnInfo.m_spawnOrientation = spawnPoint != nullptr ? spawnPoint->m_orientation : EulerAngles(0.f, 0.f, 0.f);
+
+		m_curMap->SpawnPlayerActor(playerSpawnInfo, m_controllerHandleSequence[i]);
+	}
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -263,42 +419,38 @@ void Game::InitializeShaders() {
 	//m_SSGIShader = g_engine->m_renderer->CreateShader("SSGI", VertexType::PCU);
 	//m_SSGIBlendShader = g_engine->m_renderer->CreateShader("SSGIBlend", VertexType::PCU);
 	m_FXAAShader = g_engine->m_renderer->CreateShader("FXAA", VertexType::PCU);
+	m_vignetteShader = g_engine->m_renderer->CreateShader("Vignette", VertexType::PCU);
 }
 
 //---------------------------------------------------------------------------------------------------
 void Game::InitializeShaderConstants() {
-	m_postProcessingCBO = new PostProcessingConstants();
-	m_postProcessingCBO->ScreenProjectionMatrix = m_playerController->m_playerCamera->GetProjectionMat();
-	m_postProcessingCBO->InverseScreenProjectionMatrix = m_playerController->m_playerCamera->GetInverseProjectionMat();
-	Mat44 worldToRenderer = m_playerController->m_playerCamera->GetCameraToRendererTransform();
-	worldToRenderer.Append(m_playerController->m_playerCamera->GetWorldToCameraTransform());
-	m_postProcessingCBO->WorldToRendererTransform = worldToRenderer;
-	for (int i = 0; i < 64; ++i)
-	{
-		Vec3 sample(
-			m_randomGenerator->RollRandomFloatZeroToOne() * 2.f - 1.f,
-			m_randomGenerator->RollRandomFloatZeroToOne() * 2.f - 1.f,
-			m_randomGenerator->RollRandomFloatZeroToOne()
+	for (int i = 0; i < 2; i++) {
+		m_postProcessingCBOs.push_back(new PostProcessingConstants());
+		for (int j = 0; j < 64; ++j)
+		{
+			Vec3 sample(
+				m_randomGenerator->RollRandomFloatZeroToOne() * 2.f - 1.f,
+				m_randomGenerator->RollRandomFloatZeroToOne() * 2.f - 1.f,
+				m_randomGenerator->RollRandomFloatZeroToOne()
+			);
+
+			sample = sample.GetNormalized();
+			sample *= m_randomGenerator->RollRandomFloatZeroToOne();
+
+			float scale = (float)j / 64.0f;
+			scale = Interpolate(0.01f, 1.0f, scale * scale);
+			sample *= scale;
+
+			m_postProcessingCBOs[i]->SSDO_Samples[j] = Vec4(sample.x, sample.y, sample.z, 0.0f);
+		}
+		m_postProcessingCBOs[i]->SSDO_NoiseScale = Vec2(
+			g_gameConfig->m_screenSize.x / 64.f,
+			g_gameConfig->m_screenSize.y / 64.f
 		);
-
-		sample = sample.GetNormalized();
-		sample *= m_randomGenerator->RollRandomFloatZeroToOne();
-
-		float scale = (float)i / 64.0f;
-		scale = Interpolate(0.01f, 1.0f, scale * scale);
-		sample *= scale;
-
-		m_postProcessingCBO->SSDO_Samples[i] = Vec4(sample.x, sample.y, sample.z, 0.0f);
+		m_postProcessingCBOs[i]->SSDO_Radius = 1.28f;
+		m_postProcessingCBOs[i]->SSDO_Bias = 0.04f;
+		m_postProcessingCBOs[i]->ScreenResolution = g_gameConfig->m_screenSize;
 	}
-	m_postProcessingCBO->SSDO_NoiseScale = Vec2(
-		g_gameConfig->m_screenSize.x / 64.f,
-		g_gameConfig->m_screenSize.y / 64.f
-	);
-	m_postProcessingCBO->SSDO_Radius = 1.28f;
-	m_postProcessingCBO->SSDO_Bias = 0.04f;
-	m_postProcessingCBO->screenResolution = g_gameConfig->m_screenSize;
-	m_postProcessingCBO->cameraNear = m_playerController->m_playerCamera->GetPerspNear();
-	m_postProcessingCBO->cameraFar = m_playerController->m_playerCamera->GetPerspFar();
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -306,7 +458,7 @@ void Game::InitializeSkySphere() {
 	AddVertexForSphere3D(
 		m_skySphereVerts,
 		m_skySphereIndexs,
-		m_playerController->m_playerCamera->GetPosition(),
+		Vec3(0.f,0.f,0.f),
 		500.f,
 		Rgba8::WHITE,
 		AABB2::ZERO_TO_ONE,
@@ -330,41 +482,39 @@ void Game::InitializeSkySphere() {
 }
 
 //---------------------------------------------------------------------------------------------------
-void Game::InitializeUIs() {
-	float hudHeight = g_gameConfig->m_screenSize.x / 13.625f;
-
-	AddVertexsForAABB2D(
-		m_HUDVerts,
-		AABB2(
-			Vec2(0.f, 0.f),
-			Vec2(g_gameConfig->m_screenSize.x, hudHeight)
-		),
-		Rgba8::WHITE
-	);
-}
-
-//---------------------------------------------------------------------------------------------------
 void Game::UpdateShaderConstants() {
-	m_postProcessingCBO->ScreenProjectionMatrix = m_playerController->m_playerCamera->GetProjectionMat();
-	m_postProcessingCBO->InverseScreenProjectionMatrix = m_playerController->m_playerCamera->GetInverseProjectionMat();
-	Mat44 worldToRenderer = m_playerController->m_playerCamera->GetCameraToRendererTransform();
-	worldToRenderer.Append(m_playerController->m_playerCamera->GetWorldToCameraTransform());
-	m_postProcessingCBO->WorldToRendererTransform = worldToRenderer;
-	m_postProcessingCBO->cameraNear = m_playerController->m_playerCamera->GetPerspNear();
-	m_postProcessingCBO->cameraFar = m_playerController->m_playerCamera->GetPerspFar();
+	for (int i = 0; i < m_controllerHandleSequence.size(); i++) {
+		m_postProcessingCBOs[i]->ScreenProjectionMatrix = m_controllerHandleSequence[i]->m_playerCamera->GetProjectionMat();
+		m_postProcessingCBOs[i]->InverseScreenProjectionMatrix = m_controllerHandleSequence[i]->m_playerCamera->GetInverseProjectionMat();
+		Mat44 worldToRenderer = m_controllerHandleSequence[i]->m_playerCamera->GetCameraToRendererTransform();
+		worldToRenderer.Append(m_controllerHandleSequence[i]->m_playerCamera->GetWorldToCameraTransform());
+		m_postProcessingCBOs[i]->WorldToRendererTransform = worldToRenderer;
+		m_postProcessingCBOs[i]->CameraNear = m_controllerHandleSequence[i]->m_playerCamera->GetPerspNear();
+		m_postProcessingCBOs[i]->CameraFar = m_controllerHandleSequence[i]->m_playerCamera->GetPerspFar();
+	}
 }
 
 //---------------------------------------------------------------------------------------------------
-void Game::UpdateCameras() {
+void Game::UpdateCamerasShake() {
 	DecayCameraShake();
 	Vec3 viewForward;
 	Vec3 viewLeft;
 	Vec3 viewUp;
-	m_playerController->m_playerCamera->GetOrientation().GetAsVectors_IFwd_JLeft_KUp(viewForward, viewLeft, viewUp);
-	m_playerController->m_playerCamera->Translate3D(
-		viewLeft * (m_randomGenerator->RollRandomFloatZeroToOne() * 2.f - 1.f) * m_curCameraShakeAmp +
-		viewUp * (m_randomGenerator->RollRandomFloatZeroToOne() * 2.f - 1.f) * m_curCameraShakeAmp
-	);
+	if (m_controllerHandleSequence.size() > 0) {
+		m_controllerHandleSequence[0]->m_playerCamera->GetOrientation().GetAsVectors_IFwd_JLeft_KUp(viewForward, viewLeft, viewUp);
+		m_controllerHandleSequence[0]->m_playerCamera->Translate3D(
+			viewLeft * (m_randomGenerator->RollRandomFloatZeroToOne() * 2.f - 1.f) * m_curCamera1ShakeAmp * (float)m_gameClock->GetDeltaSeconds() +
+			viewUp * (m_randomGenerator->RollRandomFloatZeroToOne() * 2.f - 1.f) * m_curCamera1ShakeAmp * (float)m_gameClock->GetDeltaSeconds()
+		);
+	}
+	
+	if (m_controllerHandleSequence.size() > 1) {
+		m_controllerHandleSequence[1]->m_playerCamera->GetOrientation().GetAsVectors_IFwd_JLeft_KUp(viewForward, viewLeft, viewUp);
+		m_controllerHandleSequence[1]->m_playerCamera->Translate3D(
+			viewLeft * (m_randomGenerator->RollRandomFloatZeroToOne() * 2.f - 1.f) * m_curCamera2ShakeAmp * (float)m_gameClock->GetDeltaSeconds() +
+			viewUp * (m_randomGenerator->RollRandomFloatZeroToOne() * 2.f - 1.f) * m_curCamera2ShakeAmp * (float)m_gameClock->GetDeltaSeconds()
+		);
+	}
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -406,43 +556,84 @@ void Game::UpdateDebugInfo() {
 
 //---------------------------------------------------------------------------------------------------
 void Game::UpdateUIs() {
-	Actor* possessedActor = m_playerController->GetPossessedActor();
-	if (possessedActor != nullptr && possessedActor->m_equippedWeapon != nullptr) {
-		m_reticleVerts.clear();
-		m_HUDTextVerts.clear();
+	for (int i = 0; i < m_controllerHandleSequence.size(); i++) {
+		Actor* possessedActor = m_controllerHandleSequence[i]->GetPossessedActor();
+		if (possessedActor != nullptr && possessedActor->m_equippedWeapon != nullptr) {
+			Camera* UICamera = i == 0 ? m_UICamera1 : m_UICamera2;
+			std::vector<Vertex>* HUDVerts = i == 0 ? &m_HUDVerts1 : &m_HUDVerts2;
+			std::vector<Vertex>* rectileVerts = i == 0 ? &m_reticleVerts1 : &m_reticleVerts2;
+			std::vector<Vertex>* HUDTextVerts = i == 0 ? &m_HUDTextVerts1 : &m_HUDTextVerts2;
 
-		WeaponDefinition weaponDef = possessedActor->m_equippedWeapon->m_definition;
-		float hudHeight = g_gameConfig->m_screenSize.x / 13.625f;
+			HUDVerts->clear();
+			rectileVerts->clear();
+			HUDTextVerts->clear();
 
-		Vec2 rectileHalfSize = weaponDef.m_hud.m_reticleSize.GetVec2() * 0.5f;
-		AddVertexsForAABB2D(
-			m_reticleVerts,
-			AABB2(
-				Vec2(g_gameConfig->m_screenCenter.x - rectileHalfSize.x, g_gameConfig->m_screenCenter.y - rectileHalfSize.y),
-				Vec2(g_gameConfig->m_screenCenter.x + rectileHalfSize.x, g_gameConfig->m_screenCenter.y + rectileHalfSize.y)
-			),
-			Rgba8::WHITE
-		);
+			WeaponDefinition weaponDef = possessedActor->m_equippedWeapon->m_definition;
+			Vec2 viewBottomLeft = UICamera->GetOrthoBottomLeft();
+			Vec2 viewTopRight = UICamera->GetOrthoTopRight();
+			Vec2 viewCenter = (viewBottomLeft + viewTopRight) * 0.5f;
+			float viewWidth = viewTopRight.x - viewBottomLeft.x;
+			float hudHeight = viewWidth / (13.625f * m_controllerHandleSequence.size());
 
-		g_defaultFont->AddVertsForTextBox2D(
-			m_HUDTextVerts,
-			Stringf("%s", weaponDef.m_name.data()),
-			AABB2(
-				Vec2(g_gameConfig->m_screenSize.x * 0.133f, 0.f),
-				Vec2(g_gameConfig->m_screenSize.x * 0.24f, hudHeight)
-			),
-			15.f
-		);
+			AddVertexsForAABB2D(
+				*HUDVerts,
+				AABB2(
+					viewBottomLeft,
+					Vec2(viewTopRight.x, viewBottomLeft.y + hudHeight)
+				),
+				Rgba8::WHITE
+			);
 
-		g_defaultFont->AddVertsForTextBox2D(
-			m_HUDTextVerts,
-			Stringf("%.0f/%.0f", possessedActor->m_curHealth, possessedActor->m_definition.m_health),
-			AABB2(
-				Vec2(g_gameConfig->m_screenSize.x * 0.24f, 0.f),
-				Vec2(g_gameConfig->m_screenSize.x * 0.374f, hudHeight)
-			),
-			15.f
-		);
+			Vec2 rectileHalfSize = weaponDef.m_hud.m_reticleSize.GetVec2() * 0.5f;
+			AddVertexsForAABB2D(
+				*rectileVerts,
+				AABB2(
+					Vec2(viewCenter.x - rectileHalfSize.x, viewCenter.y - rectileHalfSize.y),
+					Vec2(viewCenter.x + rectileHalfSize.x, viewCenter.y + rectileHalfSize.y)
+				),
+				Rgba8::WHITE
+			);
+
+			g_defaultFont->AddVertsForTextBox2D(
+				*HUDTextVerts,
+				Stringf("%d", m_controllerHandleSequence[i]->m_killCount),
+				AABB2(
+					viewBottomLeft,
+					Vec2(viewBottomLeft.x + viewWidth * 0.133f, hudHeight)
+				),
+				15.f
+			);
+
+			g_defaultFont->AddVertsForTextBox2D(
+				*HUDTextVerts,
+				Stringf("%s", weaponDef.m_name.data()),
+				AABB2(
+					Vec2(viewBottomLeft.x + viewWidth * 0.133f, viewBottomLeft.y),
+					Vec2(viewBottomLeft.x + viewWidth * 0.24f, hudHeight)
+				),
+				15.f
+			);
+
+			g_defaultFont->AddVertsForTextBox2D(
+				*HUDTextVerts,
+				Stringf("%.0f/%.0f", possessedActor->m_curHealth, possessedActor->m_definition.m_health),
+				AABB2(
+					Vec2(viewBottomLeft.x + viewWidth * 0.24f, viewBottomLeft.y),
+					Vec2(viewBottomLeft.x + viewWidth * 0.374f, hudHeight)
+				),
+				15.f
+			);
+
+			g_defaultFont->AddVertsForTextBox2D(
+				*HUDTextVerts,
+				Stringf("%d", m_controllerHandleSequence[i]->m_deadCount),
+				AABB2(
+					Vec2(viewBottomLeft.x + viewWidth * 0.871f, viewBottomLeft.y),
+					Vec2(viewBottomLeft.x + viewWidth, hudHeight)
+				),
+				15.f
+			);
+		}
 	}
 }
 
@@ -566,8 +757,15 @@ void Game::RenderAttractMode() const {
 		text,
 		Rgba8(225, 225, 225, 255));
 
-	text = "-PRESS SPACE START GAME-";
+	text = "-PRESS SPACE PLAY GAME WITH KEYBOARD AND MOUSE-";
 	fontSize = 10;
+	g_defaultFont->AddVertsForText2D(
+		tempMesh,
+		Vec2(g_gameConfig->m_screenCenter.x - text.size() * 0.5f * fontSize, 4.f * fontSize),
+		fontSize,
+		text,
+		Rgba8(250, 250, 250, (unsigned char)(SinDegrees(time * 240.f) * 100.f + 155.f)));
+	text = "-PRESS START PLAY GAME WITH GAMEPAD-";
 	g_defaultFont->AddVertsForText2D(
 		tempMesh,
 		Vec2(g_gameConfig->m_screenCenter.x - text.size() * 0.5f * fontSize, 2.f * fontSize),
@@ -581,25 +779,60 @@ void Game::RenderAttractMode() const {
 }
 
 //---------------------------------------------------------------------------------------------------
-void Game::RenderGamePlay() const {
-	m_curMap->Render();
+void Game::RenderLobbyMode(int controllerIndex) const {
+	std::vector<Vertex> tempMesh;
+	float titleSize = 40;
+	g_defaultFont->AddVertsForTextBox2D(
+		tempMesh,
+		Stringf("Player %d", controllerIndex + 1),
+		AABB2(
+			Vec2(g_gameConfig->m_screenCenter.x - titleSize, g_gameConfig->m_screenCenter.y - titleSize), 
+			Vec2(g_gameConfig->m_screenCenter.x + titleSize, g_gameConfig->m_screenCenter.y + titleSize)
+		),
+		titleSize,
+		Rgba8::WHITE,
+		1.f,
+		Vec2(0.5f, 0.5f),
+		TextBoxMode::OVERRUN
+	);
+	g_defaultFont->AddVertsForTextBox2D(
+		tempMesh,
+		m_controllerHandleSequence[controllerIndex]->m_gamepadID!=-1 ? "Gamepad Control" : "Keyboard and Mouse Control",
+		AABB2(
+			Vec2(g_gameConfig->m_screenCenter.x - titleSize, g_gameConfig->m_screenCenter.y - 2.f * titleSize),
+			Vec2(g_gameConfig->m_screenCenter.x + titleSize, g_gameConfig->m_screenCenter.y )
+		),
+		titleSize * 0.5f,
+		Rgba8::WHITE,
+		1.f,
+		Vec2(0.5f, 0.5f),
+		TextBoxMode::OVERRUN
+	);
+
+	g_engine->m_renderer->BindTexture(&g_defaultFont->GetTexture());
+	g_engine->m_renderer->DrawVertexArray(tempMesh);
 }
 
 //---------------------------------------------------------------------------------------------------
-void Game::RenderGameUI() const {
-	if (m_playerController->GetPossessedActor() != nullptr && m_playerController->GetPossessedActor()->m_equippedWeapon != nullptr &&
-		m_playerController->m_cameraMode != PlayerCameraMode::FREE_CAMERA) {
-		WeaponDefinition weaponDef = m_playerController->GetPossessedActor()->m_equippedWeapon->m_definition;
+void Game::RenderGamePlay(Camera const& viewCamera) const {
+	m_curMap->Render(viewCamera);
+}
+
+//---------------------------------------------------------------------------------------------------
+void Game::RenderGameUI(int controllerIndex) const {
+	if (m_controllerHandleSequence[controllerIndex]->GetPossessedActor() != nullptr && m_controllerHandleSequence[controllerIndex]->GetPossessedActor()->m_equippedWeapon != nullptr &&
+		m_controllerHandleSequence[controllerIndex]->m_cameraMode != PlayerCameraMode::FREE_CAMERA) {
+		WeaponDefinition weaponDef = m_controllerHandleSequence[controllerIndex]->GetPossessedActor()->m_equippedWeapon->m_definition;
 		g_engine->m_renderer->SetSamplerMode(SamplerMode::POINT_CLAMP);
 
 		g_engine->m_renderer->BindTexture(weaponDef.m_hud.m_baseTexture);
-		g_engine->m_renderer->DrawVertexArray(m_HUDVerts);
+		g_engine->m_renderer->DrawVertexArray(m_HUDVerts1);
 
 		g_engine->m_renderer->BindTexture(weaponDef.m_hud.m_reticleTexture);
-		g_engine->m_renderer->DrawVertexArray(m_reticleVerts);
+		g_engine->m_renderer->DrawVertexArray(controllerIndex==0 ? m_reticleVerts1 : m_reticleVerts2);
 
 		g_engine->m_renderer->BindTexture(&g_defaultFont->GetTexture());
-		g_engine->m_renderer->DrawVertexArray(m_HUDTextVerts);
+		g_engine->m_renderer->DrawVertexArray(controllerIndex==0 ? m_HUDTextVerts1 : m_HUDTextVerts2);
 	}
 }
 
@@ -648,11 +881,11 @@ void Game::RenderWorldGrids() const {
 }
 
 //---------------------------------------------------------------------------------------------------
-void Game::RenderSkySphere() const {
+void Game::RenderSkySphere(Camera const& viewCamera) const {
 	g_engine->m_renderer->BindShader(m_skySphereShader);
 	g_engine->m_renderer->SetModelConstants(
 		Mat44::MakeTransform3D(
-			m_playerController->m_position,
+			viewCamera.GetPosition(),
 			EulerAngles(),
 			Vec3(1.f,1.f,1.f)
 		)
@@ -662,5 +895,6 @@ void Game::RenderSkySphere() const {
 
 //---------------------------------------------------------------------------------------------------
 void Game::DecayCameraShake() {
-	m_curCameraShakeAmp = GetClamped(m_curCameraShakeAmp - (float)m_gameClock->GetDeltaSeconds() * g_gameConfig->m_cameraShakeDecay, 0.f, g_gameConfig->m_cameraShakeDecay);
+	m_curCamera1ShakeAmp = GetClamped(m_curCamera1ShakeAmp - (float)m_gameClock->GetDeltaSeconds() * g_gameConfig->m_cameraShakeDecay, 0.f, g_gameConfig->m_cameraShakeDecay);
+	m_curCamera2ShakeAmp = GetClamped(m_curCamera2ShakeAmp - (float)m_gameClock->GetDeltaSeconds() * g_gameConfig->m_cameraShakeDecay, 0.f, g_gameConfig->m_cameraShakeDecay);
 }

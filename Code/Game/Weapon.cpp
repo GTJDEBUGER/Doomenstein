@@ -68,7 +68,7 @@ bool Weapon::Fire(Vec3 aimDirection) {
 					"PistalFireLight",
 					m_owner->m_position +
 					Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.725f) +
-					randomDirection * m_owner->m_definition.m_collision.m_radius * 1.6f
+					aimDirection * m_owner->m_definition.m_collision.m_radius * 1.6f
 				}
 			);
 
@@ -108,9 +108,17 @@ bool Weapon::Fire(Vec3 aimDirection) {
 			projectileActor->m_velocity = randomDirection * m_definition.m_projectileSpeed;
 			projectileActor->m_owner = m_owner;
 			projectileActor->m_position = m_owner->m_position + 
-				Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.6f) +
+				Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.5f) +
 				randomDirection * m_owner->m_definition.m_collision.m_radius;
 		}
+		m_owner->m_map->SpawnActor(
+			SpawnInfo{
+				"PlasmaFireLight",
+				m_owner->m_position +
+				Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.725f) +
+				aimDirection * m_owner->m_definition.m_collision.m_radius * 1.6f
+			}
+		);
 	}
 
 	//Handle melee attack

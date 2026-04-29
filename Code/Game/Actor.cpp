@@ -13,6 +13,8 @@
 #include "Engine/Renderer/DebugRenderSystem.hpp"
 #include "Engine/Core/Clock.hpp"
 #include "Engine/Math/MathUtils.hpp"
+#include "Engine/Input/InputSystem.hpp"
+#include "Engine/Input/XboxController.hpp"
 
 //---------------------------------------------------------------------------------------------------
 Actor::Actor(ActorDefinition const& definition, Map* map, ActorHandle* handle, Vec3 pos, EulerAngles orien, Vec3 scale) :
@@ -40,7 +42,7 @@ Actor::Actor(ActorDefinition const& definition, Map* map, ActorHandle* handle, V
 			m_inventory.push_back(new Weapon(WeaponDefinition::s_definitions.at(weaponName), this));
 		}
 	}
-	if(!m_inventory.empty()) EquipWeapon(0);
+	if (!m_inventory.empty()) EquipWeapon(0);
 
 	if (m_definition.m_actorAI.m_aiEnabled) {
 		m_controller = new AIController(m_map);
@@ -146,35 +148,6 @@ Actor::Actor(ActorDefinition const& definition, Map* map, ActorHandle* handle, V
 			8
 		);
 	}
-
-	// Actor geometry
-	Vec2 spriteSheetSize = m_definition.m_actor2DRenderInfo.m_size;
-	if (!m_definition.m_actor2DRenderInfo.m_renderLit) {
-		AddVertexForQuad3D(
-			m_actorUnlitVerts,
-			Vec3(0.f, spriteSheetSize.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), spriteSheetSize.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
-			Vec3(0.f, spriteSheetSize.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), spriteSheetSize.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
-			Vec3(0.f, spriteSheetSize.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), spriteSheetSize.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
-			Vec3(0.f, spriteSheetSize.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), spriteSheetSize.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y))
-		);
-	}
-	else {
-		AddVertexForQuad3D(
-			m_actorLitVerts,
-			Vec3(0.f, spriteSheetSize.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), spriteSheetSize.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
-			Vec3(0.f, spriteSheetSize.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), spriteSheetSize.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
-			Vec3(0.f, spriteSheetSize.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), spriteSheetSize.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
-			Vec3(0.f, spriteSheetSize.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), spriteSheetSize.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y))
-		);
-
-		AddVertexForQuad3D(
-			m_actorShadowmapVerts,
-			Vec3(0.f, spriteSheetSize.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), spriteSheetSize.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
-			Vec3(0.f, spriteSheetSize.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), spriteSheetSize.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
-			Vec3(0.f, spriteSheetSize.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), spriteSheetSize.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
-			Vec3(0.f, spriteSheetSize.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), spriteSheetSize.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y))
-		);
-	}
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -212,7 +185,6 @@ void Actor::Update(float deltaSeconds) {
 		}
 		if (m_definition.m_actor2DRenderInfo.m_animationGroups.size() > 0) {
 			m_animTimer += deltaSeconds;
-			UpdateActorAnimation(m_curAnimName, m_animTimer);
 		}
 
 		if (m_deadTimer <= 0.f) {
@@ -237,12 +209,6 @@ void Actor::Update(float deltaSeconds) {
 
 	// Update animations
 	if (m_definition.m_actor2DRenderInfo.m_animationGroups.size() > 0) {
-		// Determine nearest 8 directions to player camera
-		int nearestEightDirCount = GetQuantizedDirectionAnimationIndex(*m_map->m_game->m_playerController->m_playerCamera);
-
-		// Determine nearest 8 directions to shadow map camera
-		int shadowmapNearestEightDirCount = GetQuantizedDirectionAnimationIndex(*m_map->m_sunShadowCamera);
-
 		// Determine current animation based on velocity and action state
 		if (m_velocity.GetXY().GetLengthSquared() > 0.01f && 
 			m_curAnimName != "Attack" && 
@@ -254,8 +220,8 @@ void Actor::Update(float deltaSeconds) {
 			m_animTimer = 0.f;
 		}
 		else if (m_curAnimName != "Idle" && (
-				  (m_curAnimName == "Attack" && m_animTimer > m_definition.m_actor2DRenderInfo.m_animationGroups.at("Attack")->m_animations[nearestEightDirCount]->GetDuration()) ||
-				  (m_curAnimName == "Hurt" && m_animTimer > m_definition.m_actor2DRenderInfo.m_animationGroups.at("Hurt")->m_animations[nearestEightDirCount]->GetDuration()) ||
+				  (m_curAnimName == "Attack" && m_animTimer >= m_definition.m_actor2DRenderInfo.m_animationGroups.at("Attack")->m_animations[0]->GetDuration()) ||
+				  (m_curAnimName == "Hurt" && m_animTimer >= m_definition.m_actor2DRenderInfo.m_animationGroups.at("Hurt")->m_animations[0]->GetDuration()) ||
                   (m_curAnimName == "Walk" && m_velocity.GetXY().GetLengthSquared() <= 0.01f)
 				)
 		) {
@@ -265,20 +231,17 @@ void Actor::Update(float deltaSeconds) {
 		// Update UVs based on current animation and direction
 		if (m_curAnimName == "Idle") {
 			m_animTimer = 0.f;
-			UpdateActorAnimation("Walk", m_animTimer, nearestEightDirCount, shadowmapNearestEightDirCount);
 		}
 		else{
 			if (m_definition.m_actor2DRenderInfo.m_animationGroups.at(m_curAnimName)->m_scaleBySpeed) {
-				m_animTimer += deltaSeconds;
-				UpdateActorAnimation(m_curAnimName, m_animTimer, nearestEightDirCount, shadowmapNearestEightDirCount);
+				m_animTimer += m_velocity.GetLengthXY() / m_definition.m_physics.m_walkSpeed * deltaSeconds;
 			}
 			else {
 				m_animTimer += deltaSeconds;
-				UpdateActorAnimation(m_curAnimName, m_animTimer, nearestEightDirCount, shadowmapNearestEightDirCount);
 			}
 		}
 	}
-
+	
 	// Update world UI
 	UpdateWeapon(deltaSeconds);
 }
@@ -287,7 +250,7 @@ void Actor::Update(float deltaSeconds) {
 void Actor::UpdatePhysics(float deltaSeconds) {
 	// Apply gravity
 	if (!m_definition.m_physics.m_flying) {
-		m_velocity -= Vec3(0.f, 0.f, 49.f) * deltaSeconds;
+		m_velocity -= Vec3(0.f, 0.f, 50.f) * deltaSeconds;
 	}
 
 	// Apply acceleration
@@ -324,7 +287,8 @@ void Actor::Damage(float damageAmount, Actor* attacker) {
 	m_animTimer = 0.f;
 
 	if(dynamic_cast<PlayerController*>(m_controller)) {
-		m_map->m_game->AddCameraShake(0.75f);
+		m_map->m_game->AddCameraShake(25.f, m_controller->m_handleIndex);
+		dynamic_cast<PlayerController*>(m_controller)->SetVibration(1.2f, 0.4f, 0.4f);
 	}
 
 	if (m_curHealth <= 0.f) {
@@ -333,6 +297,10 @@ void Actor::Damage(float damageAmount, Actor* attacker) {
 		m_curAnimName = "Death";
 		m_animTimer = 0.f;
 		m_curHealth = 0.f;
+
+		if (dynamic_cast<PlayerController*>(attacker->m_controller)) {
+			dynamic_cast<PlayerController*>(attacker->m_controller)->m_killCount +=1;
+		}
 	}
 
 	if (attacker != nullptr && 
@@ -419,9 +387,13 @@ void Actor::OnUnpossessed() {
 
 //---------------------------------------------------------------------------------------------------
 void Actor::MoveInDirection(Vec3 const& direction, float targetSpeed) {
-	Vec3 desiredVelocity = direction.GetNormalized() * targetSpeed;
-	Vec3 steering = desiredVelocity - Vec3(m_velocity.x, m_velocity.y, 0.f);
-	AddForce(steering);
+	Vec3 desiredVelocity = Vec3(direction.x, direction.y, 0.f).GetNormalized() * targetSpeed;
+	Vec3 velocityDiff = desiredVelocity - Vec3(m_velocity.x, m_velocity.y, 0.f);
+
+	//60.f is FPS related
+	Vec3 steeringForce = velocityDiff * m_definition.m_physics.m_mass * 60.f;
+
+	AddForce(steeringForce);
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -450,17 +422,19 @@ void Actor::TurnInDirection(Vec3 const& direction, float maxStepAngle) {
 void Actor::Attack(Vec3 const& aimDirection) {
 	if (m_equippedWeapon != nullptr) {
 		if (m_equippedWeapon->Fire(aimDirection)) {
-			m_curAnimName = "Attack";
-			m_animTimer = 0.f;
+			if (m_curAnimName != "Attack") {
+				m_curAnimName = "Attack";
+				m_animTimer = 0.f;
+			}
 			m_curWeaponAnimName = "Attack";
 			m_weaponAnimTimer = 0.f;
 
 			if (dynamic_cast<PlayerController*>(m_controller)) {
 				if (m_equippedWeapon->m_definition.m_name == "Pistol") {
-					m_map->m_game->AddCameraShake(1.0f);
+					m_map->m_game->AddCameraShake(30.f, m_controller->m_handleIndex);
 				}
 				else {
-					m_map->m_game->AddCameraShake(0.5f);
+					m_map->m_game->AddCameraShake(15.f, m_controller->m_handleIndex);
 				}
 			}
 		}
@@ -521,83 +495,6 @@ int Actor::GetQuantizedDirectionAnimationIndex(Camera const& viewCamera) const {
 }
 
 //---------------------------------------------------------------------------------------------------
-void Actor::UpdateActorVertsUVs(AABB2 const& newUVs) {
-	Vec2 bottomLeftUV = Vec2(newUVs.m_mins.x, newUVs.m_mins.y);
-	Vec2 bottomRightUV = Vec2(newUVs.m_maxs.x, newUVs.m_mins.y);
-	Vec2 topRightUV = Vec2(newUVs.m_maxs.x, newUVs.m_maxs.y);
-	Vec2 topLeftUV = Vec2(newUVs.m_mins.x, newUVs.m_maxs.y);
-
-	if (!m_definition.m_actor2DRenderInfo.m_renderLit) {
-		m_actorUnlitVerts[0].m_uvTexCoords = bottomLeftUV;
-		m_actorUnlitVerts[1].m_uvTexCoords = topRightUV;
-		m_actorUnlitVerts[2].m_uvTexCoords = bottomRightUV;
-
-		m_actorUnlitVerts[3].m_uvTexCoords = bottomLeftUV;
-		m_actorUnlitVerts[4].m_uvTexCoords = topLeftUV;
-		m_actorUnlitVerts[5].m_uvTexCoords = topRightUV;
-	}
-	else {
-		m_actorLitVerts[0].m_uvTexCoords = bottomLeftUV;
-		m_actorLitVerts[1].m_uvTexCoords = topRightUV;
-		m_actorLitVerts[2].m_uvTexCoords = bottomRightUV;
-
-		m_actorLitVerts[3].m_uvTexCoords = bottomLeftUV;
-		m_actorLitVerts[4].m_uvTexCoords = topLeftUV;
-		m_actorLitVerts[5].m_uvTexCoords = topRightUV;
-	}
-}
-
-//---------------------------------------------------------------------------------------------------
-void Actor::UpdateActorShadowmapVertsUVs(AABB2 const& newUVs) {
-	Vec2 bottomLeftUV = Vec2(newUVs.m_mins.x, newUVs.m_mins.y);
-	Vec2 bottomRightUV = Vec2(newUVs.m_maxs.x, newUVs.m_mins.y);
-	Vec2 topRightUV = Vec2(newUVs.m_maxs.x, newUVs.m_maxs.y);
-	Vec2 topLeftUV = Vec2(newUVs.m_mins.x, newUVs.m_maxs.y);
-	m_actorShadowmapVerts[0].m_uvTexCoords = bottomLeftUV;
-	m_actorShadowmapVerts[1].m_uvTexCoords = topRightUV;
-	m_actorShadowmapVerts[2].m_uvTexCoords = bottomRightUV;
-
-	m_actorShadowmapVerts[3].m_uvTexCoords = bottomLeftUV;
-	m_actorShadowmapVerts[4].m_uvTexCoords = topLeftUV;
-	m_actorShadowmapVerts[5].m_uvTexCoords = topRightUV;
-}
-
-//---------------------------------------------------------------------------------------------------
-void Actor::UpdateActorAnimation(std::string animationGroupName, float playbackTime, int animationIndex, int shadowmapIndex) {
-	if (m_definition.m_actor2DRenderInfo.m_renderLit) {
-		if (animationIndex >= 0 && shadowmapIndex >= 0) {
-			AABB2 currentSpriteUV = m_definition.m_actor2DRenderInfo.m_animationGroups.at(animationGroupName)->
-				m_animations[animationIndex]->GetSpriteDefAtTime(playbackTime).GetUvs();
-			UpdateActorVertsUVs(currentSpriteUV);
-
-			AABB2 currentShadowmapSpriteUV = m_definition.m_actor2DRenderInfo.m_animationGroups.at(animationGroupName)->
-				m_animations[shadowmapIndex]->GetSpriteDefAtTime(playbackTime).GetUvs();
-			UpdateActorShadowmapVertsUVs(currentShadowmapSpriteUV);
-		}
-		else {
-			AABB2 currentSpriteUV = m_definition.m_actor2DRenderInfo.m_animationGroups.at(animationGroupName)->
-				m_animations.begin()->second->GetSpriteDefAtTime(playbackTime).GetUvs();
-			UpdateActorVertsUVs(currentSpriteUV);
-			AABB2 currentShadowmapSpriteUV = m_definition.m_actor2DRenderInfo.m_animationGroups.at(animationGroupName)->
-				m_animations.begin()->second->GetSpriteDefAtTime(playbackTime).GetUvs();
-			UpdateActorShadowmapVertsUVs(currentShadowmapSpriteUV);
-		}
-	}
-	else {
-		if (animationIndex >= 0) {
-			AABB2 currentSpriteUV = m_definition.m_actor2DRenderInfo.m_animationGroups.at(animationGroupName)->
-				m_animations[animationIndex]->GetSpriteDefAtTime(playbackTime).GetUvs();
-			UpdateActorVertsUVs(currentSpriteUV);
-		}
-		else {
-			AABB2 currentSpriteUV = m_definition.m_actor2DRenderInfo.m_animationGroups.at(animationGroupName)->
-				m_animations.begin()->second->GetSpriteDefAtTime(playbackTime).GetUvs();
-			UpdateActorVertsUVs(currentSpriteUV);
-		}
-	}
-}
-
-//---------------------------------------------------------------------------------------------------
 void Actor::UpdateWeaponVertsUVs(AABB2 const& newUVs) {
 	Vec2 bottomLeftUV = Vec2(newUVs.m_mins.x, newUVs.m_mins.y);
 	Vec2 bottomRightUV = Vec2(newUVs.m_maxs.x, newUVs.m_mins.y);
@@ -622,9 +519,145 @@ void Actor::UpdateWeaponAnimation(std::string animationName, float playbackTime)
 }
 
 //---------------------------------------------------------------------------------------------------
-void Actor::Render() const {
+void Actor::GetCurAnimationMeshVerts(std::vector<Vertex_TBN>& out_actorVerts, Camera const& viewCamera) const {
+	if (m_definition.m_actor2DRenderInfo.m_animationGroups.size() > 0) {
+		out_actorVerts.clear();
+		// Determine nearest 8 directions to view camera
+		int nearestEightDirIndex = GetQuantizedDirectionAnimationIndex(viewCamera);
+
+		// Update UVs based on current animation and direction
+		if (m_curAnimName == "Idle") {
+			int animationsNum = (int)m_definition.m_actor2DRenderInfo.m_animationGroups.at("Walk")->m_animations.size();
+			if (nearestEightDirIndex >= 0 && animationsNum == 8) {
+				AABB2 currentSpriteUV = m_definition.m_actor2DRenderInfo.m_animationGroups.at("Walk")->
+					m_animations[nearestEightDirIndex]->GetSpriteDefAtTime(m_animTimer).GetUvs();
+				AddVertexForQuad3D(
+					out_actorVerts,
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), m_definition.m_actor2DRenderInfo.m_size.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), m_definition.m_actor2DRenderInfo.m_size.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), m_definition.m_actor2DRenderInfo.m_size.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), m_definition.m_actor2DRenderInfo.m_size.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
+					Rgba8::WHITE,
+					currentSpriteUV
+				);
+			}
+			else {
+				AABB2 currentSpriteUV = m_definition.m_actor2DRenderInfo.m_animationGroups.at("Walk")->
+					m_animations.begin()->second->GetSpriteDefAtTime(m_animTimer).GetUvs();
+				AddVertexForQuad3D(
+					out_actorVerts,
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), m_definition.m_actor2DRenderInfo.m_size.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), m_definition.m_actor2DRenderInfo.m_size.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), m_definition.m_actor2DRenderInfo.m_size.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), m_definition.m_actor2DRenderInfo.m_size.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
+					Rgba8::WHITE,
+					currentSpriteUV
+				);
+			}
+		}
+		else {
+			int animationsNum = (int)m_definition.m_actor2DRenderInfo.m_animationGroups.at(m_curAnimName)->m_animations.size();
+			if (nearestEightDirIndex >= 0 && animationsNum == 8) {
+				AABB2 currentSpriteUV = m_definition.m_actor2DRenderInfo.m_animationGroups.at(m_curAnimName)->
+					m_animations[nearestEightDirIndex]->GetSpriteDefAtTime(m_animTimer).GetUvs();
+				AddVertexForQuad3D(
+					out_actorVerts,
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), m_definition.m_actor2DRenderInfo.m_size.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), m_definition.m_actor2DRenderInfo.m_size.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), m_definition.m_actor2DRenderInfo.m_size.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), m_definition.m_actor2DRenderInfo.m_size.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
+					Rgba8::WHITE,
+					currentSpriteUV
+				);
+			}
+			else {
+				AABB2 currentSpriteUV = m_definition.m_actor2DRenderInfo.m_animationGroups.at(m_curAnimName)->
+					m_animations.begin()->second->GetSpriteDefAtTime(m_animTimer).GetUvs();
+				AddVertexForQuad3D(
+					out_actorVerts,
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), m_definition.m_actor2DRenderInfo.m_size.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), m_definition.m_actor2DRenderInfo.m_size.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), m_definition.m_actor2DRenderInfo.m_size.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), m_definition.m_actor2DRenderInfo.m_size.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
+					Rgba8::WHITE,
+					currentSpriteUV
+				);
+			}
+		}
+	}
+}
+void Actor::GetCurAnimationMeshVerts(std::vector<Vertex>& out_actorVerts, Camera const& viewCamera) const {
+	if (m_definition.m_actor2DRenderInfo.m_animationGroups.size() > 0) {
+		out_actorVerts.clear();
+		// Determine nearest 8 directions to view camera
+		int nearestEightDirIndex = GetQuantizedDirectionAnimationIndex(viewCamera);
+
+		// Update UVs based on current animation and direction
+		if (m_curAnimName == "Idle") {
+			int animationsNum = (int)m_definition.m_actor2DRenderInfo.m_animationGroups.at("Walk")->m_animations.size();
+			if (nearestEightDirIndex >= 0 && animationsNum==8) {
+				AABB2 currentSpriteUV = m_definition.m_actor2DRenderInfo.m_animationGroups.at("Walk")->
+					m_animations[nearestEightDirIndex]->GetSpriteDefAtTime(m_animTimer).GetUvs();
+				AddVertexForQuad3D(
+					out_actorVerts,
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), m_definition.m_actor2DRenderInfo.m_size.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), m_definition.m_actor2DRenderInfo.m_size.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), m_definition.m_actor2DRenderInfo.m_size.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), m_definition.m_actor2DRenderInfo.m_size.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
+					Rgba8::WHITE,
+					currentSpriteUV
+				);
+			}
+			else {
+				AABB2 currentSpriteUV = m_definition.m_actor2DRenderInfo.m_animationGroups.at("Walk")->
+					m_animations.begin()->second->GetSpriteDefAtTime(m_animTimer).GetUvs();
+				AddVertexForQuad3D(
+					out_actorVerts,
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), m_definition.m_actor2DRenderInfo.m_size.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), m_definition.m_actor2DRenderInfo.m_size.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), m_definition.m_actor2DRenderInfo.m_size.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), m_definition.m_actor2DRenderInfo.m_size.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
+					Rgba8::WHITE,
+					currentSpriteUV
+				);
+			}
+		}
+		else {
+			int animationsNum = (int)m_definition.m_actor2DRenderInfo.m_animationGroups.at(m_curAnimName)->m_animations.size();
+			if (nearestEightDirIndex >= 0 && animationsNum==8) {
+				SpriteAnimDefinition* animDef = m_definition.m_actor2DRenderInfo.m_animationGroups.at(m_curAnimName)->m_animations[nearestEightDirIndex];
+				AABB2 currentSpriteUV = animDef->GetSpriteDefAtTime(m_animTimer).GetUvs();
+				AddVertexForQuad3D(
+					out_actorVerts,
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), m_definition.m_actor2DRenderInfo.m_size.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), m_definition.m_actor2DRenderInfo.m_size.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), m_definition.m_actor2DRenderInfo.m_size.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), m_definition.m_actor2DRenderInfo.m_size.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
+					Rgba8::WHITE,
+					currentSpriteUV
+				);
+			}
+			else {
+				SpriteAnimDefinition* animDef = m_definition.m_actor2DRenderInfo.m_animationGroups.at(m_curAnimName)->m_animations.begin()->second;
+				AABB2 currentSpriteUV = animDef->GetSpriteDefAtTime(m_animTimer).GetUvs();
+				AddVertexForQuad3D(
+					out_actorVerts,
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), m_definition.m_actor2DRenderInfo.m_size.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), m_definition.m_actor2DRenderInfo.m_size.y * -m_definition.m_actor2DRenderInfo.m_pivot.y),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.x), m_definition.m_actor2DRenderInfo.m_size.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
+					Vec3(0.f, m_definition.m_actor2DRenderInfo.m_size.x * (m_definition.m_actor2DRenderInfo.m_pivot.x - 1.f), m_definition.m_actor2DRenderInfo.m_size.y * (1.f - m_definition.m_actor2DRenderInfo.m_pivot.y)),
+					Rgba8::WHITE,
+					currentSpriteUV
+				);
+			}
+		}
+	}
+}
+
+//---------------------------------------------------------------------------------------------------
+void Actor::Render(Camera const& viewCamera) const {
 	PlayerController* playerController = dynamic_cast<PlayerController*>(m_controller);
-	if (playerController == nullptr || playerController->m_cameraMode == PlayerCameraMode::FREE_CAMERA) {
+	if (playerController == nullptr || playerController->m_playerCamera != &viewCamera || playerController->m_cameraMode == PlayerCameraMode::FREE_CAMERA) {
 		if (m_definition.m_visible) {
 			g_engine->m_renderer->SetSamplerMode(SamplerMode::POINT_CLAMP, SamplerSlot::SLOT0);
 			g_engine->m_renderer->SetSamplerMode(SamplerMode::POINT_CLAMP, SamplerSlot::SLOT1);
@@ -637,7 +670,7 @@ void Actor::Render() const {
 			g_engine->m_renderer->BindTexture(m_definition.m_actor2DRenderInfo.m_spriteSheetMetallicTexture, TextureSlot::METALLIC);
 			g_engine->m_renderer->BindTexture(m_definition.m_actor2DRenderInfo.m_spriteSheetEmissiveTexture, TextureSlot::EMISSIVE);
 
-			Mat44 camModelMatrix = m_map->m_game->m_playerController->m_playerCamera->GetCameraToWorldTransform();
+			Mat44 camModelMatrix = viewCamera.GetCameraToWorldTransform();
 			Mat44 modelMatrix;
 			if (m_definition.m_actor2DRenderInfo.m_billboardType != BillboardType::NONE) {
 				modelMatrix = GetBillboardTransform(
@@ -653,11 +686,16 @@ void Actor::Render() const {
 			g_engine->m_renderer->SetModelConstants(modelMatrix);
 			g_engine->m_renderer->SetBlendMode(BlendMode::ALPHA);
 
+			std::vector<Vertex_TBN> tempActorLitVerts;
+			std::vector<Vertex> tempActorUnlitVerts;
+
 			if (!m_definition.m_actor2DRenderInfo.m_renderLit) {
-				g_engine->m_renderer->DrawVertexArray(m_actorUnlitVerts);
+				GetCurAnimationMeshVerts(tempActorUnlitVerts, viewCamera);
+				g_engine->m_renderer->DrawVertexArray(tempActorUnlitVerts);
 			}
 			else {
-				g_engine->m_renderer->DrawVertexArray(m_actorLitVerts, m_definition.m_actor2DRenderInfo.m_shader);
+				GetCurAnimationMeshVerts(tempActorLitVerts, viewCamera);
+				g_engine->m_renderer->DrawVertexArray(tempActorLitVerts, m_definition.m_actor2DRenderInfo.m_shader);
 			}
 		}
 
@@ -678,7 +716,7 @@ void Actor::Render() const {
 			}
 		}
 	}
-	else if (playerController != nullptr && playerController->m_cameraMode != PlayerCameraMode::FREE_CAMERA && m_equippedWeapon != nullptr && m_equippedWeapon->m_definition.m_hud.m_animations.size()>0 && !m_isDead) {
+	else if (playerController != nullptr && playerController->m_playerCamera == &viewCamera && playerController->m_cameraMode != PlayerCameraMode::FREE_CAMERA && m_equippedWeapon != nullptr && m_equippedWeapon->m_definition.m_hud.m_animations.size()>0 && !m_isDead) {
 		Mat44 camModelMatrix = playerController->m_playerCamera->GetCameraToWorldTransform();
 		Vec3 cameraPos = playerController->m_playerCamera->GetPosition();
 		Vec3 cameraForward;
@@ -721,8 +759,10 @@ void Actor::RenderShadowmap() const {
 
 			g_engine->m_renderer->BindTexture(&(m_definition.m_actor2DRenderInfo.m_spriteSheet->GetTexture()));
 			g_engine->m_renderer->SetModelConstants(modelMatrix);
+			std::vector<Vertex_TBN> tempActorShadowVerts;
+			GetCurAnimationMeshVerts(tempActorShadowVerts, *m_map->m_sunShadowCamera);
 			g_engine->m_renderer->SetBlendMode(BlendMode::ALPHA);
-			g_engine->m_renderer->DrawVertexArray(m_actorShadowmapVerts, m_definition.m_actor2DRenderInfo.m_shader);
+			g_engine->m_renderer->DrawVertexArray(tempActorShadowVerts, m_definition.m_actor2DRenderInfo.m_shader);
 		}
 	}
 }

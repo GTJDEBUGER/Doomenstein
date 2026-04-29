@@ -4,7 +4,7 @@
   <!-- Marine -->
   <ActorDefinition name="Marine" faction="Marine" health="100" canBePossessed="true" corpseLifetime="2.0" visible="true">
     <Collision radius="1.25" height="3.0" collidesWithWorld="true" collidesWithActors="true"/>
-    <Physics simulated="true" walkSpeed="150.f" runSpeed="300.0f" turnSpeed="120.f" drag="12.0f" mass="1.0f"/>
+    <Physics simulated="true" walkSpeed="10.f" runSpeed="20.0f" turnSpeed="120.f" drag="12.0f" mass="1.0f"/>
     <Camera eyeHeight="2.5" cameraFOV="60.0f"/>
     <Visuals size="8,8" pivot="0.5,0.0" billboardType="WorldUpFacing" renderLit="true" renderRounded="true" shader="Diffuse" 
 			 spriteSheet="Data/Images/Actor_Marine_7x9.png"
@@ -60,7 +60,7 @@
   <!-- Demon -->
   <ActorDefinition name="Demon" faction="Demon" health="160" canBePossessed="true" corpseLifetime="1.5" visible="true">
     <Collision radius="1.75" height="4.25" collidesWithWorld="true" collidesWithActors="true"/>
-    <Physics simulated="true" walkSpeed="120.f" runSpeed="260.f" turnSpeed="120.0f" drag="12.0f" mass="1.0f"/>
+    <Physics simulated="true" walkSpeed="8.f" runSpeed="24.f" turnSpeed="120.0f" drag="12.0f" mass="1.0f"/>
     <Camera eyeHeight="3.75f" cameraFOV="120.0f"/>
     <AI aiEnabled="true" sightRadius="64.0" sightAngle="120.0"/>
     <Visuals size="10.5,10.5" pivot="0.5,0.0" billboardType="WorldUpFacing" renderLit="true" renderRounded="true" shader="Diffuse" 
@@ -145,7 +145,7 @@
   </ActorDefinition>
   <!-- PistalFireLight -->
   <ActorDefinition name="PistalFireLight" canBePossessed="false" corpseLifetime="0.2" visible="false" dieOnSpawn="true">
-   <PointLight radius="10.0" color="255,100,50" intensity="2.5" volumetric="false"/>
+   <PointLight radius="15.0" color="255,100,50" intensity="10.0" volumetric="false"/>
   </ActorDefinition>
 	<!-- PistalFireLight -->
 	<ActorDefinition name="PlasmaFireLight" canBePossessed="false" corpseLifetime="0.2" visible="false" dieOnSpawn="true">

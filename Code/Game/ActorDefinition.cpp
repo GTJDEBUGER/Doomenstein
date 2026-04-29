@@ -163,7 +163,7 @@ void ActorDefinition::InitializeActorDefs(std::string configPath) {
 
 			for (XmlElement* j = actor2DRenderInfo->FirstChildElement(); j != nullptr; j = j->NextSiblingElement()) {
 				std::string animationGroupName = ParseXmlAttribute(*j, "name", "undefinedAnimationGroup");
-				bool scaleBySpeed = ParseXmlAttribute(*j, "scaleBySpeed", true);
+				bool scaleBySpeed = ParseXmlAttribute(*j, "scaleBySpeed", false);
 				float secondsPerFrame = ParseXmlAttribute(*j, "secondsPerFrame", 0.25f);
 				SpriteAnimPlaybackType playbackType = SpriteAnimPlaybackType::LOOP;
 				std::string playbackTypeName = ParseXmlAttribute(*j, "playbackMode", "undefinedPlaybackType");

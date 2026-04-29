@@ -22,7 +22,7 @@ public:
 	~Actor();
 
 	void    Update(float deltaSeconds);
-	void    Render() const;
+	void    Render(Camera const& viewCamera) const;
 
 	void    UpdatePhysics(float deltaSeconds);
 	void    Damage(float damageAmount, Actor* attacker);
@@ -38,11 +38,10 @@ public:
 	void    UpdateWeapon(float deltaSeconds);
 
 	int     GetQuantizedDirectionAnimationIndex(Camera const& viewCamera) const;
-	void    UpdateActorVertsUVs(AABB2 const& newUVs);
-	void    UpdateActorShadowmapVertsUVs(AABB2 const& newUVs);
-	void    UpdateActorAnimation(std::string animationGroupName, float playbackTime = 0.f, int animationIndex = -1, int shadowmapIndex=-1);
 	void    UpdateWeaponVertsUVs(AABB2 const& newUVs);
 	void    UpdateWeaponAnimation(std::string animationName, float playbackTime = 0.f);
+	void    GetCurAnimationMeshVerts(std::vector<Vertex_TBN>& out_actorVerts, Camera const& viewCamera) const;
+	void    GetCurAnimationMeshVerts(std::vector<Vertex>& out_actorVerts, Camera const& viewCamera) const;
 	
 	void    RenderShadowmap() const;
 
@@ -63,9 +62,6 @@ public:
 	Rgba8                     m_debugDeadColor = Rgba8(100,100,100);
 	std::vector<Vertex>       m_debugVerts;
 							  
-	std::vector<Vertex>       m_actorUnlitVerts;
-	std::vector<Vertex_TBN>	  m_actorLitVerts;
-	std::vector<Vertex_TBN>   m_actorShadowmapVerts;
 	std::string               m_curAnimName = "Idle";
 	float                     m_animTimer = 0.f;
 	std::vector<Vertex_TBN>   m_weaponLitVerts;

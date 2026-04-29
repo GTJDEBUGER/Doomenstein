@@ -14,6 +14,10 @@ cbuffer PostProcessingBuffer : register(b4)
     float2 noiseScale;
     float radius;
     float bias;
+    float2 screenResolution;
+    float cameraNear;
+    float cameraFar;
+    float4 viewportBoundsUV;
 };
 
 //----------------------------------------------------------------

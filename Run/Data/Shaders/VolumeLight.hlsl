@@ -53,6 +53,7 @@ cbuffer PostProcessingBuffer : register(b4)
     float2 screenResolution;
     float cameraNear;
     float cameraFar;
+    float4 viewportBoundsUV;
 };
 
 struct vs_input_t
@@ -84,6 +85,9 @@ float4 PixelMain(v2p_t input) : SV_Target0
     float4 originalSample = screenColor.Sample(screenSampler, texCoord);
     float3 originalColor = originalSample.rgb;
     
+    float2 viewportSize = viewportBoundsUV.zw - viewportBoundsUV.xy;
+    float2 viewportUV = (texCoord - viewportBoundsUV.xy) / viewportSize;
+
     float3 totalGodRays = float3(0.0f, 0.0f, 0.0f);
     
     float Density = 1.2f;
@@ -102,10 +106,11 @@ float4 PixelMain(v2p_t input) : SV_Target0
     if (sunClipPos.w >= -0.5f)
     {
         sunClipPos.xyz /= sunClipPos.w;
-        float2 sunScreenPos = sunClipPos.xy * float2(0.5f, -0.5f) + 0.5f;
+        float2 sunViewportPos = sunClipPos.xy * float2(0.5f, -0.5f) + 0.5f;
+        float2 sunScreenPos = sunViewportPos * viewportSize + viewportBoundsUV.xy;
         
         float behindCameraFade = saturate(sunClipPos.w * 2.0f);
-        float distFromCenter = distance(sunScreenPos, float2(0.5f, 0.5f));
+        float distFromCenter = distance(sunViewportPos, float2(0.5f, 0.5f));
         float offScreenFade = 1.0f - saturate((distFromCenter - 0.8f) * 1.5f);
         float globalGodRayWeight = behindCameraFade * offScreenFade;
         
@@ -140,7 +145,7 @@ float4 PixelMain(v2p_t input) : SV_Target0
     // ==========================================
     float depthVal = depthTexture.SampleLevel(screenSampler, texCoord, 0).r;
     
-    float4 ndcPixelPos = float4(texCoord.x * 2.0f - 1.0f, 1.0f - texCoord.y * 2.0f, depthVal, 1.0f);
+    float4 ndcPixelPos = float4(viewportUV.x * 2.0f - 1.0f, 1.0f - viewportUV.y * 2.0f, depthVal, 1.0f);
     float4 viewPixelPos = mul(invProjectionMatrix, ndcPixelPos);
     viewPixelPos.xyz /= viewPixelPos.w;
     

@@ -5,33 +5,12 @@ Texture2D originalScreenNormal : register(t3);
 SamplerState screenSampler : register(s0);
 
 //------------------------------------------------------------------------------------------------
-#define MAX_POINT_LIGHTS 256
-
-struct PointLight
-{
-    float3 Position;
-    float Range;
-    float4 Color;
-    float Intensity;
-    int Volumetric;
-    float2 padding;
-};
-
 cbuffer LightConstants : register(b1)
 {
     float3 SunDirection;
     float SunIntensity;
-    
     float AmbientIntensity;
-    float3 _Padding1;
-    
     float4x4 SunViewProjMatrix;
-    
-    uint NumPointLights;
-    float3 _Padding2;
-    
-    PointLight PointLights[MAX_POINT_LIGHTS];
-    float4 _Padding3;
 };
 
 cbuffer CameraConstants : register(b2)
@@ -54,6 +33,7 @@ cbuffer PostProcessingBuffer : register(b4)
     float2 screenResolution;
     float cameraNear;
     float cameraFar;
+    float4 viewportBoundsUV;
 };
 
 //------------------------------------------------------------------------------------------------
@@ -104,7 +84,10 @@ float4 PixelMain(v2p_t input) : SV_Target0
     if (length(normal.xyz) < 0.1f) 
         return sceneColor;
 
-    float4 clipPos = float4(input.uv.x * 2.0 - 1.0, 1.0 - input.uv.y * 2.0, rawDepth, 1.0);
+    float2 viewportSize = viewportBoundsUV.zw - viewportBoundsUV.xy;
+    float2 viewportUV = (input.uv - viewportBoundsUV.xy) / viewportSize;
+    
+    float4 clipPos = float4(viewportUV.x * 2.0 - 1.0, 1.0 - viewportUV.y * 2.0, rawDepth, 1.0);
     float4 viewPos = mul(invProjectionMatrix, clipPos);
     viewPos.xyz /= viewPos.w;
 
