@@ -242,12 +242,15 @@ void Game::Render() const
 				m_postProcessingCBOs[i]->CameraNear,
 				m_postProcessingCBOs[i]->CameraFar,
 				vpBoundsUV,
-				Rgba8::BLACK,
+				Rgba8(0,0,0,200),
 				controller->GetPossessedActor()->m_isDead ? 
 					1.f - controller->GetPossessedActor()->m_deadTimer / controller->GetPossessedActor()->m_definition.m_corpseLifetime :
 					0.f,
 				1.0f,
-				0.4f
+				0.4f,
+				controller->GetPossessedActor()->m_isDead ?
+				1.f - controller->GetPossessedActor()->m_deadTimer / controller->GetPossessedActor()->m_definition.m_corpseLifetime :
+				0.f
 			);
 			g_engine->m_renderer->SetStatesIfChanged();
 
@@ -835,6 +838,45 @@ void Game::RenderLobbyMode(int controllerIndex) const {
 		AABB2(
 			Vec2(g_gameConfig->m_screenCenter.x - titleSize, g_gameConfig->m_screenCenter.y - 2.f * titleSize),
 			Vec2(g_gameConfig->m_screenCenter.x + titleSize, g_gameConfig->m_screenCenter.y )
+		),
+		titleSize * 0.5f,
+		Rgba8::WHITE,
+		1.f,
+		Vec2(0.5f, 0.5f),
+		TextBoxMode::OVERRUN
+	);
+	g_defaultFont->AddVertsForTextBox2D(
+		tempMesh,
+		m_controllerHandleSequence[controllerIndex]->m_gamepadID != -1 ? "Press START to start game" : "Press SPACE to start game",
+		AABB2(
+			Vec2(g_gameConfig->m_screenCenter.x - titleSize, g_gameConfig->m_screenCenter.y - 4.f * titleSize),
+			Vec2(g_gameConfig->m_screenCenter.x + titleSize, g_gameConfig->m_screenCenter.y - 2.f * titleSize)
+		),
+		titleSize * 0.5f,
+		Rgba8::WHITE,
+		1.f,
+		Vec2(0.5f, 0.5f),
+		TextBoxMode::OVERRUN
+	);
+	g_defaultFont->AddVertsForTextBox2D(
+		tempMesh,
+		m_controllerHandleSequence[controllerIndex]->m_gamepadID != -1 ? "Press BACK to leave game" : "Press ESCAPE to leave game",
+		AABB2(
+			Vec2(g_gameConfig->m_screenCenter.x - titleSize, g_gameConfig->m_screenCenter.y - 5.f * titleSize),
+			Vec2(g_gameConfig->m_screenCenter.x + titleSize, g_gameConfig->m_screenCenter.y - 3.f * titleSize)
+		),
+		titleSize * 0.5f,
+		Rgba8::WHITE,
+		1.f,
+		Vec2(0.5f, 0.5f),
+		TextBoxMode::OVERRUN
+	);
+	g_defaultFont->AddVertsForTextBox2D(
+		tempMesh,
+		m_controllerHandleSequence[controllerIndex]->m_gamepadID != -1 ? "Press SPACE to join player with keyboard and mouse control" : "Press START to join player with gamepad control",
+		AABB2(
+			Vec2(g_gameConfig->m_screenCenter.x - titleSize, g_gameConfig->m_screenCenter.y - 6.f * titleSize),
+			Vec2(g_gameConfig->m_screenCenter.x + titleSize, g_gameConfig->m_screenCenter.y - 4.f * titleSize)
 		),
 		titleSize * 0.5f,
 		Rgba8::WHITE,

@@ -342,7 +342,7 @@ void App::HandlePlayerInput(){
 	//Xbox controller input
 	//-------------------------------------------------------------------------------------------
 	//Control Game-------------------------------------------------------------------------------
-	if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_B)) {
+	if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_BACK)) {
 		if (m_game->GetCurGameState() == GAME_ATTRACT_MODE) {
 			m_isQuitting = true;
 		}
