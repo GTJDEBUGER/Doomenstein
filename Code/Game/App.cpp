@@ -400,25 +400,19 @@ void App::HandlePlayerInput(){
 		}
 	}
 
-	if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_DPAD_DOWN)) {
-		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
-			if (m_game->m_playerGamepadController->m_playerStates.isGrounded)
-				m_game->m_playerGamepadController->m_inputActions.isJump = true;
-		}
-	}
-	else if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_A)) {
+	if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_A)) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
 			if (m_game->m_playerGamepadController->m_playerStates.isGrounded)
 				m_game->m_playerGamepadController->m_inputActions.isJump = true;
 		}
 	}
 
-	if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_LEFT_SHOULDER)) {
+	if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_DPAD_UP)) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
 			m_game->m_playerGamepadController->GetPossessedActor()->EquipWeapon(0);
 		}
 	}
-	else if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_RIGHT_SHOULDER)) {
+	else if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_DPAD_DOWN)) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
 			m_game->m_playerGamepadController->GetPossessedActor()->EquipWeapon(1);
 		}
@@ -523,20 +517,20 @@ void App::LoadAudioResources() {
 void App::PrintGameControlGuide() {
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "Doomenstein");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "Control Guide:");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-SPACE-            \tStart game at attract mode");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-ESC-              \tSwitch from game mode to attract mode or shut down application in attract mode");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-Mouse(XAxis)-     \tControl player view yaw");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-Mouse(YAxis)-     \tControl player view pitch");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-Mouse(LeftButton)-\tFire current possessed actors equipped weapon");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-A/D-              \tMove left or right, relative to player orientation");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-W/S-              \tMove forward or back, relative to player orientation");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-Z/C-              \tMove up or down, relative to the world");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-SHIFT-            \tIncrease speed while held");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-SPACE-            \tJump");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-F-                \tToggle free camera mode");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-N-                \tPossess next valid actor in map");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-P-                \tPause the game");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-O-                \tSingle step frame");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-T-                \tSlow down game while held");
-	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-H-                \tSpeed up game while held");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-SPACE or START-                 \tJoin player at attract mode or start game at lobby mode");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-ESC or BACK-                    \tSwitch from game mode to attract mode or shut down application in attract mode");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-Mouse or Right Stick-           \tControl player view");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-LeftMouse or Right Trigger-     \tFire current possessed actors equipped weapon");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-A/D or Left Stick X Axis-       \tMove left or right, relative to player orientation");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-W/S or Right Stick Y Axis-      \tMove forward or back, relative to player orientation");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-SHIFT or Left Trigger-          \tIncrease speed while held");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-SPACE or Gamepad-A-             \tJump");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-1 or D pad-Up-                  \tSwitch to weapon 1");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-2 or D pad-Down-                \tSwitch to weapon 2");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-F-                              \tToggle free camera mode (Single player only)");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-N-                              \tPossess next valid actor in map (single player only)");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-P-                              \tPause the game");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-O-                              \tSingle step frame");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-T-                              \tSlow down game while held");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-H-                              \tSpeed up game while held");
 }
