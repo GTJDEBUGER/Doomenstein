@@ -209,12 +209,7 @@ void ActorDefinition::InitializeActorDefs(std::string configPath) {
 			for (XmlElement* j = actorSounds->FirstChildElement(); j != nullptr; j = j->NextSiblingElement()) {
 				std::string soundName = ParseXmlAttribute(*j, "sound", "undefinedSound");
 				std::string soundFilePath = ParseXmlAttribute(*j, "name", "undefinedFilePath");
-				s_definitions[actorName].m_sounds.push_back(
-					ActorSound{
-						soundName,
-						g_engine->m_audio->CreateOrGetSound(soundFilePath)
-					}
-				);
+				s_definitions[actorName].m_sounds[soundName] = g_engine->m_audio->CreateOrGetSound(soundFilePath, true);
 			}
 		}
 

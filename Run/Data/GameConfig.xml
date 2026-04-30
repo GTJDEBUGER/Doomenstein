@@ -12,4 +12,9 @@
 	playerViewPitchSpeed = "5.0"
 	playerViewRollSpeed = "90.0"
 	playerViewControllerSensitivity = "50.0"
+	musicVolume="0.1" 
+	mainMenuMusic="Data/Audio/Music/MainMenu_InTheDark.mp3" 
+	gameMusic="Data/Audio/Music/E1M1_AtDoomsGate.mp3" 
+	soundEffectVolume="0.5"
+	buttonClickSound="Data/Audio/Click.mp3"
 />

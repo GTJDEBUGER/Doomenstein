@@ -2,10 +2,12 @@
 #include "Game/Map.hpp"
 #include "Game/ActorDefinition.hpp"
 #include "Game/Game.hpp"
+#include "Game/App.hpp"
 #include "Engine/Math/RandomNumberGenerator.hpp"
 #include "Engine/Math/MathUtils.hpp"
 #include "Engine/Renderer/DebugRenderSystem.hpp"
 #include "Engine/Core/Clock.hpp"
+#include "Engine/Core/Engine.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Weapon::Weapon(WeaponDefinition const& definition, Actor* owner) :
@@ -95,6 +97,14 @@ bool Weapon::Fire(Vec3 aimDirection) {
 					}
 				);
 			}
+
+
+			g_engine->m_audio->StartSoundAt(
+				m_definition.m_sounds.at("Fire"),
+				nearestResult->m_didImpact ? nearestResult->m_impactPos : nearestResult->m_rayStartPos + nearestResult->m_rayFwdNormal * nearestResult->m_rayMaxLength,
+				false, 
+				g_gameConfig->m_soundEffectVolume
+			);
 		}
 	}
 
@@ -110,6 +120,15 @@ bool Weapon::Fire(Vec3 aimDirection) {
 			projectileActor->m_position = m_owner->m_position + 
 				Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.5f) +
 				randomDirection * m_owner->m_definition.m_collision.m_radius;
+
+			g_engine->m_audio->StartSoundAt(
+				m_definition.m_sounds.at("Fire"),
+				m_owner->m_position +
+				Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.5f) +
+				randomDirection * m_owner->m_definition.m_collision.m_radius,
+				false,
+				g_gameConfig->m_soundEffectVolume
+			);
 		}
 		m_owner->m_map->SpawnActor(
 			SpawnInfo{
@@ -151,6 +170,13 @@ bool Weapon::Fire(Vec3 aimDirection) {
 						}
 					);
 				}
+
+				g_engine->m_audio->StartSoundAt(
+					m_definition.m_sounds.at("Fire"),
+					m_owner->m_position + Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.5f),
+					false,
+					g_gameConfig->m_soundEffectVolume
+				);
 			}
 		}
 	}

@@ -6,6 +6,7 @@
 #include "Game/AIController.hpp"
 #include "Game/Weapon.hpp"
 #include "Game/Game.hpp"
+#include "Game/App.hpp"
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Math/RandomNumberGenerator.hpp"
 #include "Engine/Renderer/Camera.hpp"
@@ -188,8 +189,9 @@ void Actor::Update(float deltaSeconds) {
 		}
 
 		if (m_deadTimer <= 0.f) {
-			m_needDestroy = true;
+			m_needDestroy = true; 
 		}
+		
 		return;
 	}
 
@@ -286,6 +288,10 @@ void Actor::Damage(float damageAmount, Actor* attacker) {
 	m_curAnimName = "Hurt";
 	m_animTimer = 0.f;
 
+	if (m_definition.m_sounds.find("Hurt") != m_definition.m_sounds.end()) {
+		g_engine->m_audio->StartSoundAt(m_definition.m_sounds.at("Hurt"), m_position, false, g_gameConfig->m_soundEffectVolume);
+	}
+
 	if(dynamic_cast<PlayerController*>(m_controller)) {
 		m_map->m_game->AddCameraShake(25.f, m_controller->m_handleIndex);
 		dynamic_cast<PlayerController*>(m_controller)->SetVibration(1.2f, 0.4f, 0.4f);
@@ -298,8 +304,14 @@ void Actor::Damage(float damageAmount, Actor* attacker) {
 		m_animTimer = 0.f;
 		m_curHealth = 0.f;
 
-		if (dynamic_cast<PlayerController*>(attacker->m_controller)) {
+		if (dynamic_cast<PlayerController*>(attacker->m_controller) && 
+			dynamic_cast<PlayerController*>(m_controller)) {
 			dynamic_cast<PlayerController*>(attacker->m_controller)->m_killCount +=1;
+			dynamic_cast<PlayerController*>(m_controller)->m_deadCount += 1;
+		}
+
+		if (m_definition.m_sounds.find("Death") != m_definition.m_sounds.end()) {
+			g_engine->m_audio->StartSoundAt(m_definition.m_sounds.at("Death"), m_position, false, g_gameConfig->m_soundEffectVolume);
 		}
 	}
 
@@ -356,6 +368,10 @@ void Actor::OnCollide(Actor* other) {
 		m_deadTimer = m_definition.m_corpseLifetime;
 		m_curAnimName = "Death";
 		m_animTimer = 0.f;
+
+		if (m_definition.m_collision.m_dieOnCollide && m_definition.m_sounds.find("Death") != m_definition.m_sounds.end()) {
+			g_engine->m_audio->StartSoundAt(m_definition.m_sounds.at("Death"), m_position, false, g_gameConfig->m_soundEffectVolume);
+		}
 	}
 }
 
@@ -751,7 +767,7 @@ void Actor::RenderShadowmap() const {
 		if (m_definition.m_actor2DRenderInfo.m_renderLit) {
 			Mat44 camModelMatrix = m_map->m_sunShadowCamera->GetCameraToWorldTransform();
 			Mat44 modelMatrix = GetBillboardTransform(
-				m_definition.m_actor2DRenderInfo.m_billboardType,
+				BillboardType::FULL_FACING,
 				camModelMatrix,
 				m_position,
 				Vec2(m_scale.x, m_scale.y)

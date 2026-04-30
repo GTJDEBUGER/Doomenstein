@@ -197,6 +197,10 @@ void App::HandlePlayerInput(){
 		else {
 			m_game->SetNextGameState(GAME_ATTRACT_MODE);
 		}
+
+
+		SoundID clickAudio = g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_buttonClickSound);
+		g_engine->m_audio->StartSound(clickAudio, false);
 	}
 
 	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_SPACE)) {
@@ -208,16 +212,25 @@ void App::HandlePlayerInput(){
 			m_game->m_controllerHandleSequence.push_back(m_game->m_playerKeyboardController);
 			m_game->m_activePlayerNum += 1;
 			m_game->SetNextGameState(GAME_LOBBY_MODE);
+
+			SoundID clickAudio = g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_buttonClickSound);
+			g_engine->m_audio->StartSound(clickAudio, false);
 		}
 		else if (m_game->GetCurGameState() == GAME_LOBBY_MODE && m_game->m_playerKeyboardController==nullptr) {
 			m_game->m_playerKeyboardController = new PlayerController(m_game->m_curMap);
 			m_game->m_playerKeyboardController->m_handleIndex = 1;
 			m_game->m_controllerHandleSequence.push_back(m_game->m_playerKeyboardController);
 			m_game->m_activePlayerNum += 1;
+
+			SoundID clickAudio = g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_buttonClickSound);
+			g_engine->m_audio->StartSound(clickAudio, false);
 		}
 		else if (m_game->GetCurGameState() == GAME_LOBBY_MODE && m_game->m_playerKeyboardController != nullptr) {
 			m_game->InitializePlayerActors();
 			m_game->SetNextGameState(GAME_PLAYING_MODE);
+
+			SoundID clickAudio = g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_buttonClickSound);
+			g_engine->m_audio->StartSound(clickAudio, false);
 		}
 	}
 
@@ -231,6 +244,9 @@ void App::HandlePlayerInput(){
 				else if (m_game->m_playerKeyboardController->m_cameraMode == PlayerCameraMode::FREE_CAMERA) {
 					m_game->m_playerKeyboardController->m_cameraMode = PlayerCameraMode::ACTOR_CAMERA;
 				}
+
+				SoundID clickAudio = g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_buttonClickSound);
+				g_engine->m_audio->StartSound(clickAudio, false);
 			}
 		}
 	}
@@ -239,6 +255,10 @@ void App::HandlePlayerInput(){
 	if (g_engine->m_input->WasKeyJustPressed('N') && m_game->m_activePlayerNum == 1) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerKeyboardController->m_cameraMode != PlayerCameraMode::FREE_CAMERA) {
 			m_game->m_playerKeyboardController->SwitchToNextPossessibleActor();
+
+			SoundID clickAudio = g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_buttonClickSound);
+			g_engine->m_audio->StartSound(clickAudio, false);
+
 		}
 	}
 
@@ -329,6 +349,10 @@ void App::HandlePlayerInput(){
 		else {
 			m_game->SetNextGameState(GAME_ATTRACT_MODE);
 		}
+
+		SoundID clickAudio = g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_buttonClickSound);
+		g_engine->m_audio->StartSound(clickAudio, false);
+
 	}
 
 	if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_START)) {
@@ -341,6 +365,9 @@ void App::HandlePlayerInput(){
 			m_game->m_controllerHandleSequence.push_back(m_game->m_playerGamepadController);
 			m_game->m_activePlayerNum += 1;
 			m_game->SetNextGameState(GAME_LOBBY_MODE);
+
+			SoundID clickAudio = g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_buttonClickSound);
+			g_engine->m_audio->StartSound(clickAudio, false);
 		}
 		else if (m_game->GetCurGameState() == GAME_LOBBY_MODE && m_game->m_playerGamepadController == nullptr) {
 			m_game->m_playerGamepadController = new PlayerController(m_game->m_curMap);
@@ -348,10 +375,16 @@ void App::HandlePlayerInput(){
 			m_game->m_playerGamepadController->m_gamepadID = 0;
 			m_game->m_controllerHandleSequence.push_back(m_game->m_playerGamepadController);
 			m_game->m_activePlayerNum += 1;
+
+			SoundID clickAudio = g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_buttonClickSound);
+			g_engine->m_audio->StartSound(clickAudio, false);
 		}
 		else if (m_game->GetCurGameState() == GAME_LOBBY_MODE && m_game->m_playerGamepadController != nullptr) {
 			m_game->SetNextGameState(GAME_PLAYING_MODE);
 			m_game->InitializePlayerActors();
+
+			SoundID clickAudio = g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_buttonClickSound);
+			g_engine->m_audio->StartSound(clickAudio, false);
 		}
 	}
 
@@ -464,6 +497,11 @@ void App::LoadGameConfig() {
 	g_gameConfig->m_playerViewPitchSpeed = g_gameConfigBlackboard.GetValue("playerViewPitchSpeed", 0.f);
 	g_gameConfig->m_playerViewRollSpeed = g_gameConfigBlackboard.GetValue("playerViewRollSpeed", 0.f);
 	g_gameConfig->m_playerViewControllerSensitivity = g_gameConfigBlackboard.GetValue("playerViewControllerSensitivity", 0.f);
+	g_gameConfig->m_musicVolume = g_gameConfigBlackboard.GetValue("musicVolume", 0.f);
+	g_gameConfig->m_mainMenuMusic = g_gameConfigBlackboard.GetValue("mainMenuMusic", "Error");
+	g_gameConfig->m_gameMusic = g_gameConfigBlackboard.GetValue("gameMusic", "Error");
+	g_gameConfig->m_soundEffectVolume = g_gameConfigBlackboard.GetValue("soundEffectVolume", 0.f);
+	g_gameConfig->m_buttonClickSound = g_gameConfigBlackboard.GetValue("buttonClickSound", "Error");
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -476,6 +514,9 @@ void App::LoadTextureResources() {
 //-----------------------------------------------------------------------------------------------
 void App::LoadAudioResources() {
 	g_engine->m_audio->CreateOrGetSound("Data/Audio/Debug_TestAudio.mp3");
+	g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_mainMenuMusic);
+	g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_gameMusic);
+	g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_buttonClickSound);
 }
 
 //-----------------------------------------------------------------------------------------------

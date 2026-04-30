@@ -26,6 +26,11 @@ struct GameConfig
 	float m_playerViewPitchSpeed;
 	float m_playerViewRollSpeed;
 	float m_playerViewControllerSensitivity;
+	float m_musicVolume;
+	std::string m_mainMenuMusic;
+	std::string m_gameMusic;
+	float m_soundEffectVolume;
+	std::string m_buttonClickSound;
 };
 
 //-----------------------------------------------------------------------------------------------

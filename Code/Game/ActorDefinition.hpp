@@ -84,12 +84,6 @@ public:
 	~Actor2DRenderInfo();
 };
 
-struct ActorSound
-{
-	std::string m_sound = "undefinedSound";
-	SoundID m_soundID   = 0;
-};
-
 struct ActorPointLight
 {
 	float m_radius = 0.f;
@@ -130,7 +124,7 @@ public:
 	ActorCamera m_actorCamera;
 	ActorAI m_actorAI;
 	Actor2DRenderInfo m_actor2DRenderInfo;
-	std::vector<ActorSound> m_sounds;
+	std::map<std::string, SoundID> m_sounds;
 	std::vector<std::string> m_inventory;
 	ActorPointLight m_pointLight;
 };

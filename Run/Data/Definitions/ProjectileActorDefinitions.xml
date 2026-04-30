@@ -20,6 +20,9 @@
         <Direction vector="1,0,0"><Animation startFrame="1" endFrame="3"/></Direction>
       </AnimationGroup>
     </Visuals>
+	<Sounds>
+		<Sound sound="Death" name="Data/Audio/PlasmaHit.wav"/>
+	</Sounds>
 	<PointLight radius="20.0" color="10,0,255" intensity="7.5" volumetric="true"/>
   </ActorDefinition>
 </Definitions>

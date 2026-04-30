@@ -4,6 +4,7 @@
 #include "Engine/Core/Vertex.hpp"
 #include "Engine/Core/Vertex_TBN.hpp"
 #include "Engine/Math/Vec2.hpp"
+#include "Engine/Audio/AudioSystem.hpp"
 #include <vector>
 
 class Camera;
@@ -101,4 +102,6 @@ private:
 						    
 	float                     m_curCamera1ShakeAmp             = 0.f;
 	float                     m_curCamera2ShakeAmp             = 0.f;
+	SoundID                   m_curBackgroundMusicID           = 0;
+	SoundPlaybackID           m_curBackgroundMusicPlaybackID   = MISSING_SOUND_ID;
 };

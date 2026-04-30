@@ -114,13 +114,8 @@ void WeaponDefinition::InitializeWeaponDefs(std::string configPath) {
 		XmlElement* weaponSounds = i->FirstChildElement("Sounds");
 		if (weaponSounds != nullptr) {
 			for (XmlElement* j = weaponSounds->FirstChildElement("Sound"); j != nullptr; j = j->NextSiblingElement()) {
-				std::string soundName = ParseXmlAttribute(*j, "name", "undefinedSound");
-				s_definitions[weaponName].m_sounds.push_back(
-					WeaponSound{
-						soundName,
-						g_engine->m_audio->CreateOrGetSound(ParseXmlAttribute(*j, "filePath", "Error").data())
-					}
-				);
+				std::string soundName = ParseXmlAttribute(*j, "sound", "undefinedSound");
+				s_definitions[weaponName].m_sounds[soundName] = g_engine->m_audio->CreateOrGetSound(ParseXmlAttribute(*j, "name", "Error").data(), true);
 			}
 		}
 	}

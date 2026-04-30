@@ -56,6 +56,10 @@ Game::Game()
 //---------------------------------------------------------------------------------------------------
 Game::~Game()
 {
+	if (m_curBackgroundMusicPlaybackID != MISSING_SOUND_ID) {
+		g_engine->m_audio->StopSound(m_curBackgroundMusicPlaybackID);
+	}
+
 	delete m_skySphereVertexBuffer;
 	m_skySphereVertexBuffer = nullptr;
 	delete m_skySphereIndexBuffer;
@@ -99,6 +103,15 @@ void Game::Update()
 	//-----------------------------------------------------------------------------------------------
 	//Update game mode
 	if (m_curGameState == GAME_PLAYING_MODE) {
+		// Update background music
+		SoundID gameMusic = g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_gameMusic);
+ 		if (m_curBackgroundMusicID != gameMusic) {
+			if (m_curBackgroundMusicPlaybackID != MISSING_SOUND_ID) g_engine->m_audio->StopSound(m_curBackgroundMusicPlaybackID);
+			m_curBackgroundMusicPlaybackID = g_engine->m_audio->StartSound(gameMusic, true, g_gameConfig->m_musicVolume);
+			m_curBackgroundMusicID = gameMusic;
+		}
+		if (m_curBackgroundMusicPlaybackID != MISSING_SOUND_ID) g_engine->m_audio->SetSoundPlaybackSpeed(m_curBackgroundMusicPlaybackID, (float) m_gameClock->GetTimeScale());
+
 		//Update game constants
 		g_engine->m_renderer->SetGameConstants((float)m_gameClock->GetTotalSeconds());
 
@@ -120,6 +133,17 @@ void Game::Update()
 			m_playerGamepadController->UpdateCamera();
 		}
 		m_curMap->Update();
+
+		if (m_controllerHandleSequence.size() > 0) {
+			Camera* playerCam = m_controllerHandleSequence[0]->m_playerCamera;
+			Vec3 camPos = playerCam->GetPosition();
+
+			Vec3 camForward, camLeft, camUp;
+			playerCam->GetOrientation().GetAsVectors_IFwd_JLeft_KUp(camForward, camLeft, camUp);
+
+			g_engine->m_audio->UpdateListener(0, camPos, camForward, camUp);
+		}
+
 		UpdateCamerasShake();
 		UpdateShaderConstants();
 		UpdateUIs();
@@ -128,10 +152,21 @@ void Game::Update()
 	
 	//-----------------------------------------------------------------------------------------------
 	//Update lobby mode (if needed)
+	if (m_curGameState == GAME_LOBBY_MODE) {
+	}
 
 	//-----------------------------------------------------------------------------------------------
 	//Update attract mode
 	if(m_curGameState == GAME_ATTRACT_MODE) {
+		// Update background music
+		SoundID mainMenuMusic = g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_mainMenuMusic);
+		if (m_curBackgroundMusicID != mainMenuMusic) {
+			if (m_curBackgroundMusicPlaybackID != MISSING_SOUND_ID) g_engine->m_audio->StopSound(m_curBackgroundMusicPlaybackID);
+			m_curBackgroundMusicPlaybackID = g_engine->m_audio->StartSound(mainMenuMusic, true, g_gameConfig->m_musicVolume);
+			m_curBackgroundMusicID = mainMenuMusic;
+		}
+		if (m_curBackgroundMusicPlaybackID != MISSING_SOUND_ID) g_engine->m_audio->SetSoundPlaybackSpeed(m_curBackgroundMusicPlaybackID, (float) m_gameClock->GetTimeScale());
+
 		//Handle cursor mode 
 		g_engine->m_input->SetCursorMode(CursorMode::POINTER);
 		g_engine->m_input->SetFlydigiAdaptiveTrigger();
@@ -278,7 +313,6 @@ void Game::Render() const
 					Vec2((float)g_engine->m_window->GetClientDimensions().x, (float)g_engine->m_window->GetClientDimensions().y)
 				)
 			);
-
 
 			g_engine->m_renderer->BeginCamera(*m_UICamera1, true);
 			RenderGameUI(0);

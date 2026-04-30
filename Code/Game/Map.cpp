@@ -510,10 +510,17 @@ void Map::UpdateSunShadowCamera() {
 
 	Vec3 shadowSunDir = -Vec3(sunX, sunY, sunZ).GetNormalized();
 
-	Vec3 idealSunPos = GetMapWorldCenter() - (shadowSunDir * 200.f);
+	float mapSizeX = static_cast<float>(m_dimensions.x) * m_definition.m_tileSize;
+	float mapSizeY = static_cast<float>(m_dimensions.y) * m_definition.m_tileSize;
+
+	float mapRadius = sqrtf((mapSizeX * 0.5f) * (mapSizeX * 0.5f) + (mapSizeY * 0.5f) * (mapSizeY * 0.5f));
+
+	float shadowRadius = mapRadius * 0.9f;
+
+	Vec3 idealSunPos = GetMapWorldCenter() - (shadowSunDir * shadowRadius);
 	EulerAngles sunOrientation = EulerAngles::MakeLookDirectionEulerAngles(shadowSunDir);
 
-	float orthoWidth = 300.f;
+	float orthoWidth = shadowRadius * 2.0f;
 	float shadowMapRes = 2048.f;
 	float unitsPerTexel = orthoWidth / shadowMapRes;
 
@@ -535,6 +542,13 @@ void Map::UpdateSunShadowCamera() {
 
 	m_sunShadowCamera->SetPosition(snappedSunPos);
 	m_sunShadowCamera->SetOrientation(sunOrientation);
+
+	m_sunShadowCamera->SetOrthoView(
+		Vec2(-shadowRadius, -shadowRadius),
+		Vec2(shadowRadius, shadowRadius),
+		0.0f, 
+		shadowRadius * 2.0f 
+	);
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -853,12 +867,10 @@ void Map::RespawnPlayers() {
 			if (m_game->m_playerKeyboardController != nullptr &&
 				m_game->m_playerKeyboardController->m_possessedActorHandle == oldHandle) {
 				m_game->m_playerKeyboardController->Possess(playerActor->m_handle);
-				m_game->m_playerKeyboardController->m_deadCount += 1;
 			}
 			else if (m_game->m_playerGamepadController != nullptr &&
 				m_game->m_playerGamepadController->m_possessedActorHandle == oldHandle) {
 				m_game->m_playerGamepadController->Possess(playerActor->m_handle);
-				m_game->m_playerGamepadController->m_deadCount += 1;
 			}
 			else {
 				ERROR_AND_DIE("Player respawn failed due to invalid controller possessed handle!");
