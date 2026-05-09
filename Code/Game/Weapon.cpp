@@ -145,8 +145,17 @@ bool Weapon::Fire(Vec3 aimDirection) {
 		for (unsigned int i = 0; i < m_definition.m_meleeCount; i++) {
 			std::vector<Actor*> hitActors;
 
-			aimDirection.z = 0.f;
-			aimDirection = aimDirection.GetNormalized();
+			g_engine->m_audio->StartSoundAt(
+				m_definition.m_sounds.at("Fire"),
+				m_owner->m_position + Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.5f),
+				false,
+				g_gameConfig->m_soundEffectVolume * 2.f,
+				0.f,
+				1.f,
+				false,
+				5.f,
+				20000.f
+			);
 
 			if (m_owner->m_map->SectorDetectWorldActors(
 				m_owner->m_position + Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.5f),
@@ -157,6 +166,13 @@ bool Weapon::Fire(Vec3 aimDirection) {
 				&hitActors
 			)) {
 				for (Actor* hitActor : hitActors) {
+					Actor* attackerRoot = m_owner->m_isSubActor ? m_owner->m_owner : m_owner;
+					Actor* victimRoot = hitActor->m_isSubActor ? hitActor->m_owner : hitActor;
+
+					if (attackerRoot == victimRoot) {
+						continue;
+					}
+
 					float randomDamage = m_randomGenerator->RollRandomFloatInRange(m_definition.m_meleeDamage.m_min, m_definition.m_meleeDamage.m_max);
 					Vec3 toHitActor = (hitActor->m_position - m_owner->m_position).GetNormalized();
 					hitActor->Damage(randomDamage, m_owner);
@@ -165,18 +181,11 @@ bool Weapon::Fire(Vec3 aimDirection) {
 					m_owner->m_map->SpawnActor(
 						SpawnInfo{
 							"BloodSplatter",
-							hitActor->m_position + Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.5f) + 
+							hitActor->m_position + Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.5f) +
 							-toHitActor * hitActor->m_definition.m_collision.m_radius,
 						}
 					);
 				}
-
-				g_engine->m_audio->StartSoundAt(
-					m_definition.m_sounds.at("Fire"),
-					m_owner->m_position + Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.5f),
-					false,
-					g_gameConfig->m_soundEffectVolume
-				);
 			}
 		}
 	}

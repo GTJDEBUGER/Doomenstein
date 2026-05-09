@@ -18,6 +18,7 @@ TileDefinition::TileDefinition(
 	AABB2 ceilingUV,
 	AABB2 topUV,
 	AABB2 bottomUV,
+	AABB2 insideWallUV,
 	Rgba8 tintColor) :
 	m_name(name),
 	m_isSolid(isSolid),
@@ -27,6 +28,7 @@ TileDefinition::TileDefinition(
 	m_ceilingUV(ceilingUV),
 	m_topUV(topUV),
 	m_bottomUV(bottomUV),
+	m_insideWallUV(insideWallUV),
 	m_tintColor(tintColor) {
 }
 
@@ -49,6 +51,8 @@ void TileDefinition::InitializeTileDefs(std::string configPath) {
 		int topSpriteIndex = topSpriteCoords.x + topSpriteCoords.y * 8;
 		IntVec2 bottomSpriteCoords = ParseXmlAttribute(*i, "bottomSpriteCoords", IntVec2(-1, -1));
 		int bottomSpriteIndex = bottomSpriteCoords.x + bottomSpriteCoords.y * 8;
+		IntVec2 insideWallSpriteCoords = ParseXmlAttribute(*i, "insideWallSpriteCoords", IntVec2(-1, -1));
+		int insideWallSpriteIndex = insideWallSpriteCoords.x + insideWallSpriteCoords.y * 8;
 
 		s_definitions[ParseXmlAttribute(*i, "name", "undefineTile")] = TileDefinition(
 			ParseXmlAttribute(*i, "name", "undefineTile"),
@@ -59,6 +63,7 @@ void TileDefinition::InitializeTileDefs(std::string configPath) {
 			ceilingSpriteIndex >=0 ? m_tileSpriteSheet.GetSpriteUVs(ceilingSpriteIndex) : AABB2::ZERO_TO_ONE,
 			topSpriteIndex >= 0 ? m_tileSpriteSheet.GetSpriteUVs(topSpriteIndex) : AABB2::ZERO_TO_ONE,
 			bottomSpriteIndex >= 0 ? m_tileSpriteSheet.GetSpriteUVs(bottomSpriteIndex) : AABB2::ZERO_TO_ONE,
+			insideWallSpriteIndex >= 0 ? m_tileSpriteSheet.GetSpriteUVs(insideWallSpriteIndex) : AABB2::ZERO_TO_ONE,
 			ParseXmlAttribute(*i, "tint", Rgba8(255, 0, 255))
 		);
 	}

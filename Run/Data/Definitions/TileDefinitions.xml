@@ -1,4 +1,7 @@
 <Definitions>
-  <TileDefinition name="StoneFloor" isSolid="false" mapImagePixelColor="0,0,0" floorSpriteCoords="3,6"/>
-  <TileDefinition name="BrickWall" isSolid="true" mapImagePixelColor="255,255,255" wallSpriteCoords="0,5" topSpriteCoords ="0,5"/>
+	<TileDefinition name="Empty" isSolid="false" mapImagePixelColor="0,0,0"/>
+    <TileDefinition name="StoneFloor" isSolid="false" mapImagePixelColor="100,100,100" floorSpriteCoords="3,6"/>
+	<TileDefinition name="StonePlatform" isSolid="true" mapImagePixelColor="150,150,150" topSpriteCoords="3,6" wallSpriteCoords="3,6" bottomSpriteCoords="3,6"/>
+	<TileDefinition name="CrystalPlatform" isSolid="true" mapImagePixelColor="0,0,200" topSpriteCoords="6,6" wallSpriteCoords="6,6" bottomSpriteCoords="6,6"/>
+    <TileDefinition name="BrickWall" isSolid="true" mapImagePixelColor="255,255,255" wallSpriteCoords="0,5" topSpriteCoords ="0,5"/>
 </Definitions>

@@ -21,6 +21,16 @@ struct v2p_t
 };
 
 //----------------------------------------------------------------
+cbuffer CameraConstants : register(b2)
+{
+    float4x4 WorldToCameraTransform;
+    float4x4 CameraToRenderTransform;
+    float4x4 RenderToClipTransform;
+    float3 CameraWorldPosition;
+    float4 ViewportBoundsUV;
+};
+
+//----------------------------------------------------------------
 cbuffer PostProcessingBuffer : register(b4)
 {
     float4x4 projectionMatrix;
@@ -31,9 +41,6 @@ cbuffer PostProcessingBuffer : register(b4)
     float radius;
     float bias;
     float2 screenResolution;
-    float cameraNear;
-    float cameraFar;
-    float4 viewportBoundsUV;
     float4 vignetteColor;
     float vignetteIntensity;
     float vignetteSmoothness;
@@ -54,8 +61,8 @@ v2p_t VertexMain(vs_input_t input)
 //----------------------------------------------------------------
 float4 PixelMain(v2p_t input) : SV_Target0
 {
-    float2 viewportSize = viewportBoundsUV.zw - viewportBoundsUV.xy;
-    float2 localUV = (input.uv - viewportBoundsUV.xy) / viewportSize;
+    float2 viewportSize = ViewportBoundsUV.zw - ViewportBoundsUV.xy;
+    float2 localUV = (input.uv - ViewportBoundsUV.xy) / viewportSize;
     float aspect = (screenResolution.x * viewportSize.x) / (screenResolution.y * viewportSize.y);
     
     float2 workingLocalUV = localUV;
@@ -75,7 +82,7 @@ float4 PixelMain(v2p_t input) : SV_Target0
         workingLocalUV = saturate(workingLocalUV);
     }
     
-    float2 sampleUV = workingLocalUV * viewportSize + viewportBoundsUV.xy;
+    float2 sampleUV = workingLocalUV * viewportSize + ViewportBoundsUV.xy;
     float4 baseColor = screenColor.Sample(screenSampler, sampleUV);
     
     float2 delta = workingLocalUV - 0.5f;

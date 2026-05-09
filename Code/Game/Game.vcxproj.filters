@@ -67,6 +67,9 @@
     <ClCompile Include="Weapon.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
+    <ClCompile Include="ComplexAIController.cpp">
+      <Filter>Gameplay</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="App.hpp">
@@ -115,6 +118,9 @@
       <Filter>Gameplay</Filter>
     </ClInclude>
     <ClInclude Include="Weapon.hpp">
+      <Filter>Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="ComplexAIController.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
   </ItemGroup>
@@ -206,6 +212,12 @@
       <Filter>Data\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\..\Run\Data\Shaders\Vignette.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\GerstnerSea.hlsl">
+      <Filter>Data\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Run\Data\Shaders\UnderwaterCamera.hlsl">
       <Filter>Data\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

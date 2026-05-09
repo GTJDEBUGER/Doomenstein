@@ -8,7 +8,7 @@ public:
 	~AIController() override;
 
 	void DamagedBy(Actor* attacker);
-	void Update();
+	void Update() override;
 
 public:
 	Actor* m_targetActor = nullptr;

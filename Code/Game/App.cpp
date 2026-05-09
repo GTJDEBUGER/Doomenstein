@@ -156,6 +156,22 @@ void App::HandlePlayerInput(){
 		m_game->m_isDrawDebug = !m_game->m_isDrawDebug;
 	}
 
+	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_F2)) {
+		DebugAddMessage(
+			Stringf("CurCamPos: (%.1f, %.1f, %.1f) CurCamOri: (%.1f, %.1f, %.1f)",
+				m_game->m_playerKeyboardController->m_playerCamera->GetPosition().x,
+				m_game->m_playerKeyboardController->m_playerCamera->GetPosition().y,
+				m_game->m_playerKeyboardController->m_playerCamera->GetPosition().z,
+				m_game->m_playerKeyboardController->m_playerCamera->GetOrientation().m_yawDegrees,
+				m_game->m_playerKeyboardController->m_playerCamera->GetOrientation().m_pitchDegrees,
+				m_game->m_playerKeyboardController->m_playerCamera->GetOrientation().m_rollDegrees
+			),
+			60.f,
+			Rgba8::WHITE,
+			Rgba8::RED
+		);
+	}
+
 	if (g_engine->m_input->IsKeyDown('T') || g_engine->m_input->WasKeyJustPressed('T')) {
 		if (g_engine->m_input->WasKeyJustPressed('T')) {
 			SoundID slowDownAudio = g_engine->m_audio->CreateOrGetSound("Data/Audio/Debug_TestAudio.mp3");
@@ -228,6 +244,12 @@ void App::HandlePlayerInput(){
 		else if (m_game->GetCurGameState() == GAME_LOBBY_MODE && m_game->m_playerKeyboardController != nullptr) {
 			m_game->InitializePlayerActors();
 			m_game->SetNextGameState(GAME_PLAYING_MODE);
+
+			if (m_game->m_activePlayerNum > 1) {
+				g_engine->m_audio->Set3DAudioEnabled(false);
+			}else {
+				g_engine->m_audio->Set3DAudioEnabled(true);
+			}
 
 			SoundID clickAudio = g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_buttonClickSound);
 			g_engine->m_audio->StartSound(clickAudio, false);
@@ -383,6 +405,13 @@ void App::HandlePlayerInput(){
 			m_game->SetNextGameState(GAME_PLAYING_MODE);
 			m_game->InitializePlayerActors();
 
+			if (m_game->m_activePlayerNum > 1) {
+				g_engine->m_audio->Set3DAudioEnabled(false);
+			}
+			else {
+				g_engine->m_audio->Set3DAudioEnabled(true);
+			}
+
 			SoundID clickAudio = g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_buttonClickSound);
 			g_engine->m_audio->StartSound(clickAudio, false);
 		}
@@ -402,7 +431,7 @@ void App::HandlePlayerInput(){
 
 	if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_A)) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
-			if (m_game->m_playerGamepadController->m_playerStates.isGrounded)
+			if (m_game->m_playerGamepadController != nullptr && m_game->m_playerGamepadController->m_playerStates.isGrounded)
 				m_game->m_playerGamepadController->m_inputActions.isJump = true;
 		}
 	}
@@ -493,7 +522,10 @@ void App::LoadGameConfig() {
 	g_gameConfig->m_playerViewControllerSensitivity = g_gameConfigBlackboard.GetValue("playerViewControllerSensitivity", 0.f);
 	g_gameConfig->m_musicVolume = g_gameConfigBlackboard.GetValue("musicVolume", 0.f);
 	g_gameConfig->m_mainMenuMusic = g_gameConfigBlackboard.GetValue("mainMenuMusic", "Error");
-	g_gameConfig->m_gameMusic = g_gameConfigBlackboard.GetValue("gameMusic", "Error");
+	g_gameConfig->m_gameMusic0 = g_gameConfigBlackboard.GetValue("gameMusic0", "Error");
+	g_gameConfig->m_gameMusic1 = g_gameConfigBlackboard.GetValue("gameMusic1", "Error");
+	g_gameConfig->m_gameMusic2 = g_gameConfigBlackboard.GetValue("gameMusic2", "Error");
+	g_gameConfig->m_environmentBackgroundMusic = g_gameConfigBlackboard.GetValue("environmentBackgroundMusic", "Error");
 	g_gameConfig->m_soundEffectVolume = g_gameConfigBlackboard.GetValue("soundEffectVolume", 0.f);
 	g_gameConfig->m_buttonClickSound = g_gameConfigBlackboard.GetValue("buttonClickSound", "Error");
 }
@@ -509,7 +541,10 @@ void App::LoadTextureResources() {
 void App::LoadAudioResources() {
 	g_engine->m_audio->CreateOrGetSound("Data/Audio/Debug_TestAudio.mp3");
 	g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_mainMenuMusic);
-	g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_gameMusic);
+	g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_gameMusic0);
+	g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_gameMusic1);
+	g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_gameMusic2);
+	g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_environmentBackgroundMusic);
 	g_engine->m_audio->CreateOrGetSound(g_gameConfig->m_buttonClickSound);
 }
 

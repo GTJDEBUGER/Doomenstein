@@ -36,6 +36,15 @@ cbuffer LightConstants : register(b1)
     float4 _Padding3;
 };
 
+cbuffer CameraConstants : register(b2)
+{
+    float4x4 WorldToCameraTransform;
+    float4x4 CameraToRenderTransform;
+    float4x4 RenderToClipTransform;
+    float3 CameraWorldPosition;
+    float4 ViewportBoundsUV;
+};
+
 cbuffer PostProcessingBuffer : register(b4)
 {
     float4x4 projectionMatrix;
@@ -46,9 +55,6 @@ cbuffer PostProcessingBuffer : register(b4)
     float radius;
     float bias;
     float2 screenResolution;
-    float cameraNear;
-    float cameraFar;
-    float4 viewportBoundsUV;
 };
 
 //----------------------------------------------------------------
@@ -85,8 +91,8 @@ float3 GetViewPos(float2 uv)
 {
     float depth = depthTexture.SampleLevel(screenSampler, uv, 0).r;
     
-    float2 viewportSize = viewportBoundsUV.zw - viewportBoundsUV.xy;
-    float2 viewportUV = (uv - viewportBoundsUV.xy) / viewportSize;
+    float2 viewportSize = ViewportBoundsUV.zw - ViewportBoundsUV.xy;
+    float2 viewportUV = (uv - ViewportBoundsUV.xy) / viewportSize;
     
     float4 clipPos = float4(viewportUV.x * 2.0 - 1.0, 1.0 - viewportUV.y * 2.0, depth, 1.0);
     float4 viewPos = mul(invProjectionMatrix, clipPos);
@@ -141,11 +147,11 @@ float4 PixelMain(v2p_t input) : SV_Target0
         float2 viewportOffsetUV = (offsetProj.xy / offsetProj.w) * 0.5 + 0.5;
         viewportOffsetUV.y = 1.0 - viewportOffsetUV.y;
         
-        float2 viewportSize = viewportBoundsUV.zw - viewportBoundsUV.xy;
-        float2 realScreenUV = viewportOffsetUV * viewportSize + viewportBoundsUV.xy;
+        float2 viewportSize = ViewportBoundsUV.zw - ViewportBoundsUV.xy;
+        float2 realScreenUV = viewportOffsetUV * viewportSize + ViewportBoundsUV.xy;
         
-        if (realScreenUV.x < viewportBoundsUV.x || realScreenUV.x > viewportBoundsUV.z ||
-            realScreenUV.y < viewportBoundsUV.y || realScreenUV.y > viewportBoundsUV.w)
+        if (realScreenUV.x < ViewportBoundsUV.x || realScreenUV.x > ViewportBoundsUV.z ||
+            realScreenUV.y < ViewportBoundsUV.y || realScreenUV.y > ViewportBoundsUV.w)
         {
             continue;
         }

@@ -5,6 +5,26 @@ Texture2D originalScreenNormal : register(t3);
 SamplerState screenSampler : register(s0);
 
 //------------------------------------------------------------------------------------------------
+cbuffer GameConstants : register(b0)
+{
+    float GameRunTime;
+    float IsStencilPass;
+    
+    // --- Weather ---
+    float WeatherCoverage;
+    float WeatherDensity;
+    float WeatherAbsorption;
+    float WeatherDarkness;
+    float WeatherCloudMinY;
+    float WeatherCloudMaxY;
+    
+    float2 StormCenter;
+    float StormRadius;
+    float StormTwistStrength;
+    float StormFunnelDepth;
+    float StormEyeRadius;
+};
+
 cbuffer LightConstants : register(b1)
 {
     float3 SunDirection;
@@ -19,6 +39,7 @@ cbuffer CameraConstants : register(b2)
     float4x4 CameraToRenderTransform;
     float4x4 RenderToClipTransform;
     float3 CameraWorldPosition;
+    float4 viewportBoundsUV;
 };
 
 cbuffer PostProcessingBuffer : register(b4)
@@ -31,9 +52,6 @@ cbuffer PostProcessingBuffer : register(b4)
     float radius;
     float bias;
     float2 screenResolution;
-    float cameraNear;
-    float cameraFar;
-    float4 viewportBoundsUV;
 };
 
 //------------------------------------------------------------------------------------------------
@@ -81,7 +99,7 @@ float4 PixelMain(v2p_t input) : SV_Target0
     float rawDepth = depthTexture.Sample(screenSampler, input.uv).r;
     float4 normal = originalScreenNormal.Sample(screenSampler, input.uv);
     
-    if (length(normal.xyz) < 0.1f) 
+    if (length(normal.xyz) < 0.1f || rawDepth >= 1.0f) 
         return sceneColor;
 
     float2 viewportSize = viewportBoundsUV.zw - viewportBoundsUV.xy;
@@ -95,42 +113,55 @@ float4 PixelMain(v2p_t input) : SV_Target0
     
     float3x3 viewToWorld = transpose((float3x3) worldToViewMatrix);
     float3 viewDir = normalize(mul(viewToWorld, viewPos.xyz));
-    float3 worldPos = CameraWorldPosition + viewDir * dist;
-    
-    float FOG_DENSITY = 0.075f;
-    float FOG_FALLOFF = 0.05f;
-    float opticalDepth = CalculateHeightFog(CameraWorldPosition, viewDir, dist, FOG_DENSITY, FOG_FALLOFF);
-    float transmittance = exp(-max(opticalDepth, 0.0));
-    float fogFactor = saturate(1.0 - transmittance);
     
     float3 sunDir = normalize(-SunDirection);
     float sunDot = dot(viewDir, sunDir);
     
+    float stormActive = smoothstep(0.4, 0.3, SunIntensity);
+    
     float dayFactor = smoothstep(-0.15, 0.2, sunDir.z);
-    float sunsetFactor = saturate(1.0 - abs(sunDir.z * 4.0));
+    float sunsetFactor = saturate(1.0 - abs(sunDir.z * 4.0)) * smoothstep(-0.1, 0.0, sunDir.z);
+    sunsetFactor = lerp(sunsetFactor, dayFactor, stormActive);
+    
     float viewHeight = saturate(viewDir.z);
+    
+    float3 zenithColor = float3(0.05, 0.2, 0.6);
+    zenithColor = lerp(zenithColor, float3(0.3, 0.02, 0.02), stormActive);
     
     float3 horizonColorDay = float3(0.6, 0.7, 0.85);
     float3 sunsetColor = float3(1.0, 0.45, 0.1);
     float3 sunsetRed = float3(0.95, 0.3, 0.1);
+    
     float3 nightSky = float3(0.02, 0.04, 0.2);
+    nightSky = lerp(nightSky, float3(0.05, 0.01, 0.01), stormActive);
+    nightSky = lerp(nightSky, float3(0.08, 0.02, 0.01), stormActive);
     
     float3 currentHorizon = lerp(horizonColorDay, sunsetColor, sunsetFactor);
+    float3 daySky = lerp(currentHorizon, zenithColor, pow(viewHeight, 0.7));
     
     float glowDist = pow(saturate(sunDot), 4.0);
     float3 sunsetGlow = lerp(sunsetColor, sunsetRed, sunsetFactor);
-    currentHorizon = lerp(currentHorizon, sunsetGlow, glowDist * sunsetFactor * (1.0 - viewHeight * 0.5));
+    daySky = lerp(daySky, sunsetGlow, glowDist * sunsetFactor * (1.0 - viewHeight * 0.5));
     
-    float3 ambientFogColor = lerp(nightSky, currentHorizon, dayFactor);
+    float3 finalSky = lerp(nightSky, daySky, dayFactor);
     
     float cosTheta = saturate(sunDot);
-    float mieScattering = pow(cosTheta, 8.0) * 1.5 + pow(cosTheta, 4.0) * 0.2;
-    
+    float rayleigh = (1.0 + sunDot * sunDot) * 0.5;
     float3 mieColor = lerp(float3(1.0, 0.95, 0.8), sunsetRed, sunsetFactor);
+    float distanceMask = smoothstep(50.0, 300.0, dist);
+    float mie = pow(cosTheta, 8.0) * 0.5 * distanceMask;
     
-    float3 fogColor = ambientFogColor * AmbientIntensity + (mieColor * mieScattering * dayFactor * SunIntensity);
+    float3 atmosphereEffect = (daySky * rayleigh * 0.5 + mieColor * mie) * dayFactor;
     
-    float3 finalColor = lerp(sceneColor.rgb, fogColor, fogFactor);
-
+    float3 fogTargetColor = (finalSky * AmbientIntensity) + (atmosphereEffect) * sqrt(SunIntensity);
+    
+    float FOG_DENSITY = 0.095f;
+    float FOG_FALLOFF = 0.025f;
+    float opticalDepth = CalculateHeightFog(CameraWorldPosition, viewDir, dist, FOG_DENSITY, FOG_FALLOFF);
+    float transmittance = exp(-max(opticalDepth, 0.0));
+    float fogFactor = saturate(1.0 - transmittance);
+    
+    float3 finalColor = lerp(sceneColor.rgb, fogTargetColor, fogFactor);
+    
     return float4(finalColor, sceneColor.a);
 }

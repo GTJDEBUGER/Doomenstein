@@ -12,9 +12,6 @@ cbuffer PostProcessingBuffer : register(b4)
     float radius;
     float bias;
     float2 screenResolution;
-    float cameraNear;
-    float cameraFar;
-    float4 viewportBoundsUV;
 };
 
 //----------------------------------------------------------------

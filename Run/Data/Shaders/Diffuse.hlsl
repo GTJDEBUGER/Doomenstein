@@ -29,12 +29,6 @@ struct p_out
 };
 
 //------------------------------------------------------------------------------------------------
-cbuffer GameConstants : register(b0)
-{
-    float GameRunTime;
-};
-
-//------------------------------------------------------------------------------------------------
 #define MAX_POINT_LIGHTS 256
 
 struct PointLight
@@ -45,6 +39,26 @@ struct PointLight
     float Intensity;
     int Volumetric;
     float2 padding;
+};
+
+cbuffer GameConstants : register(b0)
+{
+    float GameRunTime;
+    float IsStencilPass;
+    
+    // --- Weather ---
+    float WeatherCoverage;
+    float WeatherDensity;
+    float WeatherAbsorption;
+    float WeatherDarkness;
+    float WeatherCloudMinY;
+    float WeatherCloudMaxY;
+    
+    float2 StormCenter;
+    float StormRadius;
+    float StormTwistStrength;
+    float StormFunnelDepth;
+    float StormEyeRadius;
 };
 
 cbuffer LightConstants : register(b1)
@@ -119,10 +133,11 @@ static const float2 PoissonDisk[32] =
 static const float LIGHT_SIZE = 0.04;
 static const float NEAR_PLANE = -0.001;
 
+//------------------------------------------------------------------------------------------------
 float FindBlockerDistance(float2 uv, float zReceiver, float searchRadius)
 {
     float avgBlockerDepth = 0.0;
-    int blockers = 0;
+    float blockers = 0.0;
 
     [unroll]
     for (int i = 0; i < 16; i++)
@@ -130,19 +145,13 @@ float FindBlockerDistance(float2 uv, float zReceiver, float searchRadius)
         float2 sampleUV = uv + PoissonDisk[i] * searchRadius;
         float shadowMapDepth = shadowMapTexture.SampleLevel(pointSampler, sampleUV, 0).r;
         
-        if (shadowMapDepth < zReceiver)
-        {
-            avgBlockerDepth += shadowMapDepth;
-            blockers++;
-        }
+        float isBlocker = step(shadowMapDepth, zReceiver);
+        avgBlockerDepth += shadowMapDepth * isBlocker;
+        blockers += isBlocker;
     }
-
-    float result = -1.0;
-    if (blockers > 0)
-    {
-        result = avgBlockerDepth / (float) blockers;
-    }
-    return result;
+    
+    float hasBlockers = step(0.5, blockers);
+    return lerp(-1.0, avgBlockerDepth / max(blockers, 0.00001), hasBlockers);
 }
 
 float RandomNoise(float2 pos)
@@ -152,66 +161,69 @@ float RandomNoise(float2 pos)
 
 float CalculateShadow(float4 lightSpacePos, float depthBias, float2 worldPosXY)
 {
-    float finalShadow = 1.0;
-
     float3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
     projCoords.x = projCoords.x * 0.5 + 0.5;
     projCoords.y = -projCoords.y * 0.5 + 0.5;
     
-    if (projCoords.x >= 0.0 && projCoords.x <= 1.0 && projCoords.y >= 0.0 && projCoords.y <= 1.0)
-    {
-        float zReceiver = projCoords.z - depthBias;
-        float searchRadius = 0.005;
-        
-        float avgBlockerDepth = FindBlockerDistance(projCoords.xy, zReceiver, searchRadius);
-        
-        if (avgBlockerDepth >= 0.0)
-        {
-            float penumbra = ((zReceiver - avgBlockerDepth) * LIGHT_SIZE) / max(avgBlockerDepth, 0.0001);
-            float spread = clamp(penumbra, 0.0, 0.01);
-            
-            if (zReceiver - avgBlockerDepth < 0.001)
-            {
-                spread = 0.0;
-            }
-            
-            float totalShadow = 0.0;
-    
-            float noise = RandomNoise(worldPosXY * 50.0);
-            float angle = noise * 6.2831853;
-            float s, c;
-            sincos(angle, s, c);
-            float2x2 rotMat = float2x2(c, -s, s, c);
+    float inBounds = step(0.0, projCoords.x) * step(projCoords.x, 1.0) * step(0.0, projCoords.y) * step(projCoords.y, 1.0) *
+                     step(0.0, projCoords.z) * step(projCoords.z, 1.0);
 
-            [unroll]
-            for (int j = 0; j < 32; j++)
-            {
-                float2 rotatedOffset = mul(PoissonDisk[j], rotMat);
-                float2 sampleUV = projCoords.xy + rotatedOffset * spread;
-                totalShadow += shadowMapTexture.SampleCmp(shadowMapSampler, sampleUV, zReceiver);
-            }
-            
-            finalShadow = totalShadow / 32.0;
-        }
+    float zReceiver = projCoords.z - depthBias;
+    float searchRadius = 0.005;
+    
+    float avgBlockerDepth = FindBlockerDistance(projCoords.xy, zReceiver, searchRadius);
+    
+    float validBlocker = step(0.0, avgBlockerDepth);
+
+    float penumbra = ((zReceiver - avgBlockerDepth) * LIGHT_SIZE) / max(avgBlockerDepth, 0.0001);
+    float spread = clamp(penumbra, 0.0, 0.01);
+    
+    spread *= step(0.001, zReceiver - avgBlockerDepth);
+    spread *= validBlocker; 
+
+    float noise = RandomNoise(worldPosXY * 50.0);
+    float angle = noise * 6.2831853;
+    float s, c;
+    sincos(angle, s, c);
+    float2x2 rotMat = float2x2(c, -s, s, c);
+
+    float totalShadow = 0.0;
+
+    [unroll]
+    for (int j = 0; j < 32; j++)
+    {
+        float2 rotatedOffset = mul(PoissonDisk[j], rotMat);
+        float2 sampleUV = projCoords.xy + rotatedOffset * spread;
+        totalShadow += shadowMapTexture.SampleCmp(shadowMapSampler, sampleUV, zReceiver);
     }
     
-    return finalShadow;
+    float finalShadow = totalShadow / 32.0;
+    
+    return lerp(1.0, lerp(1.0, finalShadow, validBlocker), inBounds);
 }
 
 //------------------------------------------------------------------------------------------------
 float3 GetProceduralAmbient(float3 worldNormal, float3 sunDir)
 {
+    float stormActive = smoothstep(0.4, 0.3, SunIntensity);
+
     float sunDot = dot(worldNormal, sunDir);
     float dayFactor = smoothstep(-0.15, 0.2, sunDir.z);
-    float sunsetFactor = saturate(1.0 - abs(sunDir.z * 4.0));
+    
+    float sunsetFactor = saturate(1.0 - abs(sunDir.z * 4.0)) * smoothstep(-0.1, 0.0, sunDir.z);
+    sunsetFactor = lerp(sunsetFactor, dayFactor, stormActive);
+    
     float viewHeight = saturate(worldNormal.z);
     
     float3 zenithColor = float3(0.25, 0.45, 0.8);
-    float3 horizonColorDay = float3(0.6, 0.7, 0.85);
+    zenithColor = lerp(zenithColor, float3(0.3, 0.02, 0.02), stormActive);
     
+    float3 horizonColorDay = float3(0.6, 0.7, 0.85);
     float3 sunsetColor = float3(1.0, 0.45, 0.1);
     float3 sunsetRed = float3(0.95, 0.3, 0.1);
+    
     float3 nightSky = float3(0.02, 0.04, 0.2);
+    nightSky = lerp(nightSky, float3(0.05, 0.01, 0.01), stormActive);
     
     float3 currentHorizon = lerp(horizonColorDay, sunsetColor, sunsetFactor);
     float3 daySky = lerp(currentHorizon, zenithColor, pow(viewHeight, 0.5));
@@ -225,7 +237,6 @@ float3 GetProceduralAmbient(float3 worldNormal, float3 sunDir)
 
 //------------------------------------------------------------------------------------------------
 // PBR Functions
-//------------------------------------------------------------------------------------------------
 static const float PI = 3.14159265359;
 
 float DistributionGGX(float3 N, float3 H, float roughness)
@@ -255,26 +266,44 @@ float3 FresnelSchlick(float cosTheta, float3 F0)
 }
 
 //------------------------------------------------------------------------------------------------
+float3 CalculateDirectionalLight(float3 L, float3 lightColor, float intensity, float visibility, float shadow, float3 N, float3 V, float3 albedo, float roughness, float metallic, float3 F0)
+{
+    float3 H = normalize(V + L);
+    float NdotV = max(dot(N, V), 0.0001);
+    float NdotL = max(dot(N, L), 0.0);
+
+    float D = DistributionGGX(N, H, roughness);
+    float G = GeometrySmith(N, V, L, roughness);
+    float3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
+
+    float3 numerator = D * G * F;
+    float denominator = 4.0 * NdotV * NdotL + 0.0001;
+    float3 specular = numerator / denominator;
+
+    float3 kS = F;
+    float3 kD = float3(1.0, 1.0, 1.0) - kS;
+    kD *= 1.0 - metallic;
+    
+    return (kD * albedo / PI + specular) * lightColor * intensity * NdotL * shadow * visibility;
+}
+
+//------------------------------------------------------------------------------------------------
 float3 CalculatePointLight(PointLight light, float3 worldPos, float3 N, float3 V, float3 albedo, float roughness, float metallic, float3 F0)
 {
     float3 lightVector = light.Position - worldPos;
     float distance = length(lightVector);
     float3 L = lightVector / distance;
     float3 H = normalize(V + L);
-    
     float distanceSquare = distance * distance;
     float rangeSquare = light.Range * light.Range;
     float attenuation = pow(saturate(1.0 - pow(distanceSquare / rangeSquare, 2.0)), 2.0) / (distanceSquare + 0.0001);
-    
     float3 radiance = light.Color.rgb * light.Intensity * attenuation;
     
     float NdotV = max(dot(N, V), 0.0001);
     float NdotL = max(dot(N, L), 0.0);
-    
     float D = DistributionGGX(N, H, roughness);
     float G = GeometrySmith(N, V, L, roughness);
     float3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
-    
     float3 numerator = D * G * F;
     float denominator = 4.0 * NdotV * NdotL + 0.0001;
     float3 specular = numerator / denominator;
@@ -294,13 +323,11 @@ v2p_t VertexMain(vs_input_t input)
     float4 cameraPosition = mul(WorldToCameraTransform, worldPosition);
     float4 renderPosition = mul(CameraToRenderTransform, cameraPosition);
     float4 clipPosition = mul(RenderToClipTransform, renderPosition);
-    
     float3 worldTangentXYZ = mul((float3x3) ModelToWorldTransform, input.modelTangent.xyz);
     float3 worldBitangentXYZ = mul((float3x3) ModelToWorldTransform, input.modelBitangent.xyz);
     float3 worldNormalXYZ = mul((float3x3) ModelToWorldTransform, input.modelNormal.xyz);
     
     v2p_t v2p;
-    
     v2p.worldPosition = float4(worldPosition.xyz, 1.0f);
     v2p.clipPosition = clipPosition;
     v2p.color = float4(input.color.rgba);
@@ -323,8 +350,8 @@ p_out PixelMain(v2p_t input)
     float2 dy = ddy(input.uv);
     float delta = max(dot(dx, dx), dot(dy, dy));
     float blendFactor = smoothstep(0.00001, 0.0000675, delta);
-
-    // --- Sample Textures (Albedo, Normal, AO) ---
+    
+    // --- Sample Textures ---
     float4 albedoTex = lerp(diffuseTexture.Sample(pointSampler, input.uv), diffuseTexture.Sample(anisoSampler, input.uv), blendFactor);
     float3 albedo = pow(albedoTex.rgb * ModelColor.rgb * input.color.rgb, 2.2);
     
@@ -332,78 +359,72 @@ p_out PixelMain(v2p_t input)
     float3 tangentNormal = nSample * 2.0f - 1.0f;
     float3x3 TBN = float3x3(normalize(input.worldTangent.xyz), normalize(input.worldBitangent.xyz), normalize(input.worldNormal.xyz));
     float3 N = normalize(mul(tangentNormal, TBN));
-
     float ao = lerp(aoTexture.Sample(pointSampler, input.uv).r, aoTexture.Sample(anisoSampler, input.uv).r, blendFactor);
     float roughness = lerp(roughnessTexture.Sample(pointSampler, input.uv).r, roughnessTexture.Sample(anisoSampler, input.uv).r, blendFactor);
     float metallic = lerp(metallicTexture.Sample(pointSampler, input.uv).r, metallicTexture.Sample(anisoSampler, input.uv).r, blendFactor);
     float3 emissiveMask = lerp(emissiveTexture.Sample(pointSampler, input.uv).rgb, emissiveTexture.Sample(anisoSampler, input.uv).rgb, blendFactor);
     float emissiveIntensity = 5.0f;
-
-    // --- PBR Help Vectors ---
+    
+    // --- PBR Help Vectors (Sun & Moon) ---
     float3 V = normalize(CameraWorldPosition - input.worldPosition.xyz);
-    float3 L = normalize(-SunDirection);
-    float sunVisibility = smoothstep(-0.02, 0.05, L.z);
-    float3 H = normalize(V + L);
-    float NdotV = max(dot(N, V), 0.0001);
-    float NdotL = max(dot(N, L), 0.0);
-
-    // --- Cook-Torrance Directional Light ---
+    float3 sunDir = normalize(-SunDirection);
+    float3 moonDir = normalize(SunDirection);
+    
+    float sunVisibility = smoothstep(-0.02, 0.05, sunDir.z);
+    float moonVisibility = smoothstep(-0.02, 0.1, moonDir.z);
+    
     float3 F0 = float3(0.04, 0.04, 0.04);
     F0 = lerp(F0, albedo, metallic);
-
-    float D = DistributionGGX(N, H, roughness);
-    float G = GeometrySmith(N, V, L, roughness);
-    float3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
-
-    float3 numerator = D * G * F;
-    float denominator = 4.0 * NdotV * NdotL + 0.0001;
-    float3 specular = numerator / denominator;
-
-    float3 kS = F;
-    float3 kD = (float3(1.0, 1.0, 1.0) - kS) * (1.0 - metallic);
-
+    
     float3 worldNormal = normalize(input.worldNormal.xyz);
-    float slope = tan(acos(NdotL));
-    slope = clamp(slope, 0.0, 5.0);
+    float NdotL_Sun = max(dot(N, sunDir), 0.0);
+    float slope = clamp(tan(acos(NdotL_Sun)), 0.0, 5.0);
+    
     float depthBiasScale = 0.001;
     float normalBiasScale = 0.015;
-    
     float baseNormalBias = 0.005;
     float baseDepthBias = 0.0005;
 
     float currentDepthBias = depthBiasScale * slope + baseDepthBias;
-    float currentNormalBias = (normalBiasScale * (1.0 - NdotL)) + baseNormalBias;
+    float currentNormalBias = (normalBiasScale * (1.0 - NdotL_Sun)) + baseNormalBias;
 
     float worldTexelSize = 300.0 / 2048.0;
     float3 normalOffset = worldNormal * currentNormalBias * worldTexelSize * 2.0;
     float3 biasedWorldPos = input.worldPosition.xyz + normalOffset;
+    
     float4 lightSpacePos = mul(SunViewProjMatrix, float4(biasedWorldPos, 1.0));
-    float shadow = 0.0;
+    
+    float shadow = 1.0;
+    [branch] 
     if (sunVisibility > 0.0)
     {
-        float4 lightSpacePos = mul(SunViewProjMatrix, float4(biasedWorldPos, 1.0));
         shadow = CalculateShadow(lightSpacePos, currentDepthBias, input.worldPosition.xy);
     }
-    float3 directLight = (kD * albedo / PI + specular) * SunIntensity * NdotL * shadow * sunVisibility;
+    
+    float3 sunLight = CalculateDirectionalLight(sunDir, float3(1.0, 1.0, 1.0), SunIntensity, sunVisibility, shadow, N, V, albedo, roughness, metallic, F0);
+    
+    float3 moonColor = float3(0.2, 0.3, 0.45);
+    float moonIntensity = 0.4;
+    float3 moonLight = CalculateDirectionalLight(moonDir, moonColor, moonIntensity, moonVisibility, 1.0, N, V, albedo, roughness, metallic, F0);
+
+    float3 directLight = sunLight + moonLight;
 
     // --- Calculate Point Lights ---
     float3 pointLightsContribution = float3(0.0, 0.0, 0.0);
+    
     for (uint i = 0; i < NumPointLights; ++i)
     {
-        pointLightsContribution += CalculatePointLight(
-            PointLights[i],
-            input.worldPosition.xyz,
-            N, V, albedo, roughness, metallic, F0
-        );
+        pointLightsContribution += CalculatePointLight(PointLights[i], input.worldPosition.xyz, N, V, albedo, roughness, metallic, F0);
     }
     
     // --- Calculate Ambient Light ---
-    float3 skyAmbient = GetProceduralAmbient(N, L);
+    float3 skyAmbient = GetProceduralAmbient(N, sunDir);
     float3 ambient = skyAmbient * albedo * ao;
 
     // --- Final Blend ---
     float3 emissiveLight = emissiveMask * albedo * emissiveIntensity;
     float3 finalRgb = ambient + directLight + pointLightsContribution + emissiveLight;
+    
     // Gamma Correction
     finalRgb = pow(finalRgb, 1.0 / 2.5);
     

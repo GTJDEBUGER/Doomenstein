@@ -36,6 +36,18 @@ cbuffer LightConstants : register(b1)
     float4 _Padding3;
 };
 
+cbuffer CameraConstants : register(b2)
+{
+    float4x4 WorldToCameraTransform;
+    float4x4 CameraToRenderTransform;
+    float4x4 RenderToClipTransform;
+    float3 CameraWorldPosition;
+    float _PaddingCam1;
+    float4 ViewportBoundsUV;
+    float CameraNear;
+    float CameraFar;
+};
+
 //------------------------------------------------------------------------------------------------
 cbuffer PostProcessingBuffer : register(b4)
 {
@@ -47,8 +59,6 @@ cbuffer PostProcessingBuffer : register(b4)
     float radius;
     float bias;
     float2 screenResolution;
-    float cameraNear;
-    float cameraFar;
     float4 viewportBoundsUV;
 };
 
@@ -70,7 +80,7 @@ struct v2p_t
 //------------------------------------------------------------------------------------------------
 float GetViewZFromDepth(float depth)
 {
-    return (cameraNear * cameraFar) / (cameraFar - depth * (cameraFar - cameraNear));
+    return (CameraNear * CameraFar) / (CameraFar - depth * (CameraFar - CameraNear));
 }
 
 float3 GetViewPos(float2 uv)
@@ -89,9 +99,9 @@ float ScreenSpaceRayMarch(float3 startViewPos, float3 rayViewDir, out float2 out
     
     float3 endViewPos = startViewPos + rayViewDir * maxRayDistance;
     
-    if (endViewPos.z <= cameraNear)
+    if (endViewPos.z <= CameraNear)
     {
-        float t = (cameraNear - startViewPos.z) / rayViewDir.z;
+        float t = (CameraNear - startViewPos.z) / rayViewDir.z;
         endViewPos = startViewPos + rayViewDir * t;
     }
     

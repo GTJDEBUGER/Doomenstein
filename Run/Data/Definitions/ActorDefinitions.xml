@@ -4,7 +4,7 @@
   <!-- Marine -->
   <ActorDefinition name="Marine" faction="Marine" health="100" canBePossessed="true" corpseLifetime="2.0" visible="true">
     <Collision radius="1.25" height="3.0" collidesWithWorld="true" collidesWithActors="true"/>
-    <Physics simulated="true" walkSpeed="10.f" runSpeed="20.0f" turnSpeed="120.f" drag="12.0f" mass="1.0f"/>
+    <Physics isSimulated="true" walkSpeed="10.f" runSpeed="20.0f" turnSpeed="120.f" drag="12.0f" mass="1.0f"/>
     <Camera eyeHeight="2.5" cameraFOV="60.0f"/>
     <Visuals size="8,8" pivot="0.5,0.0" billboardType="WorldUpFacing" renderLit="true" renderRounded="true" shader="Diffuse" 
 			 spriteSheet="Data/Images/Actor_Marine_7x9.png"
@@ -59,8 +59,8 @@
   </ActorDefinition>
   <!-- Demon -->
   <ActorDefinition name="Demon" faction="Demon" health="160" canBePossessed="true" corpseLifetime="1.5" visible="true">
-    <Collision radius="1.75" height="4.25" collidesWithWorld="true" collidesWithActors="true"/>
-    <Physics simulated="true" walkSpeed="8.f" runSpeed="24.f" turnSpeed="120.0f" drag="12.0f" mass="1.0f"/>
+    <Collision radius="1.25" height="2.5" collidesWithWorld="true" collidesWithActors="true"/>
+    <Physics isSimulated="true" walkSpeed="8.f" runSpeed="24.f" turnSpeed="120.0f" drag="12.0f" mass="1.0f"/>
     <Camera eyeHeight="3.75f" cameraFOV="120.0f"/>
     <AI aiEnabled="true" sightRadius="64.0" sightAngle="120.0"/>
     <Visuals size="10.5,10.5" pivot="0.5,0.0" billboardType="WorldUpFacing" renderLit="true" renderRounded="true" shader="Diffuse" 
@@ -114,6 +114,437 @@
     </Inventory>
 
     </ActorDefinition>
+	<!-- Demon Dragon-->
+	<ActorDefinition name="DemonDragon" faction="Demon" health="1500" canBePossessed="true" corpseLifetime="5.0" visible="true" isBoss="true">
+		<Collision radius="1.5" height="3.0" collidesWithWorld="true" collidesWithActors="true"/>
+		<Physics isSimulated="true" walkSpeed="8.f" runSpeed="24.f" turnSpeed="120.0f" drag="12.0f" mass="1.0f" flying="true"/>
+		<Camera eyeHeight="2.5f" cameraFOV="120.0f"/>
+		<AI aiEnabled="true" sightRadius="64.0" sightAngle="120.0" isComplex="true">
+			<SubActor name="DemonDragonChest"/>
+			<SubActor name="DemonDragonBody"/>
+			<SubActor name="DemonDragonChest"/>
+			<SubActor name="DemonDragonBody"/>
+			<SubActor name="DemonDragonChest"/>
+			<SubActor name="DemonDragonBody"/>
+			<SubActor name="DemonDragonChest"/>
+			<SubActor name="DemonDragonBody"/>
+			<SubActor name="DemonDragonChest"/>
+			<SubActor name="DemonDragonBody"/>
+			<SubActor name="DemonDragonChest"/>
+			<SubActor name="DemonDragonBody"/>
+			<SubActor name="DemonDragonChest"/>
+			<SubActor name="DemonDragonBody"/>
+			<SubActor name="DemonDragonChest"/>
+			<SubActor name="DemonDragonBody"/>
+			<SubActor name="DemonDragonChest"/>
+			<SubActor name="DemonDragonBody"/>
+			<SubActor name="DemonDragonTail"/>
+		</AI>
+		<Visuals size="10.5,10.5" pivot="0.5,0.05" billboardType="FullFacing" renderLit="true" renderRounded="true" shader="Diffuse"
+				 spriteSheet="Data/Images/Actor_Demon_Dragon_Head_8x9.png"
+			     spriteSheetNormalTexture="Data/Images/Actor_Demon_Dragon_Head_Normal.png"
+			     spriteSheetAOTexture="Data/Images/Actor_Demon_Dragon_Head_ao.png"
+			     spriteSheetRoughnessTexture="Data/Images/Actor_Demon_Dragon_Head_roughness.png"
+			     spriteSheetMetallicTexture="Data/Images/Actor_Demon_Dragon_Head_metallic.png"
+			     spriteSheetEmissiveTexture="Data/Images/Actor_Demon_Dragon_Head_emissive.png"
+				 cellCount="8,9">
+			<AnimationGroup name="Walk" scaleBySpeed="true" secondsPerFrame="0.25" playbackMode="Loop">
+				<Direction vector="-1,0,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="-1,-1,0">
+					<Animation startFrame="8" endFrame="8"/>
+				</Direction>
+				<Direction vector="0,-1,0">
+					<Animation startFrame="16" endFrame="16"/>
+				</Direction>
+				<Direction vector="1,-1,0">
+					<Animation startFrame="24" endFrame="24"/>
+				</Direction>
+				<Direction vector="1,0,0">
+					<Animation startFrame="32" endFrame="32"/>
+				</Direction>
+				<Direction vector="1,1,0">
+					<Animation startFrame="40" endFrame="40"/>
+				</Direction>
+				<Direction vector="0,1,0">
+					<Animation startFrame="48" endFrame="48"/>
+				</Direction>
+				<Direction vector="-1,1,0">
+					<Animation startFrame="56" endFrame="56"/>
+				</Direction>
+			</AnimationGroup>
+			<AnimationGroup name="Attack" secondsPerFrame="0.25" playbackMode="Once">
+				<Direction vector="-1,0,0">
+					<Animation startFrame="4" endFrame="6"/>
+				</Direction>
+				<Direction vector="-1,-1,0">
+					<Animation startFrame="12" endFrame="14"/>
+				</Direction>
+				<Direction vector="0,-1,0">
+					<Animation startFrame="20" endFrame="22"/>
+				</Direction>
+				<Direction vector="1,-1,0">
+					<Animation startFrame="28" endFrame="30"/>
+				</Direction>
+				<Direction vector="1,0,0">
+					<Animation startFrame="36" endFrame="38"/>
+				</Direction>
+				<Direction vector="1,1,0">
+					<Animation startFrame="44" endFrame="46"/>
+				</Direction>
+				<Direction vector="0,1,0">
+					<Animation startFrame="52" endFrame="54"/>
+				</Direction>
+				<Direction vector="-1,1,0">
+					<Animation startFrame="60" endFrame="62"/>
+				</Direction>
+			</AnimationGroup>
+			<AnimationGroup name="Hurt" secondsPerFrame="0.75" playbackMode="Once">
+				<Direction vector="-1,0,0">
+					<Animation startFrame="7" endFrame="7"/>
+				</Direction>
+				<Direction vector="-1,-1,0">
+					<Animation startFrame="15" endFrame="15"/>
+				</Direction>
+				<Direction vector="0,-1,0">
+					<Animation startFrame="23" endFrame="23"/>
+				</Direction>
+				<Direction vector="1,-1,0">
+					<Animation startFrame="31" endFrame="31"/>
+				</Direction>
+				<Direction vector="1,0,0">
+					<Animation startFrame="39" endFrame="39"/>
+				</Direction>
+				<Direction vector="1,1,0">
+					<Animation startFrame="47" endFrame="47"/>
+				</Direction>
+				<Direction vector="0,1,0">
+					<Animation startFrame="55" endFrame="55"/>
+				</Direction>
+				<Direction vector="-1,1,0">
+					<Animation startFrame="63" endFrame="63"/>
+				</Direction>
+			</AnimationGroup>
+			<AnimationGroup name="Death" secondsPerFrame="0.25" playbackMode="Once">
+				<Direction vector="1,0,0">
+					<Animation startFrame="64" endFrame="70"/>
+				</Direction>
+			</AnimationGroup>
+		</Visuals>
+		<Sounds>
+			<Sound sound="Hurt" name="Data/Audio/DemonHurt.wav"/>
+			<Sound sound="Death" name="Data/Audio/DemonDeath.wav"/>
+		</Sounds>
+		<Inventory>
+			<Weapon name="DemonDragonMelee" />
+			<Weapon name="DemonDragonFireball" />
+		</Inventory>
+
+	</ActorDefinition>
+	<!-- Demon Dragon Body-->
+	<ActorDefinition name="DemonDragonBody" faction="Demon" canBePossessed="false" corpseLifetime="1.5" visible="true">
+		<Collision radius="1.5" height="3.0" collidesWithWorld="true" collidesWithActors="true"/>
+		<Physics isSimulated="true" walkSpeed="8.f" runSpeed="24.f" turnSpeed="180.0f" drag="12.0f" mass="1.0f" flying="true"/>
+		<Visuals size="10.5,10.5" pivot="0.5,0.1" billboardType="FullFacing" renderLit="true" renderRounded="true" shader="Diffuse"
+				 spriteSheet="Data/Images/Actor_Demon_Dragon_Body_8x9.png"
+			     spriteSheetNormalTexture="Data/Images/Actor_Demon_Dragon_Body_Normal.png"
+			     spriteSheetAOTexture="Data/Images/Actor_Demon_Dragon_Body_ao.png"
+			     spriteSheetRoughnessTexture="Data/Images/Actor_Demon_Dragon_Body_roughness.png"
+			     spriteSheetMetallicTexture="Data/Images/Actor_Demon_Dragon_Body_metallic.png"
+				 cellCount="8,9">
+			<AnimationGroup name="Walk" scaleBySpeed="true" secondsPerFrame="0.25" playbackMode="Loop">
+				<Direction vector="-1,0,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="-1,-1,0">
+					<Animation startFrame="8" endFrame="8"/>
+				</Direction>
+				<Direction vector="0,-1,0">
+					<Animation startFrame="16" endFrame="16"/>
+				</Direction>
+				<Direction vector="1,-1,0">
+					<Animation startFrame="24" endFrame="24"/>
+				</Direction>
+				<Direction vector="1,0,0">
+					<Animation startFrame="32" endFrame="32"/>
+				</Direction>
+				<Direction vector="1,1,0">
+					<Animation startFrame="40" endFrame="40"/>
+				</Direction>
+				<Direction vector="0,1,0">
+					<Animation startFrame="48" endFrame="48"/>
+				</Direction>
+				<Direction vector="-1,1,0">
+					<Animation startFrame="56" endFrame="56"/>
+				</Direction>
+			</AnimationGroup>
+			<AnimationGroup name="Attack" secondsPerFrame="0.25" playbackMode="Once">
+				<Direction vector="-1,0,0">
+					<Animation startFrame="4" endFrame="6"/>
+				</Direction>
+				<Direction vector="-1,-1,0">
+					<Animation startFrame="12" endFrame="14"/>
+				</Direction>
+				<Direction vector="0,-1,0">
+					<Animation startFrame="20" endFrame="22"/>
+				</Direction>
+				<Direction vector="1,-1,0">
+					<Animation startFrame="28" endFrame="30"/>
+				</Direction>
+				<Direction vector="1,0,0">
+					<Animation startFrame="36" endFrame="38"/>
+				</Direction>
+				<Direction vector="1,1,0">
+					<Animation startFrame="44" endFrame="46"/>
+				</Direction>
+				<Direction vector="0,1,0">
+					<Animation startFrame="52" endFrame="54"/>
+				</Direction>
+				<Direction vector="-1,1,0">
+					<Animation startFrame="60" endFrame="62"/>
+				</Direction>
+			</AnimationGroup>
+			<AnimationGroup name="Hurt" secondsPerFrame="0.75" playbackMode="Once">
+				<Direction vector="-1,0,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="-1,-1,0">
+					<Animation startFrame="8" endFrame="8"/>
+				</Direction>
+				<Direction vector="0,-1,0">
+					<Animation startFrame="16" endFrame="16"/>
+				</Direction>
+				<Direction vector="1,-1,0">
+					<Animation startFrame="24" endFrame="24"/>
+				</Direction>
+				<Direction vector="1,0,0">
+					<Animation startFrame="32" endFrame="32"/>
+				</Direction>
+				<Direction vector="1,1,0">
+					<Animation startFrame="40" endFrame="40"/>
+				</Direction>
+				<Direction vector="0,1,0">
+					<Animation startFrame="48" endFrame="48"/>
+				</Direction>
+				<Direction vector="-1,1,0">
+					<Animation startFrame="56" endFrame="56"/>
+				</Direction>
+			</AnimationGroup>
+			<AnimationGroup name="Death" secondsPerFrame="0.25" playbackMode="Once">
+				<Direction vector="1,0,0">
+					<Animation startFrame="64" endFrame="70"/>
+				</Direction>
+			</AnimationGroup>
+		</Visuals>
+		<Sounds>
+			<Sound sound="Hurt" name="Data/Audio/DemonHurt.wav"/>
+			<Sound sound="Death" name="Data/Audio/DemonDragonDeath.mp3"/>
+		</Sounds>
+
+	</ActorDefinition>
+	<!-- Demon Dragon Chest-->
+	<ActorDefinition name="DemonDragonChest" faction="Demon" canBePossessed="false" corpseLifetime="1.5" visible="true">
+		<Collision radius="1.5" height="3.0" collidesWithWorld="true" collidesWithActors="true"/>
+		<Physics isSimulated="true" walkSpeed="8.f" runSpeed="24.f" turnSpeed="180.0f" drag="12.0f" mass="1.0f" flying="true"/>
+		<Visuals size="10.5,10.5" pivot="0.5,0.1" billboardType="FullFacing" renderLit="true" renderRounded="true" shader="Diffuse"
+				 spriteSheet="Data/Images/Actor_Demon_Dragon_Chest_8x9.png"
+			     spriteSheetNormalTexture="Data/Images/Actor_Demon_Dragon_Chest_Normal.png"
+			     spriteSheetAOTexture="Data/Images/Actor_Demon_Dragon_Chest_ao.png"
+			     spriteSheetRoughnessTexture="Data/Images/Actor_Demon_Dragon_Chest_roughness.png"
+			     spriteSheetMetallicTexture="Data/Images/Actor_Demon_Dragon_Chest_metallic.png"
+				 cellCount="8,9">
+			<AnimationGroup name="Walk" scaleBySpeed="true" secondsPerFrame="0.5" playbackMode="Loop">
+				<Direction vector="-1,0,0">
+					<Animation startFrame="0" endFrame="3"/>
+				</Direction>
+				<Direction vector="-1,-1,0">
+					<Animation startFrame="8" endFrame="11"/>
+				</Direction>
+				<Direction vector="0,-1,0">
+					<Animation startFrame="16" endFrame="19"/>
+				</Direction>
+				<Direction vector="1,-1,0">
+					<Animation startFrame="24" endFrame="27"/>
+				</Direction>
+				<Direction vector="1,0,0">
+					<Animation startFrame="32" endFrame="35"/>
+				</Direction>
+				<Direction vector="1,1,0">
+					<Animation startFrame="40" endFrame="43"/>
+				</Direction>
+				<Direction vector="0,1,0">
+					<Animation startFrame="48" endFrame="51"/>
+				</Direction>
+				<Direction vector="-1,1,0">
+					<Animation startFrame="56" endFrame="59"/>
+				</Direction>
+			</AnimationGroup>
+			<AnimationGroup name="Attack" secondsPerFrame="0.25" playbackMode="Once">
+				<Direction vector="-1,0,0">
+					<Animation startFrame="4" endFrame="6"/>
+				</Direction>
+				<Direction vector="-1,-1,0">
+					<Animation startFrame="12" endFrame="14"/>
+				</Direction>
+				<Direction vector="0,-1,0">
+					<Animation startFrame="20" endFrame="22"/>
+				</Direction>
+				<Direction vector="1,-1,0">
+					<Animation startFrame="28" endFrame="30"/>
+				</Direction>
+				<Direction vector="1,0,0">
+					<Animation startFrame="36" endFrame="38"/>
+				</Direction>
+				<Direction vector="1,1,0">
+					<Animation startFrame="44" endFrame="46"/>
+				</Direction>
+				<Direction vector="0,1,0">
+					<Animation startFrame="52" endFrame="54"/>
+				</Direction>
+				<Direction vector="-1,1,0">
+					<Animation startFrame="60" endFrame="62"/>
+				</Direction>
+			</AnimationGroup>
+			<AnimationGroup name="Hurt" secondsPerFrame="0.75" playbackMode="Once">
+				<Direction vector="-1,0,0">
+					<Animation startFrame="7" endFrame="7"/>
+				</Direction>
+				<Direction vector="-1,-1,0">
+					<Animation startFrame="15" endFrame="15"/>
+				</Direction>
+				<Direction vector="0,-1,0">
+					<Animation startFrame="23" endFrame="23"/>
+				</Direction>
+				<Direction vector="1,-1,0">
+					<Animation startFrame="31" endFrame="31"/>
+				</Direction>
+				<Direction vector="1,0,0">
+					<Animation startFrame="39" endFrame="39"/>
+				</Direction>
+				<Direction vector="1,1,0">
+					<Animation startFrame="47" endFrame="47"/>
+				</Direction>
+				<Direction vector="0,1,0">
+					<Animation startFrame="55" endFrame="55"/>
+				</Direction>
+				<Direction vector="-1,1,0">
+					<Animation startFrame="63" endFrame="63"/>
+				</Direction>
+			</AnimationGroup>
+			<AnimationGroup name="Death" secondsPerFrame="0.25" playbackMode="Once">
+				<Direction vector="1,0,0">
+					<Animation startFrame="64" endFrame="70"/>
+				</Direction>
+			</AnimationGroup>
+		</Visuals>
+		<Sounds>
+			<Sound sound="Hurt" name="Data/Audio/DemonHurt.wav"/>
+			<Sound sound="Death" name="Data/Audio/DemonDragonDeath.mp3"/>
+		</Sounds>
+
+	</ActorDefinition>
+	<!-- Demon Dragon Tail-->
+	<ActorDefinition name="DemonDragonTail" faction="Demon" canBePossessed="false" corpseLifetime="1.5" visible="true">
+		<Collision radius="1.5" height="3.0" collidesWithWorld="true" collidesWithActors="true"/>
+		<Physics isSimulated="true" walkSpeed="8.f" runSpeed="24.f" turnSpeed="240.0f" drag="12.0f" mass="1.0f" flying="true"/>
+		<Visuals size="10.5,10.5" pivot="0.5,0.1" billboardType="FullFacing" renderLit="true" renderRounded="true" shader="Diffuse"
+				 spriteSheet="Data/Images/Actor_Demon_Dragon_Tail_8x9.png"
+			     spriteSheetNormalTexture="Data/Images/Actor_Demon_Dragon_Tail_Normal.png"
+			     spriteSheetAOTexture="Data/Images/Actor_Demon_Dragon_Tail_ao.png"
+			     spriteSheetRoughnessTexture="Data/Images/Actor_Demon_Dragon_Tail_roughness.png"
+			     spriteSheetMetallicTexture="Data/Images/Actor_Demon_Dragon_Tail_metallic.png"
+				 cellCount="8,9">
+			<AnimationGroup name="Walk" scaleBySpeed="true" secondsPerFrame="0.25" playbackMode="Loop">
+				<Direction vector="-1,0,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="-1,-1,0">
+					<Animation startFrame="8" endFrame="8"/>
+				</Direction>
+				<Direction vector="0,-1,0">
+					<Animation startFrame="16" endFrame="16"/>
+				</Direction>
+				<Direction vector="1,-1,0">
+					<Animation startFrame="24" endFrame="24"/>
+				</Direction>
+				<Direction vector="1,0,0">
+					<Animation startFrame="32" endFrame="32"/>
+				</Direction>
+				<Direction vector="1,1,0">
+					<Animation startFrame="40" endFrame="40"/>
+				</Direction>
+				<Direction vector="0,1,0">
+					<Animation startFrame="48" endFrame="48"/>
+				</Direction>
+				<Direction vector="-1,1,0">
+					<Animation startFrame="56" endFrame="56"/>
+				</Direction>
+			</AnimationGroup>
+			<AnimationGroup name="Attack" secondsPerFrame="0.25" playbackMode="Once">
+				<Direction vector="-1,0,0">
+					<Animation startFrame="4" endFrame="6"/>
+				</Direction>
+				<Direction vector="-1,-1,0">
+					<Animation startFrame="12" endFrame="14"/>
+				</Direction>
+				<Direction vector="0,-1,0">
+					<Animation startFrame="20" endFrame="22"/>
+				</Direction>
+				<Direction vector="1,-1,0">
+					<Animation startFrame="28" endFrame="30"/>
+				</Direction>
+				<Direction vector="1,0,0">
+					<Animation startFrame="36" endFrame="38"/>
+				</Direction>
+				<Direction vector="1,1,0">
+					<Animation startFrame="44" endFrame="46"/>
+				</Direction>
+				<Direction vector="0,1,0">
+					<Animation startFrame="52" endFrame="54"/>
+				</Direction>
+				<Direction vector="-1,1,0">
+					<Animation startFrame="60" endFrame="62"/>
+				</Direction>
+			</AnimationGroup>
+			<AnimationGroup name="Hurt" secondsPerFrame="0.75" playbackMode="Once">
+				<Direction vector="-1,0,0">
+					<Animation startFrame="7" endFrame="7"/>
+				</Direction>
+				<Direction vector="-1,-1,0">
+					<Animation startFrame="15" endFrame="15"/>
+				</Direction>
+				<Direction vector="0,-1,0">
+					<Animation startFrame="23" endFrame="23"/>
+				</Direction>
+				<Direction vector="1,-1,0">
+					<Animation startFrame="31" endFrame="31"/>
+				</Direction>
+				<Direction vector="1,0,0">
+					<Animation startFrame="39" endFrame="39"/>
+				</Direction>
+				<Direction vector="1,1,0">
+					<Animation startFrame="47" endFrame="47"/>
+				</Direction>
+				<Direction vector="0,1,0">
+					<Animation startFrame="55" endFrame="55"/>
+				</Direction>
+				<Direction vector="-1,1,0">
+					<Animation startFrame="63" endFrame="63"/>
+				</Direction>
+			</AnimationGroup>
+			<AnimationGroup name="Death" secondsPerFrame="0.25" playbackMode="Once">
+				<Direction vector="1,0,0">
+					<Animation startFrame="64" endFrame="70"/>
+				</Direction>
+			</AnimationGroup>
+		</Visuals>
+		<Sounds>
+			<Sound sound="Hurt" name="Data/Audio/DemonHurt.wav"/>
+			<Sound sound="Death" name="Data/Audio/DemonDragonDeath.mp3"/>
+		</Sounds>
+
+	</ActorDefinition>
   <!-- BulletHit -->
   <ActorDefinition name="BulletHit" canBePossessed="false" corpseLifetime="0.4" visible="true" dieOnSpawn="true" >
     <Visuals size="0.75,0.75" pivot="0.5,0.5" billboardType="FullOpposing" renderLit="true" renderRounded="false" shader="Diffuse" 

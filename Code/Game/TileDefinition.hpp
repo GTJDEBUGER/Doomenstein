@@ -19,6 +19,7 @@ public:
 		AABB2 ceilingUV,
 		AABB2 topUV,
 		AABB2 bottomUV,
+		AABB2 bottomWallUV,
 		Rgba8 tintColor = Rgba8::WHITE
 	);
 	static void InitializeTileDefs(std::string configPath);
@@ -28,10 +29,11 @@ public:
 	std::string m_name = "undefineTile";
 	bool        m_isSolid = false;
 	Rgba8       m_mapImagePixelColor = Rgba8(0, 0, 0, 0);
-	AABB2       m_wallUV    = AABB2::ZERO_TO_ONE;
-	AABB2       m_floorUV   = AABB2::ZERO_TO_ONE;
-	AABB2       m_ceilingUV = AABB2::ZERO_TO_ONE;
-	AABB2       m_topUV     = AABB2::ZERO_TO_ONE;
-	AABB2       m_bottomUV  = AABB2::ZERO_TO_ONE;
+	AABB2       m_wallUV       = AABB2::ZERO_TO_ONE;
+	AABB2       m_floorUV      = AABB2::ZERO_TO_ONE;
+	AABB2       m_ceilingUV    = AABB2::ZERO_TO_ONE;
+	AABB2       m_topUV        = AABB2::ZERO_TO_ONE;
+	AABB2       m_bottomUV     = AABB2::ZERO_TO_ONE;
+	AABB2       m_insideWallUV = AABB2::ZERO_TO_ONE;
 	Rgba8       m_tintColor = Rgba8(255, 255, 255, 255);
 };

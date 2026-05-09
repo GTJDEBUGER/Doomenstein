@@ -56,25 +56,31 @@ void Map::CreateTiles() {
 			Rgba8 pixelColor = m_definition.m_mapImage.GetTexelColor(IntVec2(x, y));
 			TileDefinition* tileDef = nullptr;
 			for (auto& def : TileDefinition::s_definitions) {
-				if (def.second.m_mapImagePixelColor == pixelColor) {
+				if (def.second.m_mapImagePixelColor.r == pixelColor.r &&
+					def.second.m_mapImagePixelColor.g == pixelColor.g &&
+					def.second.m_mapImagePixelColor.b == pixelColor.b) {
 					tileDef = &def.second;
 					break;
 				}
 			}
 			if (tileDef == nullptr) {
-				ERROR_AND_DIE(
-					Stringf(
-						"No tile definition found for map image pixel color (%d, %d, %d, %d) at position (%d, %d)",
-						pixelColor.r,
-						pixelColor.g,
-						pixelColor.b,
-						pixelColor.a,
-						x,
-						y
-					)
-				);
+				ERROR_AND_DIE(Stringf("No tile definition found for map image pixel color..."));
 			}
-			m_tiles.emplace_back(IntVec2(x, y), m_definition.m_tileSize, *tileDef);
+
+			int a = pixelColor.a;
+			if (a == 255) {
+				a = 127;
+			}
+			int minZ = 0;
+			int maxZ = 0;
+			if (a < 127) {
+				minZ = a - 127;
+			}
+			else if (a > 127) {
+				maxZ = a - 127;
+			}
+
+			m_tiles.emplace_back(IntVec2(x, y), minZ, maxZ, m_definition.m_tileSize, *tileDef);
 		}
 	}
 }
@@ -86,28 +92,42 @@ void Map::CreateGeometry() {
 			const Tile* tile = GetTile(x, y);
 			if (!tile) continue;
 
-			AABB3 worldMesh = tile->GetWorldMesh();
-			AABB2 const& wallUV = tile->m_definition.m_wallUV;
+			for (int z = tile->m_minZ; z <= tile->m_maxZ; ++z) {
+				AABB3 bounds(
+					Vec3(x * m_definition.m_tileSize, y * m_definition.m_tileSize, z * m_definition.m_tileSize),
+					Vec3((x + 1) * m_definition.m_tileSize, (y + 1) * m_definition.m_tileSize, (z + 1) * m_definition.m_tileSize)
+				);
 
-			if (wallUV != AABB2::ZERO_TO_ONE) {
-				if (ShouldRenderFaceAgainstNeighbor(x + 1, y)) {
-					AddGeometryForFrontWall(worldMesh, wallUV);
+				if (tile->m_definition.m_wallUV != AABB2::ZERO_TO_ONE) {
+					if (!HasSolidBlock(x + 1, y, z)) AddGeometryForFrontWall(bounds, tile->m_definition.m_wallUV);
+					if (!HasSolidBlock(x - 1, y, z)) AddGeometryForBackWall(bounds, tile->m_definition.m_wallUV);
+					if (!HasSolidBlock(x, y + 1, z)) AddGeometryForLeftWall(bounds, tile->m_definition.m_wallUV);
+					if (!HasSolidBlock(x, y - 1, z)) AddGeometryForRightWall(bounds, tile->m_definition.m_wallUV);
 				}
-				if (ShouldRenderFaceAgainstNeighbor(x - 1, y)) {
-					AddGeometryForBackWall(worldMesh, wallUV);
+
+				if (z == tile->m_maxZ && tile->m_definition.m_topUV != AABB2::ZERO_TO_ONE) {
+					if (!HasSolidBlock(x, y, z + 1)) AddGeometryForTop(bounds, tile->m_definition.m_topUV);
 				}
-				if (ShouldRenderFaceAgainstNeighbor(x, y + 1)) {
-					AddGeometryForLeftWall(worldMesh, wallUV);
+
+				if (z == tile->m_minZ && tile->m_definition.m_bottomUV != AABB2::ZERO_TO_ONE) {
+					if (!HasSolidBlock(x, y, z - 1)) AddGeometryForBottom(bounds, tile->m_definition.m_bottomUV);
 				}
-				if (ShouldRenderFaceAgainstNeighbor(x, y - 1)) {
-					AddGeometryForRightWall(worldMesh, wallUV);
+
+				if (tile->m_definition.m_insideWallUV != AABB2::ZERO_TO_ONE) {
+					if (!HasRoomBlock(x + 1, y, z)) AddGeometryForInsideFrontWall(bounds, tile->m_definition.m_insideWallUV);
+					if (!HasRoomBlock(x - 1, y, z)) AddGeometryForInsideBackWall(bounds, tile->m_definition.m_insideWallUV);
+					if (!HasRoomBlock(x, y + 1, z)) AddGeometryForInsideLeftWall(bounds, tile->m_definition.m_insideWallUV);
+					if (!HasRoomBlock(x, y - 1, z)) AddGeometryForInsideRightWall(bounds, tile->m_definition.m_insideWallUV);
+				}
+
+				if (z == tile->m_minZ && tile->m_definition.m_floorUV != AABB2::ZERO_TO_ONE) {
+					if (!HasRoomBlock(x, y, z - 1)) AddGeometryForFloor(bounds, tile->m_definition.m_floorUV);
+				}
+
+				if (z == tile->m_maxZ && tile->m_definition.m_ceilingUV != AABB2::ZERO_TO_ONE) {
+					if (!HasRoomBlock(x, y, z + 1)) AddGeometryForCeiling(bounds, tile->m_definition.m_ceilingUV);
 				}
 			}
-
-			if (tile->m_definition.m_floorUV != AABB2::ZERO_TO_ONE)   AddGeometryForFloor(worldMesh, tile->m_definition.m_floorUV);
-			if (tile->m_definition.m_ceilingUV != AABB2::ZERO_TO_ONE) AddGeometryForCeiling(worldMesh, tile->m_definition.m_ceilingUV);
-			if (tile->m_definition.m_topUV != AABB2::ZERO_TO_ONE)     AddGeometryForTop(worldMesh, tile->m_definition.m_topUV);
-			if (tile->m_definition.m_bottomUV != AABB2::ZERO_TO_ONE)  AddGeometryForBottom(worldMesh, tile->m_definition.m_bottomUV);
 		}
 	}
 }
@@ -209,9 +229,61 @@ void Map::AddGeometryForBottom(AABB3 const& bounds, AABB2 const& UVs) {
 }
 
 //-----------------------------------------------------------------------------------------------
-bool Map::ShouldRenderFaceAgainstNeighbor(int x, int y) const {
-	Tile const* neighbor = GetTile(x, y);
-	return neighbor == nullptr || !neighbor->m_definition.m_isSolid;
+void Map::AddGeometryForInsideFrontWall(AABB3 const& bounds, AABB2 const& UVs) {
+	AddVertexForQuad3D(m_mapVerts, m_mapIndexs,
+		Vec3(bounds.m_maxs.x, bounds.m_maxs.y, bounds.m_mins.z),
+		Vec3(bounds.m_maxs.x, bounds.m_mins.y, bounds.m_mins.z),
+		Vec3(bounds.m_maxs.x, bounds.m_mins.y, bounds.m_maxs.z),
+		Vec3(bounds.m_maxs.x, bounds.m_maxs.y, bounds.m_maxs.z),
+		Rgba8::WHITE, UVs
+	);
+}
+
+//-----------------------------------------------------------------------------------------------
+void Map::AddGeometryForInsideBackWall(AABB3 const& bounds, AABB2 const& UVs) {
+	AddVertexForQuad3D(m_mapVerts, m_mapIndexs,
+		Vec3(bounds.m_mins.x, bounds.m_mins.y, bounds.m_mins.z),
+		Vec3(bounds.m_mins.x, bounds.m_maxs.y, bounds.m_mins.z),
+		Vec3(bounds.m_mins.x, bounds.m_maxs.y, bounds.m_maxs.z),
+		Vec3(bounds.m_mins.x, bounds.m_mins.y, bounds.m_maxs.z),
+		Rgba8::WHITE, UVs
+	);
+}
+
+//-----------------------------------------------------------------------------------------------
+void Map::AddGeometryForInsideLeftWall(AABB3 const& bounds, AABB2 const& UVs) {
+	AddVertexForQuad3D(m_mapVerts, m_mapIndexs,
+		Vec3(bounds.m_mins.x, bounds.m_maxs.y, bounds.m_mins.z),
+		Vec3(bounds.m_maxs.x, bounds.m_maxs.y, bounds.m_mins.z),
+		Vec3(bounds.m_maxs.x, bounds.m_maxs.y, bounds.m_maxs.z),
+		Vec3(bounds.m_mins.x, bounds.m_maxs.y, bounds.m_maxs.z),
+		Rgba8::WHITE, UVs
+	);
+}
+
+//-----------------------------------------------------------------------------------------------
+void Map::AddGeometryForInsideRightWall(AABB3 const& bounds, AABB2 const& UVs) {
+	AddVertexForQuad3D(m_mapVerts, m_mapIndexs,
+		Vec3(bounds.m_maxs.x, bounds.m_mins.y, bounds.m_mins.z),
+		Vec3(bounds.m_mins.x, bounds.m_mins.y, bounds.m_mins.z),
+		Vec3(bounds.m_mins.x, bounds.m_mins.y, bounds.m_maxs.z),
+		Vec3(bounds.m_maxs.x, bounds.m_mins.y, bounds.m_maxs.z),
+		Rgba8::WHITE, UVs
+	);
+}
+
+//-----------------------------------------------------------------------------------------------
+bool Map::HasSolidBlock(int x, int y, int z) const {
+	Tile const* tile = GetTile(x, y);
+	if (!tile || tile->m_definition.m_wallUV == AABB2::ZERO_TO_ONE) return false;
+	return (z >= tile->m_minZ && z <= tile->m_maxZ);
+}
+
+//-----------------------------------------------------------------------------------------------
+bool Map::HasRoomBlock(int x, int y, int z) const {
+	Tile const* tile = GetTile(x, y);
+	if (!tile || tile->m_definition.m_isSolid) return false;
+	return (z >= tile->m_minZ && z <= tile->m_maxZ);
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -306,30 +378,72 @@ void Map::Update() {
 
 	ClearDeadActors();
 	RespawnPlayers();
+	UpdateSortedActors();
 	UpdatePointLights();
 }
 
 //-----------------------------------------------------------------------------------------------
-void Map::CollideActors() {
-	for (size_t i = 0; i < m_actors.size(); ++i) {
-		if (
-			m_actors[i]==nullptr || 
-			m_actors[i]->m_isDead ||
-			!m_actors[i]->m_definition.m_collision.m_collisionWithActors
-		) {
+int Map::GetSpatialHashIndex(int cx, int cy, int cz) const {
+	unsigned int h = (cx * 73856093) ^ (cy * 19349663) ^ (cz * 83492791);
+	return h % 4096;
+}
+
+//-----------------------------------------------------------------------------------------------
+void Map::BuildSpatialGrid() {
+	for (int i = 0; i < 4096; ++i) {
+		m_spatialHash[i].clear();
+	}
+
+	for (Actor* actor : m_actors) {
+		if (actor == nullptr || actor->m_isDead || !actor->m_definition.m_collision.m_collisionWithActors) {
 			continue;
 		}
-		for (size_t j = i + 1; j < m_actors.size(); ++j) {
-			if (
-				m_actors[j] == nullptr || 
-				m_actors[j]->m_isDead ||
-				!m_actors[j]->m_definition.m_collision.m_collisionWithActors ||
-				(m_actors[i]->m_owner != nullptr && m_actors[i]->m_owner == m_actors[j]) ||
-				(m_actors[j]->m_owner != nullptr && m_actors[j]->m_owner == m_actors[i])
-			) {
-				continue;
+
+		int cx = (int)floorf(actor->m_position.x / m_spatialCellSize);
+		int cy = (int)floorf(actor->m_position.y / m_spatialCellSize);
+
+		float centerZ = actor->m_position.z + (actor->m_definition.m_collision.m_height * 0.5f);
+		int cz = (int)floorf(centerZ / m_spatialCellSize);
+
+		int hashIdx = GetSpatialHashIndex(cx, cy, cz);
+		m_spatialHash[hashIdx].push_back(actor);
+	}
+}
+
+//-----------------------------------------------------------------------------------------------
+void Map::CollideActors() {
+	BuildSpatialGrid();
+
+	for (Actor* actorA : m_actors) {
+		if (actorA == nullptr || actorA->m_isDead || !actorA->m_definition.m_collision.m_collisionWithActors) {
+			continue;
+		}
+
+		int cx = (int)floorf(actorA->m_position.x / m_spatialCellSize);
+		int cy = (int)floorf(actorA->m_position.y / m_spatialCellSize);
+		float centerZ = actorA->m_position.z + (actorA->m_definition.m_collision.m_height * 0.5f);
+		int cz = (int)floorf(centerZ / m_spatialCellSize);
+
+		for (int dz = -1; dz <= 1; ++dz) {
+			for (int dy = -1; dy <= 1; ++dy) {
+				for (int dx = -1; dx <= 1; ++dx) {
+					int hashIdx = GetSpatialHashIndex(cx + dx, cy + dy, cz + dz);
+
+					for (Actor* actorB : m_spatialHash[hashIdx]) {
+						if (actorA >= actorB) {
+							continue;
+						}
+
+						if (actorA->m_owner == actorB ||
+							actorB->m_owner == actorA ||
+							(actorA->m_owner != nullptr && actorA->m_owner == actorB->m_owner)) {
+							continue;
+						}
+
+						CollideActors(actorA, actorB);
+					}
+				}
 			}
-			CollideActors(m_actors[i], m_actors[j]);
 		}
 	}
 }
@@ -426,17 +540,13 @@ bool Map::CollideActorWithMap(Actor* actor) {
 
 	bool isPushed = false;
 
-	isPushed |= PushActorOutOfTileIfSolid(actor, tx, ty);
+	int checkRadius = (int)ceilf(actor->m_definition.m_collision.m_radius / m_definition.m_tileSize) + 1;
 
-	isPushed |= PushActorOutOfTileIfSolid(actor, tx + 1, ty); // North
-	isPushed |=PushActorOutOfTileIfSolid(actor, tx - 1, ty); // South
-	isPushed |=PushActorOutOfTileIfSolid(actor, tx, ty + 1); // West
-	isPushed |=PushActorOutOfTileIfSolid(actor, tx, ty - 1); // East
-
-	isPushed |=PushActorOutOfTileIfSolid(actor, tx - 1, ty + 1); // SW
-	isPushed |=PushActorOutOfTileIfSolid(actor, tx - 1, ty - 1); // SE
-	isPushed |=PushActorOutOfTileIfSolid(actor, tx + 1, ty + 1); // NW
-	isPushed |=PushActorOutOfTileIfSolid(actor, tx + 1, ty - 1); // NE
+	for (int dy = -checkRadius; dy <= checkRadius; ++dy) {
+		for (int dx = -checkRadius; dx <= checkRadius; ++dx) {
+			isPushed |= PushActorOutOfTileIfSolid(actor, tx + dx, ty + dy);
+		}
+	}
 
 	isPushed |= PushActorOutofFloor(actor, tx, ty);
 
@@ -449,6 +559,16 @@ void Map::ClearDeadActors() {
 		if (m_actors[i]!=nullptr && m_actors[i]->m_needDestroy) {
 			delete m_actors[i];
 			m_actors[i] = nullptr;
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------------------------
+void Map::UpdateSortedActors() {
+	m_sortedActors.clear();
+	for (Actor* actor : m_actors) {
+		if (actor != nullptr) {
+			m_sortedActors.push_back(actor);
 		}
 	}
 }
@@ -476,12 +596,13 @@ bool Map::PushActorOutOfTileIfSolid(Actor* actor, int tileX, int tileY) {
 bool Map::PushActorOutofFloor(Actor* actor, int tileX, int tileY) {
 	bool isPushed = false;
 	const Tile* tile = GetTile(tileX, tileY);
-	if (!tile || tile->m_definition.m_floorUV == AABB2::ZERO_TO_ONE ) {
+	if (!tile || tile->m_definition.m_floorUV == AABB2::ZERO_TO_ONE) {
 		return isPushed;
 	}
 
-	if (actor->m_position.z < 0.f) {
-		actor->m_position.z = 0.f;
+	float floorZ = static_cast<float>(tile->m_minZ) * m_definition.m_tileSize;
+	if (actor->m_position.z < floorZ) {
+		actor->m_position.z = floorZ;
 		actor->m_velocity.z = 0.f;
 		actor->m_isGrounded = true;
 
@@ -576,7 +697,7 @@ void Map::Render(Camera const& viewCamera) const {
 	g_engine->m_renderer->BindTexture(m_definition.m_mapNormalTexture, TextureSlot::NORMAL_ORIGINALSCREEN);
 	g_engine->m_renderer->BindTexture(m_definition.m_mapAOTexture, TextureSlot::AO_SCREENDEPTH);
 	g_engine->m_renderer->BindTexture(m_definition.m_mapParallaxTexture, TextureSlot::PARALLAX_SCREENNORMAL);
-	g_engine->m_renderer->BindTexture(m_definition.m_mapRoughnessTexture, TextureSlot::ROUGHNESS);
+	g_engine->m_renderer->BindTexture(m_definition.m_mapRoughnessTexture, TextureSlot::ROUGHNESS_SCREENDEPTHSTENCIL);
 	g_engine->m_renderer->BindTexture(m_definition.m_mapMetallicTexture, TextureSlot::METALLIC);
 	g_engine->m_renderer->BindTexture(nullptr, TextureSlot::EMISSIVE);
 	g_engine->m_renderer->BindTexture(nullptr, TextureSlot::SHADOWMAP);
@@ -588,39 +709,12 @@ void Map::Render(Camera const& viewCamera) const {
 	int actorCount = (int)m_actors.size();
 	if (actorCount <= 0) return;
 
-	Actor* tempActors[1000];
-	int canRenderActorNum = actorCount > 1000 ? 1000 : actorCount;
-	int actualActorNum = 0;
-	for (int i = 0; i < canRenderActorNum; ++i) {
-		if (m_actors[i] != nullptr) {
-			tempActors[actualActorNum] = m_actors[i];
-			actualActorNum++;
-		}
+	if (m_sortedActors.size() > 1) {
+		QuickSortActorsByDepth(m_sortedActors.data(), 0, (int)m_sortedActors.size() - 1, cameraPos);
 	}
 
-	for (int i = 0; i < actualActorNum - 1; ++i) {
-		for (int j = 0; j < actualActorNum - i - 1; ++j) {
-			Vec3 posA = tempActors[j]->m_position;
-			Vec3 posB = tempActors[j + 1]->m_position;
-
-			float d2A = (posA.x - cameraPos.x) * (posA.x - cameraPos.x) +
-				(posA.y - cameraPos.y) * (posA.y - cameraPos.y) +
-				(posA.z - cameraPos.z) * (posA.z - cameraPos.z);
-
-			float d2B = (posB.x - cameraPos.x) * (posB.x - cameraPos.x) +
-				(posB.y - cameraPos.y) * (posB.y - cameraPos.y) +
-				(posB.z - cameraPos.z) * (posB.z - cameraPos.z);
-
-			if (d2A < d2B) {
-				Actor* temp = tempActors[j];
-				tempActors[j] = tempActors[j + 1];
-				tempActors[j + 1] = temp;
-			}
-		}
-	}
-
-	for (int i = 0; i < actualActorNum; ++i) {
-		tempActors[i]->Render(viewCamera);
+	for (int i = 0; i < m_sortedActors.size(); ++i) {
+		m_sortedActors[i]->Render(viewCamera);
 	}
 }
 
@@ -637,21 +731,27 @@ void Map::RenderShadowmap() const {
 
 //-----------------------------------------------------------------------------------------------
 RaycastResult3D Map::RaycastAll(Vec3 const& start, Vec3 const& direction, float distance, Actor* owner) const {
-	RaycastResult3D worldXYResult = RaycastWorldXY(start, direction, distance);
-	RaycastResult3D worldZResult = RaycastWorldZ(start, direction, distance);
-	RaycastResult3D worldActorsResult = RaycastWorldActors(start, direction, distance, owner);
-	RaycastResult3D nearestResult = worldXYResult;
+	RaycastResult3D nearestResult;
+	nearestResult.m_didImpact = false;
+	nearestResult.m_impactDist = distance;
+	nearestResult.m_rayStartPos = start;
+	nearestResult.m_rayFwdNormal = direction;
+	nearestResult.m_rayMaxLength = distance;
 
-	if (worldZResult.m_didImpact) {
-		if (!nearestResult.m_didImpact || worldZResult.m_impactDist < nearestResult.m_impactDist) {
-			nearestResult = worldZResult;
-		}
+	RaycastResult3D worldXYResult = RaycastWorldXY(start, direction, nearestResult.m_impactDist);
+	if (worldXYResult.m_didImpact && worldXYResult.m_impactDist < nearestResult.m_impactDist) {
+		nearestResult = worldXYResult;
 	}
 
-	if (worldActorsResult.m_didImpact) {
-		if (!nearestResult.m_didImpact || worldActorsResult.m_impactDist < nearestResult.m_impactDist) {
-			nearestResult = worldActorsResult;
-		}
+	RaycastResult3D worldZResult = RaycastWorldZ(start, direction, nearestResult.m_impactDist);
+	if (worldZResult.m_didImpact && worldZResult.m_impactDist < nearestResult.m_impactDist) {
+		nearestResult = worldZResult;
+	}
+
+	Actor* dummyHitActor = nullptr;
+	RaycastResult3D worldActorsResult = RaycastWorldActors(start, direction, nearestResult.m_impactDist, owner, &dummyHitActor);
+	if (worldActorsResult.m_didImpact && worldActorsResult.m_impactDist < nearestResult.m_impactDist) {
+		nearestResult = worldActorsResult;
 	}
 
 	return nearestResult;
@@ -664,14 +764,19 @@ RaycastResult3D Map::RaycastWorldXY(Vec3 const& start, Vec3 const& direction, fl
 	result.m_rayFwdNormal = direction;
 	result.m_rayMaxLength = distance;
 
-	auto IsZInTileRange = [&](float t) {
-		float currentZ = start.z + (direction.z * t);
-		return (currentZ >= 0.f && currentZ <= m_definition.m_tileSize);
-		};
-
 	IntVec2 curTile = GetTileCoordsForPosition(start);
 
-	if (IsTileSolid(curTile.x, curTile.y) && IsZInTileRange(0.f)) {
+	float invTileSize = 1.0f / m_definition.m_tileSize;
+
+	auto IsZInRangeScaled = [](float checkZScaled, const Tile* tilePtr) -> bool {
+		return (checkZScaled >= static_cast<float>(tilePtr->m_minZ) &&
+			checkZScaled <= static_cast<float>(tilePtr->m_maxZ + 1));
+		};
+
+	const Tile* currentTilePtr = GetTile(curTile.x, curTile.y);
+	float startZScaled = start.z * invTileSize;
+
+	if (currentTilePtr && currentTilePtr->m_definition.m_isSolid && IsZInRangeScaled(startZScaled, currentTilePtr)) {
 		result.m_didImpact = true;
 		result.m_impactDist = 0.f;
 		result.m_impactPos = start;
@@ -679,8 +784,8 @@ RaycastResult3D Map::RaycastWorldXY(Vec3 const& start, Vec3 const& direction, fl
 		return result;
 	}
 
-	int stepX = (direction.x > 0) ? 1 : -1;
-	int stepY = (direction.y > 0) ? 1 : -1;
+	int stepX = (direction.x > 0) ? 1 : (direction.x < 0 ? -1 : 0);
+	int stepY = (direction.y > 0) ? 1 : (direction.y < 0 ? -1 : 0);
 
 	float tDeltaX = (direction.x != 0.f) ? abs(m_definition.m_tileSize / direction.x) : FLT_MAX;
 	float tDeltaY = (direction.y != 0.f) ? abs(m_definition.m_tileSize / direction.y) : FLT_MAX;
@@ -694,32 +799,52 @@ RaycastResult3D Map::RaycastWorldXY(Vec3 const& start, Vec3 const& direction, fl
 	while (true) {
 		if (tMaxX < tMaxY) {
 			if (tMaxX > distance) break;
-			curTile.x += stepX;
-			if (IsTileSolid(curTile.x, curTile.y) && IsZInTileRange(tMaxX)) {
+
+			int nextTileX = curTile.x + stepX;
+			const Tile* nextTilePtr = GetTile(nextTileX, curTile.y);
+			float hitZScaled = (start.z + direction.z * tMaxX) * invTileSize;
+
+			bool hitInside = currentTilePtr && (currentTilePtr->m_definition.m_insideWallUV != AABB2::ZERO_TO_ONE) && IsZInRangeScaled(hitZScaled, currentTilePtr);
+			bool hitOutside = !hitInside && nextTilePtr && (nextTilePtr->m_definition.m_wallUV != AABB2::ZERO_TO_ONE) && IsZInRangeScaled(hitZScaled, nextTilePtr);
+
+			if (hitInside || hitOutside) {
 				result.m_didImpact = true;
 				result.m_impactDist = tMaxX;
 				result.m_impactPos = start + direction * tMaxX;
 				result.m_impactNormal = (stepX > 0) ? Vec3(-1.f, 0.f, 0.f) : Vec3(1.f, 0.f, 0.f);
 				return result;
 			}
+
 			tMaxX += tDeltaX;
+			curTile.x = nextTileX;
+			currentTilePtr = nextTilePtr;
 		}
 		else {
 			if (tMaxY > distance) break;
-			curTile.y += stepY;
-			if (IsTileSolid(curTile.x, curTile.y) && IsZInTileRange(tMaxY)) {
+
+			int nextTileY = curTile.y + stepY;
+			const Tile* nextTilePtr = GetTile(curTile.x, nextTileY);
+			float hitZScaled = (start.z + direction.z * tMaxY) * invTileSize;
+
+			bool hitInside = currentTilePtr && (currentTilePtr->m_definition.m_insideWallUV != AABB2::ZERO_TO_ONE) && IsZInRangeScaled(hitZScaled, currentTilePtr);
+			bool hitOutside = !hitInside && nextTilePtr && (nextTilePtr->m_definition.m_wallUV != AABB2::ZERO_TO_ONE) && IsZInRangeScaled(hitZScaled, nextTilePtr);
+
+			if (hitInside || hitOutside) {
 				result.m_didImpact = true;
 				result.m_impactDist = tMaxY;
 				result.m_impactPos = start + direction * tMaxY;
 				result.m_impactNormal = (stepY > 0) ? Vec3(0.f, -1.f, 0.f) : Vec3(0.f, 1.f, 0.f);
 				return result;
 			}
+
 			tMaxY += tDeltaY;
+			curTile.y = nextTileY;
+			currentTilePtr = nextTilePtr;
 		}
 	}
-
 	return result;
-} 
+}
+
 //-----------------------------------------------------------------------------------------------
 RaycastResult3D Map::RaycastWorldZ(Vec3 const& start, Vec3 const& direction, float distance) const {
 	RaycastResult3D result;
@@ -729,62 +854,88 @@ RaycastResult3D Map::RaycastWorldZ(Vec3 const& start, Vec3 const& direction, flo
 
 	if (abs(direction.z) < 0.00001f) return result;
 
-	float tileSize = m_definition.m_tileSize;
+	IntVec2 curTile = GetTileCoordsForPosition(start);
 
-	float tValues[2];
-	float zValues[2];
-	Vec3 normals[2];
+	int stepX = (direction.x > 0) ? 1 : (direction.x < 0 ? -1 : 0);
+	int stepY = (direction.y > 0) ? 1 : (direction.y < 0 ? -1 : 0);
 
-	if (direction.z < 0.f) {
-		tValues[0] = (tileSize - start.z) / direction.z;
-		zValues[0] = tileSize;
-		normals[0] = Vec3(0.f, 0.f, 1.f);
+	float tDeltaX = (direction.x != 0.f) ? abs(m_definition.m_tileSize / direction.x) : FLT_MAX;
+	float tDeltaY = (direction.y != 0.f) ? abs(m_definition.m_tileSize / direction.y) : FLT_MAX;
 
-		tValues[1] = (0.f - start.z) / direction.z;
-		zValues[1] = 0.f;
-		normals[1] = Vec3(0.f, 0.f, 1.f);
-	}
-	else {
-		tValues[0] = (0.f - start.z) / direction.z;
-		zValues[0] = 0.f;
-		normals[0] = Vec3(0.f, 0.f, -1.f);
+	float nextBoundaryX = (curTile.x + (stepX > 0 ? 1.f : 0.f)) * m_definition.m_tileSize;
+	float nextBoundaryY = (curTile.y + (stepY > 0 ? 1.f : 0.f)) * m_definition.m_tileSize;
 
-		tValues[1] = (tileSize - start.z) / direction.z;
-		zValues[1] = tileSize;
-		normals[1] = Vec3(0.f, 0.f, -1.f);
-	}
+	float tExitX = (direction.x != 0.f) ? (nextBoundaryX - start.x) / direction.x : FLT_MAX;
+	float tExitY = (direction.y != 0.f) ? (nextBoundaryY - start.y) / direction.y : FLT_MAX;
 
-	for (int i = 0; i < 2; ++i) {
-		float t = tValues[i];
-		if (t < 0.f || t > distance) continue;
+	float tEnter = 0.f;
+	const float EPSILON = 0.001f;
 
-		Vec3 impactPos = start + (direction * t);
-		IntVec2 tileCoords = GetTileCoordsForPosition(impactPos);
+	float invDirZ = 1.0f / direction.z;
 
-		if (AreCoordsInBounds(tileCoords.x, tileCoords.y)) {
-			const Tile* tile = GetTile(tileCoords.x, tileCoords.y);
-			const TileDefinition& tileDef = tile->m_definition;
-			bool hasSurface = false;
+	while (tEnter <= distance) {
+		float tExit = tExitX < tExitY ? tExitX : tExitY;
+
+		if (curTile.x >= 0 && curTile.x < m_dimensions.x && curTile.y >= 0 && curTile.y < m_dimensions.y) {
+			const Tile* tile = &m_tiles[curTile.y * m_dimensions.x + curTile.x];
+
+			float topZ = static_cast<float>(tile->m_maxZ + 1) * m_definition.m_tileSize;
+			float bottomZ = static_cast<float>(tile->m_minZ) * m_definition.m_tileSize;
+
+			float tHit = FLT_MAX;
+			Vec3 normalHit;
+			bool hit = false;
+			float tempT;
 
 			if (direction.z < 0.f) {
-				hasSurface = (i == 0) ? (tileDef.m_topUV != AABB2::ZERO_TO_ONE)
-					: (tileDef.m_floorUV != AABB2::ZERO_TO_ONE);
+				if (tile->m_definition.m_topUV != AABB2::ZERO_TO_ONE) {
+					tempT = (topZ - start.z) * invDirZ;
+					if (tempT >= tEnter - EPSILON && tempT <= tExit + EPSILON && tempT <= distance && tempT >= 0.f) {
+						hit = true; tHit = tempT; normalHit = Vec3(0.f, 0.f, 1.f);
+					}
+				}
+				if (!hit && tile->m_definition.m_floorUV != AABB2::ZERO_TO_ONE) {
+					tempT = (bottomZ - start.z) * invDirZ;
+					if (tempT >= tEnter - EPSILON && tempT <= tExit + EPSILON && tempT <= distance && tempT >= 0.f) {
+						hit = true; tHit = tempT; normalHit = Vec3(0.f, 0.f, 1.f);
+					}
+				}
 			}
-			else {
-				hasSurface = (i == 0) ? (tileDef.m_bottomUV != AABB2::ZERO_TO_ONE)
-					: (tileDef.m_ceilingUV != AABB2::ZERO_TO_ONE);
+			else if (direction.z > 0.f) {
+				if (tile->m_definition.m_bottomUV != AABB2::ZERO_TO_ONE) {
+					tempT = (bottomZ - start.z) * invDirZ;
+					if (tempT >= tEnter - EPSILON && tempT <= tExit + EPSILON && tempT <= distance && tempT >= 0.f) {
+						hit = true; tHit = tempT; normalHit = Vec3(0.f, 0.f, -1.f);
+					}
+				}
+				if (!hit && tile->m_definition.m_ceilingUV != AABB2::ZERO_TO_ONE) {
+					tempT = (topZ - start.z) * invDirZ;
+					if (tempT >= tEnter - EPSILON && tempT <= tExit + EPSILON && tempT <= distance && tempT >= 0.f) {
+						hit = true; tHit = tempT; normalHit = Vec3(0.f, 0.f, -1.f);
+					}
+				}
 			}
 
-			if (hasSurface) {
+			if (hit) {
 				result.m_didImpact = true;
-				result.m_impactDist = t;
-				result.m_impactPos = impactPos;
-				result.m_impactNormal = normals[i];
+				result.m_impactDist = tHit;
+				result.m_impactPos = start + direction * tHit;
+				result.m_impactNormal = normalHit;
 				return result;
 			}
 		}
-	}
 
+		if (tExitX < tExitY) {
+			tEnter = tExitX;
+			curTile.x += stepX;
+			tExitX += tDeltaX;
+		}
+		else {
+			tEnter = tExitY;
+			curTile.y += stepY;
+			tExitY += tDeltaY;
+		}
+	}
 	return result;
 }
 
@@ -818,23 +969,35 @@ RaycastResult3D Map::RaycastWorldActors(Vec3 const& start, Vec3 const& direction
 }
 
 //-----------------------------------------------------------------------------------------------
-bool Map::SectorDetectWorldActors(Vec3 const& center, Vec3 const& forward, float radius, float angleDegrees, Actor* owner, std::vector<Actor *>* out_actors) const {
+bool Map::SectorDetectWorldActors(Vec3 const& center, Vec3 const& forward, float radius, float angleDegrees, Actor* owner, std::vector<Actor*>* out_actors) const {
 	bool foundAny = false;
 	float cosThreshold = CosDegrees(angleDegrees * 0.5f);
+
 	for (Actor* actor : m_actors) {
-		if (actor == nullptr || actor == owner || actor->m_definition.m_name=="SpawnPoint" || actor->m_isDead) {
+		if (actor == nullptr || actor == owner || actor->m_definition.m_name == "SpawnPoint" || actor->m_isDead) {
 			continue;
 		}
-		if (center.z <= actor->m_position.z || center.z >= actor->m_position.z + actor->m_definition.m_collision.m_height) {
-			continue;
-		}
-		Vec3 toActor = actor->m_position - center;
-		toActor.z = 0.f;
-		float distanceToActor = toActor.GetLength() - actor->m_definition.m_collision.m_radius;
-		toActor /= distanceToActor;
-		if (distanceToActor < radius && DotProduct3D(toActor, forward) > cosThreshold) {
-			out_actors->push_back(actor);
-			foundAny = true;
+
+		float closestZ = GetClamped(center.z, actor->m_position.z, actor->m_position.z + actor->m_definition.m_collision.m_height);
+		Vec3 closestAxisPoint = Vec3(actor->m_position.x, actor->m_position.y, closestZ);
+
+		Vec3 toActorAxis = closestAxisPoint - center;
+		float distanceToAxis = toActorAxis.GetLength();
+
+		float distanceToSurface = distanceToAxis - actor->m_definition.m_collision.m_radius;
+
+		if (distanceToSurface < radius) {
+			if (distanceToAxis < 0.001f) {
+				out_actors->push_back(actor);
+				foundAny = true;
+			}
+			else {
+				Vec3 toActorDir = toActorAxis / distanceToAxis;
+				if (DotProduct3D(toActorDir, forward) > cosThreshold) {
+					out_actors->push_back(actor);
+					foundAny = true;
+				}
+			}
 		}
 	}
 	return foundAny;
@@ -880,8 +1043,7 @@ void Map::RespawnPlayers() {
 }
 
 //-----------------------------------------------------------------------------------------------
-Actor* Map::SpawnActor(SpawnInfo const& spawnInfo){
-	Actor* newActor = nullptr;
+Actor* Map::SpawnActor(SpawnInfo const& spawnInfo) {
 	if (ActorDefinition::s_definitions.find(spawnInfo.m_actorName) == ActorDefinition::s_definitions.end()) {
 		return nullptr;
 	}
@@ -894,32 +1056,37 @@ Actor* Map::SpawnActor(SpawnInfo const& spawnInfo){
 		}
 	}
 
-	if (emptySlotIndex == -1 && m_nextActorUID <= ActorHandle::MAX_ACTOR_UID) {
-		emptySlotIndex = (int)m_actors.size();
-		newActor = new Actor(
-			ActorDefinition::s_definitions.at(spawnInfo.m_actorName),
-			this,
-			new ActorHandle(m_nextActorUID, (unsigned int)emptySlotIndex),
-			spawnInfo.m_spawnPosition,
-			spawnInfo.m_spawnOrientation,
-			spawnInfo.m_spawnScale
-		);
-		m_actors.push_back(newActor);
-	}else if(emptySlotIndex > -1 && m_nextActorUID <= ActorHandle::MAX_ACTOR_UID){
-		newActor = new Actor(
-			ActorDefinition::s_definitions.at(spawnInfo.m_actorName),
-			this,
-			new ActorHandle(m_nextActorUID, (unsigned int)emptySlotIndex),
-			spawnInfo.m_spawnPosition,
-			spawnInfo.m_spawnOrientation,
-			spawnInfo.m_spawnScale
-		);
-		m_actors[emptySlotIndex] = newActor;
-	}
-	else {
+	if (m_nextActorUID > ActorHandle::MAX_ACTOR_UID) {
 		ERROR_AND_DIE("Exceeded maximum number of actor UID limit!");
 	}
-	++m_nextActorUID;
+	unsigned int currentUID = m_nextActorUID;
+	m_nextActorUID++;
+
+	if (emptySlotIndex == -1) {
+		emptySlotIndex = (int)m_actors.size();
+		m_actors.push_back(nullptr);
+	}
+
+	m_actors[emptySlotIndex] = (Actor*)1;
+
+	Actor* newActor = new Actor(
+		ActorDefinition::s_definitions.at(spawnInfo.m_actorName),
+		this,
+		new ActorHandle(currentUID, (unsigned int)emptySlotIndex),
+		spawnInfo.m_spawnPosition,
+		spawnInfo.m_spawnOrientation,
+		spawnInfo.m_spawnScale
+	);
+
+	m_actors[emptySlotIndex] = newActor;
+
+	if (newActor->m_definition.m_actorAI.m_isComplex) {
+		newActor->m_controller->Possess(newActor->m_handle);
+	}
+
+	if (newActor->m_definition.m_isBoss) {
+		m_bossActorHandle = newActor->m_handle;
+	}
 
 	return newActor;
 }
@@ -1024,5 +1191,36 @@ void Map::UpdatePointLights() {
 				break;
 			}
 		}
+	}
+}
+
+//-----------------------------------------------------------------------------------------------
+void Map::QuickSortActorsByDepth(Actor** actors, int left, int right, Vec3 const& cameraPos) const {
+	int i = left;
+	int j = right;
+	float pivotDistSqr = (actors[(left + right) / 2]->m_position - cameraPos).GetLengthSquared();
+
+	while (i <= j) {
+		while ((actors[i]->m_position - cameraPos).GetLengthSquared() > pivotDistSqr) {
+			i++;
+		}
+		while ((actors[j]->m_position - cameraPos).GetLengthSquared() < pivotDistSqr) {
+			j--;
+		}
+
+		if (i <= j) {
+			Actor* temp = actors[i];
+			actors[i] = actors[j];
+			actors[j] = temp;
+			i++;
+			j--;
+		}
+	}
+
+	if (left < j) {
+		QuickSortActorsByDepth(actors, left, j, cameraPos);
+	}
+	if (i < right) {
+		QuickSortActorsByDepth(actors, i, right, cameraPos);
 	}
 }

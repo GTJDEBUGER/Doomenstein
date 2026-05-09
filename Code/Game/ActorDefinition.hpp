@@ -45,6 +45,9 @@ struct ActorAI
 	bool m_aiEnabled = false;
 	float m_sightRadius = 0.f;
 	float m_sightAngle = 0.f;
+	bool m_isComplex = false;
+
+	std::vector<std::string> m_complexSubActors;
 };
 
 struct Actor2DAnimationGroup
@@ -105,7 +108,9 @@ public:
 		bool canBePossessed,
 		float corpseLifetime,
 		bool visible,
-		bool dieOnSpawn
+		bool isBoss,
+		bool dieOnSpawn,
+		float lifetime
 	);
 	static void InitializeActorDefs(std::string configPath);
 
@@ -118,7 +123,9 @@ public:
 	bool m_canBePossessed = false;
 	float m_corpseLifetime = 99.f;
 	bool m_visible = true;
+	bool m_isBoss = false;
 	bool m_dieOnSpawn = false;
+	float m_lifetime = -1.f;
 	ActorCollision m_collision;
 	ActorPhysics m_physics;
 	ActorCamera m_actorCamera;

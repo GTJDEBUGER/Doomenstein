@@ -39,6 +39,7 @@ cbuffer CameraConstants : register(b2)
     float4x4 CameraToRenderTransform;
     float4x4 RenderToClipTransform;
     float3 CameraWorldPosition;
+    float4 viewportBoundsUV;
 };
 
 cbuffer PostProcessingBuffer : register(b4)
@@ -51,9 +52,6 @@ cbuffer PostProcessingBuffer : register(b4)
     float radius;
     float bias;
     float2 screenResolution;
-    float cameraNear;
-    float cameraFar;
-    float4 viewportBoundsUV;
 };
 
 struct vs_input_t

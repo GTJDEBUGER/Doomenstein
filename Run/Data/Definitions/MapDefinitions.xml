@@ -1,28 +1,45 @@
 <Definitions>
-  <MapDefinition name="TestMap" 
-				 image="Data/Maps/TestMap.png" 
-				 shader="Diffuse" 
-				 spriteSheetTexture="Data/Images/Terrain_8x8.png" 
-				 spriteSheetNormalTexture="Data/Images/Terrain_normal.png" 
-				 spriteSheetAOTexture="Data/Images/Terrain_ao.png"
-				 spriteSheetParallaxTexture="Data/Images/Terrain_parallax.png"
-				 spriteSheetRoughnessTexture="Data/Images/Terrain_roughness.png"
-				 spriteSheetMetallicTexture="Data/Images/Terrain_metallic.png"
-				 spriteSheetCellCount="8,8" 
-				 tileSize ="5.0">
-    <SpawnInfos>
-	  <SpawnInfo actor="SpawnPoint" position="127.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
-	  <SpawnInfo actor="SpawnPoint" position="132.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
-	  <SpawnInfo actor="SpawnPoint" position="137.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
-	  <SpawnInfo actor="SpawnPoint" position="142.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
-	  <SpawnInfo actor="SpawnPoint" position="147.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
-	  <SpawnInfo actor="SpawnPoint" position="152.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
-	  <SpawnInfo actor="Demon" position="7.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
-	  <SpawnInfo actor="Demon" position="22.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
-	  <SpawnInfo actor="Demon" position="37.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
-	  <SpawnInfo actor="Demon" position="132.5,52.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
-	  <SpawnInfo actor="Demon" position="147.5,52.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
+	<MapDefinition name="TestMap" 
+					image="Data/Maps/TestMap.png" 
+					shader="Diffuse" 
+					spriteSheetTexture="Data/Images/Terrain_8x8.png" 
+					spriteSheetNormalTexture="Data/Images/Terrain_normal.png" 
+					spriteSheetAOTexture="Data/Images/Terrain_ao.png"
+					spriteSheetParallaxTexture="Data/Images/Terrain_parallax.png"
+					spriteSheetRoughnessTexture="Data/Images/Terrain_roughness.png"
+					spriteSheetMetallicTexture="Data/Images/Terrain_metallic.png"
+					spriteSheetCellCount="8,8" 
+					tileSize ="5.0">
+	<SpawnInfos>
+		<SpawnInfo actor="SpawnPoint" position="127.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
+		<SpawnInfo actor="SpawnPoint" position="132.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
+		<SpawnInfo actor="SpawnPoint" position="137.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
+		<SpawnInfo actor="SpawnPoint" position="142.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
+		<SpawnInfo actor="SpawnPoint" position="147.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
+		<SpawnInfo actor="SpawnPoint" position="152.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
+		<SpawnInfo actor="Demon" position="7.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
+		<SpawnInfo actor="Demon" position="22.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
+		<SpawnInfo actor="Demon" position="37.5,77.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
+		<SpawnInfo actor="Demon" position="132.5,52.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
+		<SpawnInfo actor="Demon" position="147.5,52.5,0.0" orientation="-90.0,0.0,0.0" scale="1.0,1.0,1.0"/>
 	</SpawnInfos>
-  </MapDefinition>
+	</MapDefinition>
+
+	<MapDefinition name="SeaMap"
+					image="Data/Maps/SeaMap.png"
+					shader="Diffuse"
+					spriteSheetTexture="Data/Images/Terrain_8x8.png"
+					spriteSheetNormalTexture="Data/Images/Terrain_normal.png"
+					spriteSheetAOTexture="Data/Images/Terrain_ao.png"
+					spriteSheetParallaxTexture="Data/Images/Terrain_parallax.png"
+					spriteSheetRoughnessTexture="Data/Images/Terrain_roughness.png"
+					spriteSheetMetallicTexture="Data/Images/Terrain_metallic.png"
+					spriteSheetCellCount="8,8"
+					tileSize ="5.0">
+		<SpawnInfos>
+			<SpawnInfo actor="SpawnPoint" position="7.5,80.0,5.0" orientation="0.0,0.0,0.0" scale="1.0,1.0,1.0"/>
+			<SpawnInfo actor="DemonDragon" position="82.5,82.5,-50.f" orientation="180.0,0.0,0.0" scale="2.0,2.0,2.0"/>
+		</SpawnInfos>
+	</MapDefinition>
 </Definitions>
 

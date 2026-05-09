@@ -28,7 +28,10 @@ struct GameConfig
 	float m_playerViewControllerSensitivity;
 	float m_musicVolume;
 	std::string m_mainMenuMusic;
-	std::string m_gameMusic;
+	std::string m_gameMusic0;
+	std::string m_gameMusic1;
+	std::string m_gameMusic2;
+	std::string m_environmentBackgroundMusic;
 	float m_soundEffectVolume;
 	std::string m_buttonClickSound;
 };

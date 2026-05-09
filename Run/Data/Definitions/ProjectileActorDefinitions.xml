@@ -1,8 +1,8 @@
 <Definitions>
   <!-- Plasma Projectile -->
-  <ActorDefinition name="PlasmaProjectile" canBePossessed="false" corpseLifetime="0.3" visible="true">
-    <Collision radius="0.6" height="1.2" collidesWithWorld="true" collidesWithActors="true" damageOnCollide="5.0~10.0" impulseOnCollide="5.0" dieOnCollide="true"/>
-    <Physics simulated="true" turnSpeed="0.0" flying="true" drag="0.0" mass="1.0f"/>
+  <ActorDefinition name="PlasmaProjectile" canBePossessed="false" corpseLifetime="0.3" visible="true" lifeTime="10.f">
+    <Collision radius="0.6" height="1.2" collidesWithWorld="true" collidesWithActors="true" damageOnCollide="1.0~5.0" impulseOnCollide="5.0" dieOnCollide="true"/>
+    <Physics isSimulated="true" runSpeed="40" turnSpeed="0.0" flying="true" drag="0.0" mass="1.0f"/>
     <Visuals size="1.2,1.2" pivot="0.5,0.0" billboardType="FullOpposing" renderLit="false" renderRounded="false" shader="Diffuse" 
 			 spriteSheet="Data/Images/Plasma.png"
 			 cellCount="4,1">
@@ -25,4 +25,49 @@
 	</Sounds>
 	<PointLight radius="20.0" color="10,0,255" intensity="7.5" volumetric="true"/>
   </ActorDefinition>
+
+	<!-- Fireball Projectile -->
+	<ActorDefinition name="FireballProjectile" canBePossessed="false" corpseLifetime="0.9" visible="true" lifeTime="10.f">
+		<Collision radius="1.8" height="3.6" collidesWithWorld="true" collidesWithActors="true" damageOnCollide="10.0~20.0" impulseOnCollide="15.0" dieOnCollide="true"/>
+		<Physics isSimulated="true" runSpeed="80"  turnSpeed="0.0" flying="true" drag="0.0" mass="1.0f"/>
+		<Visuals size="7.2,7.2" pivot="0.5,0.25" billboardType="FullOpposing" renderLit="false" renderRounded="false" shader="Diffuse"
+				 spriteSheet="Data/Images/FireBall.png"
+				 cellCount="4,1">
+			<AnimationGroup name="Walk" secondsPerFrame="0.1" playbackMode="Loop">
+				<Direction vector="-1,0,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="-1,-1,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="0,-1,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="1,-1,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="1,0,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="1,1,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="0,1,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="-1,1,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+			</AnimationGroup>
+			<AnimationGroup name="Death" secondsPerFrame="0.1" playbackMode="Loop">
+				<Direction vector="1,0,0">
+					<Animation startFrame="1" endFrame="3"/>
+				</Direction>
+			</AnimationGroup>
+		</Visuals>
+		<Sounds>
+			<Sound sound="Death" name="Data/Audio/PlasmaHit.wav"/>
+		</Sounds>
+		<PointLight radius="80.0" color="255,100, 10" intensity="15." volumetric="true"/>
+	</ActorDefinition>
 </Definitions>

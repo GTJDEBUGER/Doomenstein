@@ -1,6 +1,6 @@
 <GameConfig
-	defaultMap="TestMap"
-    windowName = "Doomenstein"
+	defaultMap="SeaMap"
+    windowName = "Doomenstein Gold"
 	debugSlowdownTimescale = "0.1"
 	debugSpeedupTimescale = "6.0"
 	screenSize = "1600,800"
@@ -12,9 +12,12 @@
 	playerViewPitchSpeed = "5.0"
 	playerViewRollSpeed = "90.0"
 	playerViewControllerSensitivity = "50.0"
-	musicVolume="0.1" 
+	musicVolume="0.8" 
 	mainMenuMusic="Data/Audio/Music/MainMenu_InTheDark.mp3" 
-	gameMusic="Data/Audio/Music/E1M1_AtDoomsGate.mp3" 
+	gameMusic0="Data/Audio/Music/BossIntro.mp3" 
+	gameMusic1="Data/Audio/Music/BossStage1.mp3" 
+	gameMusic2="Data/Audio/Music/BossStage2.mp3" 
+	environmentBackgroundMusic="Data/Audio/Music/OceanBGM.mp3"
 	soundEffectVolume="0.5"
 	buttonClickSound="Data/Audio/Click.mp3"
 />

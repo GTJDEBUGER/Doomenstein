@@ -39,7 +39,9 @@ ActorDefinition::ActorDefinition(
 	bool canBePossessed,
 	float corpseLifetime,
 	bool visible,
-	bool dieOnSpawn
+	bool isBoss,
+	bool dieOnSpawn,
+	float lifeTime
 ) : 
 	m_name(name),
 	m_faction(faction),
@@ -47,7 +49,9 @@ ActorDefinition::ActorDefinition(
 	m_canBePossessed(canBePossessed),
 	m_corpseLifetime(corpseLifetime),
 	m_visible(visible),
-	m_dieOnSpawn(dieOnSpawn) {
+	m_isBoss(isBoss),
+	m_dieOnSpawn(dieOnSpawn),
+	m_lifetime(lifeTime){
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -68,7 +72,9 @@ void ActorDefinition::InitializeActorDefs(std::string configPath) {
 			ParseXmlAttribute(*i, "canBePossessed", true),
 			ParseXmlAttribute(*i, "corpseLifetime", 0.f),
 			ParseXmlAttribute(*i, "visible", true),
-			ParseXmlAttribute(*i, "dieOnSpawn", false)
+			ParseXmlAttribute(*i, "isBoss", false),
+			ParseXmlAttribute(*i, "dieOnSpawn", false),
+			ParseXmlAttribute(*i, "lifeTime", -1.f)
 		);
 
 		XmlElement* actorCollision = i->FirstChildElement("Collision");
@@ -76,8 +82,8 @@ void ActorDefinition::InitializeActorDefs(std::string configPath) {
 			s_definitions[actorName].m_collision = ActorCollision{
 				ParseXmlAttribute(*actorCollision, "radius", 0.f),
 				ParseXmlAttribute(*actorCollision, "height", 0.f),
-				ParseXmlAttribute(*actorCollision, "collisionWithWorld", true),
-				ParseXmlAttribute(*actorCollision, "collisionWithActors", true),
+				ParseXmlAttribute(*actorCollision, "collidesWithWorld", true),
+				ParseXmlAttribute(*actorCollision, "collodesWithActors", true),
 				ParseXmlAttribute(*actorCollision, "damageOnCollide", FloatRange(0.f,0.f)),
 				ParseXmlAttribute(*actorCollision, "impulseOnCollide", 0.f),
 				ParseXmlAttribute(*actorCollision, "dieOnCollide", false)
@@ -110,8 +116,16 @@ void ActorDefinition::InitializeActorDefs(std::string configPath) {
 			s_definitions[actorName].m_actorAI = ActorAI{
 				ParseXmlAttribute(*actorAI, "aiEnabled", false),
 				ParseXmlAttribute(*actorAI, "sightRadius", 0.f),
-				ParseXmlAttribute(*actorAI, "sightAngle", 0.f)
+				ParseXmlAttribute(*actorAI, "sightAngle", 0.f),
+				ParseXmlAttribute(*actorAI, "isComplex", false)
 			};
+
+			if (s_definitions[actorName].m_actorAI.m_isComplex) {
+				for (XmlElement* j = actorAI->FirstChildElement(); j != nullptr; j = j->NextSiblingElement()) {
+					std::string complexSubActorName = ParseXmlAttribute(*j, "name", "Error");
+					s_definitions[actorName].m_actorAI.m_complexSubActors.push_back(complexSubActorName);
+				}
+			}
 		}
 
 		XmlElement* actor2DRenderInfo = i->FirstChildElement("Visuals");

@@ -46,6 +46,8 @@ public:
 	void    RenderShadowmap() const;
 
 public:
+	bool                      m_isFrozenPhysics = false;
+	bool                      m_isSubActor   = false;
 	ActorHandle*              m_handle       = nullptr;
 	ActorDefinition const&    m_definition;
 	Map*                      m_map;
@@ -79,4 +81,7 @@ public:
 	float                     m_curHealth    = 0.f;
 	Controller*               m_controller   = nullptr;
 	bool                      m_isGrounded   = false;
+	bool                      m_isInWater    = false;
+
+	float                     m_lifeTimer    = -1.f;
 };

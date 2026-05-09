@@ -36,12 +36,19 @@ public:
 	void AddGeometryForBackWall(AABB3 const& bounds, AABB2 const& UVs);
 	void AddGeometryForLeftWall(AABB3 const& bounds, AABB2 const& UVs);
 	void AddGeometryForRightWall(AABB3 const& bounds, AABB2 const& UVs);
+
+	void AddGeometryForInsideFrontWall(AABB3 const& bounds, AABB2 const& UVs);
+	void AddGeometryForInsideBackWall(AABB3 const& bounds, AABB2 const& UVs);
+	void AddGeometryForInsideLeftWall(AABB3 const& bounds, AABB2 const& UVs);
+	void AddGeometryForInsideRightWall(AABB3 const& bounds, AABB2 const& UVs);
+
 	void AddGeometryForFloor(AABB3 const& bounds, AABB2 const& UVs);
 	void AddGeometryForCeiling(AABB3 const& bounds, AABB2 const& UVs);
 	void AddGeometryForTop(AABB3 const& bounds, AABB2 const& UVs);
 	void AddGeometryForBottom(AABB3 const& bounds, AABB2 const& UVs);
 
-	bool ShouldRenderFaceAgainstNeighbor(int x, int y) const;
+	bool HasSolidBlock(int x, int y, int z) const;
+	bool HasRoomBlock(int x, int y, int z) const;
 	bool IsPositionInBounds(Vec3 const& position) const;
 	bool IsTileSolid(int x, int y) const;
 	bool AreCoordsInBounds(int x, int y) const;
@@ -51,11 +58,14 @@ public:
 	Mat44 GetSunShadowCameraViewProjMatrix() const;
 
 	void Update();
+	int GetSpatialHashIndex(int cx, int cy, int cz) const;
+	void BuildSpatialGrid();
 	void CollideActors();
 	void CollideActors(Actor* actorA, Actor* actorB);
 	void CollideActorsWithMap();
 	bool CollideActorWithMap(Actor* actor);
 	void ClearDeadActors();
+	void UpdateSortedActors();
 
 	bool PushActorOutOfTileIfSolid(Actor* actor, int tileX, int tileY);
 	bool PushActorOutofFloor(Actor* actor, int tileX, int tileY);
@@ -80,6 +90,8 @@ public:
 	Actor* GetNearestActor(Actor* source, std::string const& faction) const;
 
 	void UpdatePointLights();
+
+	void QuickSortActorsByDepth(Actor** actors, int left, int right, Vec3 const& cameraPos) const;
 public:
 	Game* m_game = nullptr;
 	Vec3  m_sunDirection = Vec3(1.0f, 2.0f, -1.f);
@@ -91,6 +103,7 @@ public:
 	float m_simulatDeclination = 0.f;
 	Camera* m_sunShadowCamera = nullptr;
 	Shader* m_shadowMapShader = nullptr;
+	ActorHandle* m_bossActorHandle;
 
 protected:
 	MapDefinition const& m_definition;
@@ -101,8 +114,12 @@ protected:
 	std::vector<unsigned int> m_mapIndexs;
 
 	std::vector<Actor*> m_actors;
+	mutable std::vector<Actor*> m_sortedActors;
 	std::vector<ActorHandle*> m_respawnActorsHandle;
 	unsigned int m_nextActorUID = 1;
 
 	std::vector<PointLight> m_pointLights;
+
+	std::vector<Actor*> m_spatialHash[4096];
+	float m_spatialCellSize = 5.0f;
 };

@@ -39,4 +39,28 @@
       <Sound sound="Fire" name="Data/Audio/DemonAttack.wav"/>
     </Sounds>
   </WeaponDefinition>
+	<!-- Demon Dragon Melee -->
+	<WeaponDefinition name="DemonDragonMelee" refireTime="2.0" meleeCount="1" meleeArc="180.0" meleeRange="10.0" meleeDamage="20.0~30.0" meleeImpulse="50">
+		<HUD shader="Diffuse" baseTexture="Data/Images/Hud_Base.png" reticleTexture="Data/Images/Reticle.png" reticleSize="16,16"
+			spriteSheet="Data/Images/Default.png"
+			spriteSheetNormal="Data/Images/Default.png"
+			spriteSheetEmissive="Data/Images/Default.png"
+			cellCount="4,1" spriteSize="256,256" spritePivot="0.5,0.0">
+		</HUD>
+		<Sounds>
+			<Sound sound="Fire" name="Data/Audio/DemonAttack.wav"/>
+		</Sounds>
+	</WeaponDefinition>
+	<!-- Demon Fireball -->
+	<WeaponDefinition name="DemonDragonFireball" refireTime="0.2" projectileCount="1" projectileActor="FireballProjectile" projectileCone="5.0" projectileSpeed="80.0">
+		<HUD shader="Diffuse" baseTexture="Data/Images/Hud_Base.png" reticleTexture="Data/Images/Reticle.png" reticleSize="16,16"
+			spriteSheet="Data/Images/Default.png"
+			spriteSheetNormal="Data/Images/Default.png"
+			spriteSheetEmissive="Data/Images/Default.png"
+			cellCount="4,1" spriteSize="256,256" spritePivot="0.5,0.0">
+		</HUD>
+		<Sounds>
+			<Sound sound="Fire" name="Data/Audio/DemonAttack.wav"/>
+		</Sounds>
+	</WeaponDefinition>
 </Definitions>

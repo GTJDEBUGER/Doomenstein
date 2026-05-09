@@ -4,6 +4,7 @@
 #include "Game/Controller.hpp"
 #include "Game/PlayerController.hpp"
 #include "Game/AIController.hpp"
+#include "Game/ComplexAIController.hpp"
 #include "Game/Weapon.hpp"
 #include "Game/Game.hpp"
 #include "Game/App.hpp"
@@ -45,9 +46,33 @@ Actor::Actor(ActorDefinition const& definition, Map* map, ActorHandle* handle, V
 	}
 	if (!m_inventory.empty()) EquipWeapon(0);
 
-	if (m_definition.m_actorAI.m_aiEnabled) {
+	if (m_definition.m_actorAI.m_aiEnabled && !m_definition.m_actorAI.m_isComplex) {
 		m_controller = new AIController(m_map);
 		m_controller->Possess(m_handle);
+	}
+	else if (m_definition.m_actorAI.m_aiEnabled && m_definition.m_actorAI.m_isComplex) {
+		m_controller = new ComplexAIController(m_map);
+		Vec3 faceDirection = m_orientation.GetForwardDir_IFwd_JLeft_KUp();
+		//m_controller->Possess(m_handle); //Possess the head actor after spawning all sub actors
+
+		Actor* leader = this;
+
+		for (int i = 1; i <= m_definition.m_actorAI.m_complexSubActors.size(); i++) {
+			Actor* subActor = m_map->SpawnActor(
+				SpawnInfo{
+					m_definition.m_actorAI.m_complexSubActors[i - 1],
+					m_position - faceDirection * m_definition.m_collision.m_radius * 2.f * (float)i,
+					m_orientation,
+					m_scale
+				}
+			);
+
+			subActor->m_owner = this;
+			subActor->m_isSubActor = true;
+			leader = subActor;
+
+			dynamic_cast<ComplexAIController*>(m_controller)->m_subActors.push_back(subActor);
+		}
 	}
 
 	if (m_definition.m_dieOnSpawn) {
@@ -57,6 +82,8 @@ Actor::Actor(ActorDefinition const& definition, Map* map, ActorHandle* handle, V
 		m_curAnimName = "Death";
 		m_animTimer = 0.f;
 	}
+
+	m_lifeTimer = m_definition.m_lifetime;
 
 	// Debug geometry
 	AddVertexForArrow3D(
@@ -158,7 +185,7 @@ Actor::~Actor() {
 		m_handle = nullptr;
 	}
 
-	if (m_controller != nullptr && dynamic_cast<AIController*>(m_controller)) {
+	if (m_controller != nullptr && (dynamic_cast<AIController*>(m_controller) || dynamic_cast<ComplexAIController*>(m_controller))) {
 		delete m_controller;
 		m_controller = nullptr;
 	}
@@ -195,13 +222,30 @@ void Actor::Update(float deltaSeconds) {
 		return;
 	}
 
+	//Handle actor lifetime
+	if (m_lifeTimer > 0.f) {
+		m_lifeTimer -= deltaSeconds;
+		if (m_lifeTimer <= 0.f) {
+			m_isDead = true;
+			m_debugColor = m_debugDeadColor;
+			m_deadTimer = m_definition.m_corpseLifetime;
+			m_curAnimName = "Death";
+			m_animTimer = 0.f;
+
+			if (m_definition.m_sounds.find("Death") != m_definition.m_sounds.end()) {
+				g_engine->m_audio->StartSoundAt(m_definition.m_sounds.at("Death"), m_position, false, g_gameConfig->m_soundEffectVolume * 1.5f);
+			}
+			return;
+		}
+	}
+
 	//Handle AI controlled behavior
-	if (m_controller != nullptr && dynamic_cast<AIController*>(m_controller)) {
-		dynamic_cast<AIController*>(m_controller)->Update();
+	if (m_controller != nullptr) {
+		m_controller->Update();
 	}
 
 	// Update physics if simulated, otherwise reset velocity and acceleration
-	if (m_definition.m_physics.m_isSimulated) {
+	if (m_definition.m_physics.m_isSimulated && !m_isFrozenPhysics) {
 		UpdatePhysics(deltaSeconds);
 	}
 	else {
@@ -250,36 +294,75 @@ void Actor::Update(float deltaSeconds) {
 
 //---------------------------------------------------------------------------------------------------
 void Actor::UpdatePhysics(float deltaSeconds) {
-	// Apply gravity
-	if (!m_definition.m_physics.m_flying) {
-		m_velocity -= Vec3(0.f, 0.f, 50.f) * deltaSeconds;
+	float waterHeight = m_map->m_game->GetWaterHeightAt(m_position.GetXY());
+	float depth = waterHeight - m_position.z;
+	m_isInWater = (depth > 0.f);
+
+	float submersion = GetClamped(depth / (m_definition.m_collision.m_height * 2.f), 0.f, 1.f);
+
+	if (m_controller != nullptr && dynamic_cast<PlayerController*>(m_controller)) {
+		g_engine->m_audio->SetGlobalStyleWeight(GlobalAudioStyle::UNDERWATER, submersion);
 	}
 
-	// Apply acceleration
-	m_velocity += m_acceleration * deltaSeconds;
-
-	// Apply friction
 	if (!m_definition.m_physics.m_flying) {
-		float frictionDivisor = 1.0f + (m_definition.m_physics.m_drag * deltaSeconds);
-
-		m_velocity.x /= frictionDivisor;
-		m_velocity.y /= frictionDivisor;
-
-		if (m_velocity.GetXY().GetLengthSquared() < 0.0001f) {
-			m_velocity.x = 0.f;
-			m_velocity.y = 0.f;
+		if (m_isInWater) {
+			float buoyancy = 50.f * 1.6f * powf(submersion, 0.5f);
+			m_velocity.z += (buoyancy - 50.f) * deltaSeconds;
+		}
+		else {
+			m_velocity -= Vec3(0.f, 0.f, 50.f) * deltaSeconds;
 		}
 	}
 
-	// Update position
-	m_position += m_velocity * deltaSeconds;
+	m_velocity += m_acceleration * deltaSeconds;
 
-	// Reset acceleration
+	if (!m_definition.m_physics.m_flying) {
+		if (m_isInWater) {
+			float zDragScale = (m_velocity.z > 20.f) ? 0.2f : 1.0f;
+			float waterDragXY = m_definition.m_physics.m_drag * (1.0f + 2.0f * submersion);
+			m_velocity.x /= (1.0f + waterDragXY * deltaSeconds);
+			m_velocity.y /= (1.0f + waterDragXY * deltaSeconds);
+
+			float waterDragZ = (1.5f * submersion) * zDragScale;
+			m_velocity.z /= (1.0f + waterDragZ * deltaSeconds);
+		}
+		else if (m_isGrounded) {
+			float groundDrag = m_definition.m_physics.m_drag;
+			m_velocity.x /= (1.0f + groundDrag * deltaSeconds);
+			m_velocity.y /= (1.0f + groundDrag * deltaSeconds);
+		}
+		else {
+			float airDragCoeff = 0.004f;
+			float speed = m_velocity.GetLength();
+
+			if (speed > 0.f) {
+				float dragMultiplier = 1.0f - (airDragCoeff * speed * deltaSeconds);
+
+				if (dragMultiplier < 0.f) {
+					dragMultiplier = 0.f;
+				}
+
+				m_velocity *= dragMultiplier;
+			}
+		}
+	}
+
+	float maxSpeed = m_definition.m_physics.m_runSpeed * 3.0f;
+	if (m_velocity.GetLengthSquared() > maxSpeed * maxSpeed) {
+		m_velocity = m_velocity.GetNormalized() * maxSpeed;
+	}
+
+	m_position += m_velocity * deltaSeconds;
 	m_acceleration = Vec3(0.f, 0.f, 0.f);
 }
 
 //---------------------------------------------------------------------------------------------------
 void Actor::Damage(float damageAmount, Actor* attacker) {
+	if (m_isSubActor) {
+		m_owner->Damage(damageAmount, attacker);
+		return;
+	}
+
 	if (m_isDead) {
 		return;
 	}
@@ -309,16 +392,31 @@ void Actor::Damage(float damageAmount, Actor* attacker) {
 			dynamic_cast<PlayerController*>(attacker->m_controller)->m_killCount +=1;
 			dynamic_cast<PlayerController*>(m_controller)->m_deadCount += 1;
 		}
+		else if (dynamic_cast<ComplexAIController*>(attacker->m_controller) && 
+				 dynamic_cast<PlayerController*>(m_controller)) {
+			dynamic_cast<PlayerController*>(m_controller)->m_deadCount += 1;
+		}
+
+		if (m_definition.m_actorAI.m_isComplex && m_controller!=nullptr) {
+			int segmentDelay = 1;
+			float startingDelay = 0.2f;
+			for (Actor* subActor : dynamic_cast<ComplexAIController*>(m_controller)->m_subActors) {
+				subActor->m_lifeTimer = subActor->m_definition.m_corpseLifetime * startingDelay * segmentDelay;
+				subActor->m_isFrozenPhysics = true;
+				segmentDelay += 1;
+			}
+		}
 
 		if (m_definition.m_sounds.find("Death") != m_definition.m_sounds.end()) {
-			g_engine->m_audio->StartSoundAt(m_definition.m_sounds.at("Death"), m_position, false, g_gameConfig->m_soundEffectVolume);
+			g_engine->m_audio->StartSoundAt(m_definition.m_sounds.at("Death"), m_position, false, g_gameConfig->m_soundEffectVolume * 1.5f);
 		}
 	}
 
 	if (attacker != nullptr && 
 		m_definition.m_faction != attacker->m_definition.m_faction &&
 		attacker->m_definition.m_faction != "Neutral" &&
-		m_definition.m_actorAI.m_aiEnabled 
+		m_definition.m_actorAI.m_aiEnabled &&
+		m_definition.m_actorAI.m_isComplex == false
 		) {
 		dynamic_cast<AIController*>(m_controller)->DamagedBy(attacker);
 	}
@@ -403,13 +501,34 @@ void Actor::OnUnpossessed() {
 
 //---------------------------------------------------------------------------------------------------
 void Actor::MoveInDirection(Vec3 const& direction, float targetSpeed) {
-	Vec3 desiredVelocity = Vec3(direction.x, direction.y, 0.f).GetNormalized() * targetSpeed;
-	Vec3 velocityDiff = desiredVelocity - Vec3(m_velocity.x, m_velocity.y, 0.f);
+	Vec3 desiredVelocity;
+	Vec3 moveDir = direction.GetNormalized();
 
-	//60.f is FPS related
-	Vec3 steeringForce = velocityDiff * m_definition.m_physics.m_mass * 60.f;
+	if (m_isInWater) {
+		desiredVelocity.x = moveDir.x * targetSpeed;
+		desiredVelocity.y = moveDir.y * targetSpeed;
 
-	AddForce(steeringForce);
+		if (abs(moveDir.z) < 0.1f) {
+			desiredVelocity.z = m_velocity.z;
+		}
+		else {
+			desiredVelocity.z = moveDir.z * targetSpeed;
+
+			if (moveDir.z > 0.f && m_velocity.z > desiredVelocity.z) {
+				desiredVelocity.z = m_velocity.z + (moveDir.z * targetSpeed * 0.025f);
+			}
+		}
+
+		Vec3 velocityDiff = desiredVelocity - m_velocity;
+		Vec3 steeringForce = velocityDiff * m_definition.m_physics.m_mass * 60.f;
+		AddForce(steeringForce);
+	}
+	else {
+		desiredVelocity = Vec3(moveDir.x, moveDir.y, 0.f).GetNormalized() * targetSpeed;
+		Vec3 velocityDiff = desiredVelocity - Vec3(m_velocity.x, m_velocity.y, 0.f);
+		Vec3 steeringForce = velocityDiff * m_definition.m_physics.m_mass * 60.f;
+		AddForce(steeringForce);
+	}
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -682,7 +801,7 @@ void Actor::Render(Camera const& viewCamera) const {
 			g_engine->m_renderer->BindTexture(m_definition.m_actor2DRenderInfo.m_spriteSheetNormalTexture, TextureSlot::NORMAL_ORIGINALSCREEN); 
 			g_engine->m_renderer->BindTexture(m_definition.m_actor2DRenderInfo.m_spriteSheetAOTexture, TextureSlot::AO_SCREENDEPTH);
 			g_engine->m_renderer->BindTexture(nullptr, TextureSlot::PARALLAX_SCREENNORMAL);
-			g_engine->m_renderer->BindTexture(m_definition.m_actor2DRenderInfo.m_spriteSheetRoughnessTexture, TextureSlot::ROUGHNESS);
+			g_engine->m_renderer->BindTexture(m_definition.m_actor2DRenderInfo.m_spriteSheetRoughnessTexture, TextureSlot::ROUGHNESS_SCREENDEPTHSTENCIL);
 			g_engine->m_renderer->BindTexture(m_definition.m_actor2DRenderInfo.m_spriteSheetMetallicTexture, TextureSlot::METALLIC);
 			g_engine->m_renderer->BindTexture(m_definition.m_actor2DRenderInfo.m_spriteSheetEmissiveTexture, TextureSlot::EMISSIVE);
 
@@ -754,7 +873,7 @@ void Actor::Render(Camera const& viewCamera) const {
 		g_engine->m_renderer->BindTexture(m_equippedWeapon->m_definition.m_hud.m_spriteSheetNormalTexture, TextureSlot::NORMAL_ORIGINALSCREEN);
 		g_engine->m_renderer->BindTexture(nullptr, TextureSlot::AO_SCREENDEPTH);
 		g_engine->m_renderer->BindTexture(nullptr, TextureSlot::PARALLAX_SCREENNORMAL);
-		g_engine->m_renderer->BindTexture(nullptr, TextureSlot::ROUGHNESS);
+		g_engine->m_renderer->BindTexture(nullptr, TextureSlot::ROUGHNESS_SCREENDEPTHSTENCIL);
 		g_engine->m_renderer->BindTexture(nullptr, TextureSlot::METALLIC);
 		g_engine->m_renderer->BindTexture(m_equippedWeapon->m_definition.m_hud.m_spriteSheetEmissiveTexture, TextureSlot::EMISSIVE);
 		g_engine->m_renderer->DrawVertexArray(m_weaponLitVerts, m_equippedWeapon->m_definition.m_hud.m_shader);

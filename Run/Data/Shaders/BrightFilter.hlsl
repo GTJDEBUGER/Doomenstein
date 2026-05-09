@@ -38,7 +38,7 @@ float4 PixelMain(v2p_t input) : SV_Target0
     float rawDepth = depthTexture.Sample(screenSampler, input.uv).r;
     float3 normal = originalScreenNormal.Sample(screenSampler, input.uv).rgb * 2.0f - 1.0f;
     
-    if (rawDepth >= 0.9993f) 
+    if (length(normal) <= 0.01f) 
         return float4(0, 0, 0, color.a);
     
     float near = 0.1f;
@@ -47,8 +47,8 @@ float4 PixelMain(v2p_t input) : SV_Target0
     float normalizedDepth = saturate(linearDepth / far);
     
     float luma = dot(color.rgb, float3(0.2126f, 0.7152f, 0.0722f));
-    float threshold = 0.4f;
-    float knee = 0.2f;
+    float threshold = 0.7f;
+    float knee = 0.1f;
     float soft = luma - threshold + knee;
     soft = clamp(soft, 0, 2.0f * knee);
     soft = soft * soft / (4.0f * knee + 0.00001f);

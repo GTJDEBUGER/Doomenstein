@@ -58,6 +58,7 @@ cbuffer CameraConstants : register(b2)
     float4x4 CameraToRenderTransform;
     float4x4 RenderToClipTransform;
     float3 CameraWorldPosition;
+    float4 ViewportBoundsUV;
 };
 
 //------------------------------------------------------------------------------------------------
