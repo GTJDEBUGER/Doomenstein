@@ -177,24 +177,19 @@ float2 RaySphereIntersection(float3 ro, float3 rd, float radius)
 
 float3 ApplyStormVortex(float3 p, float3 earthCenter, out float eyeMask, out float stormWeight)
 {
-    eyeMask = 1.0f;
-    stormWeight = 0.0f;
-    
-    if (StormRadius <= 0.01f)
-        return p;
-
     float2 offset = p.xy - StormCenter;
     float distSq = dot(offset, offset);
     float radSq = StormRadius * StormRadius;
     
-    if (distSq > radSq)
-        return p;
+    float validRadiusMask = step(0.01001f, StormRadius);
+    float insideStormMask = step(distSq, radSq);
+    float activeMask = validRadiusMask * insideStormMask;
+    
+    float safeRadius = max(StormRadius, 0.0001f);
     
     float dist = sqrt(distSq);
-    float r_norm = saturate(dist / StormRadius);
-    
-    float falloff = smoothstep(1.0, 0.0, r_norm);
-    stormWeight = falloff;
+    float r_norm = saturate(dist / safeRadius);
+    float falloff = smoothstep(1.0f, 0.0f, r_norm);
     
     float rigidSpin = GameRunTime * 0.15f;
     float spatialTwist = StormTwistStrength * pow(falloff, 1.5f);
@@ -214,13 +209,16 @@ float3 ApplyStormVortex(float3 p, float3 earthCenter, out float eyeMask, out flo
     float3 upDir = normalize(p - earthCenter);
     warpedP += upDir * (pow(falloff, 2.0f) * StormFunnelDepth);
     
-    float heightEst = length(p - earthCenter) - 48000.0;
+    float heightEst = length(p - earthCenter) - 48000.0f;
     float hFrac = saturate((heightEst - WeatherCloudMinY) / (WeatherCloudMaxY - WeatherCloudMinY));
     
     float dynamicEyeRadius = StormEyeRadius * lerp(0.3f, 1.6f, hFrac);
-    eyeMask = smoothstep(dynamicEyeRadius * 0.4f, dynamicEyeRadius * 1.2f, dist);
+    float calcEyeMask = smoothstep(dynamicEyeRadius * 0.4f, dynamicEyeRadius * 1.2f, dist);
     
-    return warpedP;
+    eyeMask = lerp(1.0f, calcEyeMask, activeMask);
+    stormWeight = falloff * activeMask;
+    
+    return lerp(p, warpedP, activeMask);
 }
 
 float GetCloudDensity(float3 p, float heightFrac, bool useDetail, float3 baseMove, float3 detailMove, float coverage)

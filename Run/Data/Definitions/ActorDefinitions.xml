@@ -117,7 +117,7 @@
 
     </ActorDefinition>
 	<!-- Demon Dragon-->
-	<ActorDefinition name="DemonDragon" faction="Demon" health="1000" canBePossessed="true" corpseLifetime="5.0" visible="true" isBoss="true">
+	<ActorDefinition name="DemonDragon" faction="Demon" health="1" canBePossessed="true" corpseLifetime="5.0" visible="true" isBoss="true">
 		<Collision radius="1.5" height="3.0" collidesWithWorld="true" collidesWithActors="true"/>
 		<Physics isSimulated="true" walkSpeed="8.f" runSpeed="24.f" turnSpeed="120.0f" drag="12.0f" mass="1.0f" flying="true"/>
 		<Camera eyeHeight="2.5f" cameraFOV="120.0f"/>
