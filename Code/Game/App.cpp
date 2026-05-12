@@ -586,10 +586,13 @@ void App::PrintGameControlGuide() {
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-SPACE or Gamepad-A-             \tJump");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-1 or D pad-Up-                  \tSwitch to weapon 1");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-2 or D pad-Down-                \tSwitch to weapon 2");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-3 or D pad-Left-                \tSwitch to weapon 3 (if you have)");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-4 or D pad-Right-               \tSwitch to weapon 4 (if you have)");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-F-                              \tToggle free camera mode (Single player only)");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-N-                              \tPossess next valid actor in map (single player only)");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-P-                              \tPause the game");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-O-                              \tSingle step frame");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-T-                              \tSlow down game while held");
 	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-H-                              \tSpeed up game while held");
+	g_engine->m_devConsole->AddLine(DevConsoleLineType::INFO_MESSAGE, "-F1-                             \tTurn on debug draw, include FPS");
 }
