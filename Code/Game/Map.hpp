@@ -15,6 +15,7 @@
 class Game;
 class Tile;
 class Actor;
+class TempActor;
 class Texture;
 class Shader;
 class VertexBuffer;
@@ -85,6 +86,7 @@ public:
 	Actor* SpawnActor(SpawnInfo const& spawnInfo);
 	Actor* SpawnPlayerActor(SpawnInfo const& spawnInfo, PlayerController* controller);
 	Actor* GetActorByHandle(ActorHandle const handle) const;
+	void AddTempActor(TempActor* tempActor, Vec3 addPosition);
 	Actor* GetRandomSpwanPoint() const;
 	Actor* GetNextValidActorLoop(ActorHandle const curHandle) const;
 	Actor* GetNearestActor(Actor* source, std::string const& faction) const;
@@ -117,6 +119,8 @@ protected:
 	mutable std::vector<Actor*> m_sortedActors;
 	std::vector<ActorHandle*> m_respawnActorsHandle;
 	unsigned int m_nextActorUID = 1;
+
+	std::vector<TempActor*> m_tempActors;
 
 	std::vector<PointLight> m_pointLights;
 

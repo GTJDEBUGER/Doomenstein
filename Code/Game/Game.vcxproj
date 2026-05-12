@@ -290,10 +290,12 @@
     <ClCompile Include="Map.cpp" />
     <ClCompile Include="MapDefinition.cpp" />
     <ClCompile Include="PlayerController.cpp" />
+    <ClCompile Include="TempActor.cpp" />
     <ClCompile Include="Tile.cpp" />
     <ClCompile Include="TileDefinition.cpp" />
     <ClCompile Include="Weapon.cpp" />
     <ClCompile Include="WeaponDefinition.cpp" />
+    <ClCompile Include="WeaponPickup.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Actor.hpp" />
@@ -309,10 +311,12 @@
     <ClInclude Include="Map.hpp" />
     <ClInclude Include="MapDefinition.hpp" />
     <ClInclude Include="PlayerController.hpp" />
+    <ClInclude Include="TempActor.hpp" />
     <ClInclude Include="Tile.hpp" />
     <ClInclude Include="TileDefinition.hpp" />
     <ClInclude Include="Weapon.hpp" />
     <ClInclude Include="WeaponDefinition.hpp" />
+    <ClInclude Include="WeaponPickup.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Xml Include="..\..\Run\Data\Definitions\ActorDefinitions.xml" />

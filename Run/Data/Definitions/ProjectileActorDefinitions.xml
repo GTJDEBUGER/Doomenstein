@@ -70,4 +70,49 @@
 		</Sounds>
 		<PointLight radius="80.0" color="255,100, 10" intensity="15." volumetric="true"/>
 	</ActorDefinition>
+
+	<!-- Fishing Float -->
+	<ActorDefinition name="FishingFloat" canBePossessed="false" corpseLifetime="0." visible="true">
+		<Collision radius="0.6" height="1.2" collidesWithWorld="true" collidesWithActors="true"/>
+		<Physics isSimulated="true" runSpeed="100" turnSpeed="0.0" drag="0.0" mass="1.0f"/>
+		<Visuals size="1.2,1.2" pivot="0.5,0.0" billboardType="FullOpposing" renderLit="false" renderRounded="false" shader="Diffuse"
+				 spriteSheet="Data/Images/FishingFloat.png"
+				 cellCount="1,1">
+			<AnimationGroup name="Walk" secondsPerFrame="0.1" playbackMode="Loop">
+				<Direction vector="-1,0,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="-1,-1,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="0,-1,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="1,-1,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="1,0,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="1,1,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="0,1,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+				<Direction vector="-1,1,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+			</AnimationGroup>
+			<AnimationGroup name="Death" secondsPerFrame="0.1" playbackMode="Loop">
+				<Direction vector="1,0,0">
+					<Animation startFrame="0" endFrame="0"/>
+				</Direction>
+			</AnimationGroup>
+		</Visuals>
+		<Sounds>
+			<Sound sound="Death" name="Data/Audio/PlasmaHit.wav"/>
+		</Sounds>
+		<PointLight radius="20.0" color="255,255,255" intensity="2.5" volumetric="true"/>
+	</ActorDefinition>
 </Definitions>

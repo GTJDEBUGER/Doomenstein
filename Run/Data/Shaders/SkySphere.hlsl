@@ -43,8 +43,8 @@ cbuffer GameConstants : register(b0)
     float WeatherCloudMinY; // 5000.0
     float WeatherCloudMaxY; // 15000.0
     
-    float2 StormCenter; 
-    float StormRadius; 
+    float2 StormCenter;
+    float StormRadius;
     float StormTwistStrength;
     float StormFunnelDepth;
     float StormEyeRadius;
@@ -324,6 +324,73 @@ float4 RenderClouds(float3 ro, float3 rd, float3 sunDir, float3 moonDir, float d
         
         float currentCoverage = lerp(WeatherCoverage, WeatherCoverage - 0.0375, dayFactor);
         float distFade = smoothstep(maxRenderDist, maxRenderDist * 0.7, currentDist - startDist);
+        
+        float tBolt = -1.0;
+        float3 lightningColorToInject = float3(0.0, 0.0, 0.0);
+        float globalFlashEnergy = 0.0;
+
+        if (StormRadius > 0.01f)
+        {
+            float strikeTime = GameRunTime * 1.5;
+            float strikeBeat = floor(strikeTime);
+            float strikeFract = frac(strikeTime);
+            float strikeChance = hash(float3(strikeBeat, 13.0, 27.0));
+    
+            float doStrike = step(0.4, strikeChance);
+            float strobe = pow(sin(strikeFract * 40.0) * 0.5 + 0.5, 3.0);
+            float suddenFlash = exp(-strikeFract * 6.0) * strobe * doStrike;
+    
+            globalFlashEnergy = suddenFlash;
+            
+            float2 dirToStorm = normalize(StormCenter - ro.xy);
+            float denom = dot(rd.xy, dirToStorm);
+    
+            if (denom > 0.001 && suddenFlash > 0.001)
+            {
+                float t = length(StormCenter - ro.xy) / denom;
+        
+                if (t > startDist && t < endDist)
+                {
+                    tBolt = t;
+                    float3 hitPos = ro + rd * tBolt;
+            
+                    float2 planeRight = float2(-dirToStorm.y, dirToStorm.x);
+                    float u = dot(hitPos.xy - StormCenter, planeRight);
+                    float v = hitPos.z;
+            
+                    float zFrac = saturate((cloudMaxHeight - v) / (cloudMaxHeight - cloudMinHeight));
+            
+                    float spread = lerp(150.0, 5000.0, zFrac);
+            
+                    float nv = v * 0.0002;
+                    float tNoise = GameRunTime * 4.0;
+            
+                    float warp1 = noise(float3(0.0, nv * 8.0, tNoise)) * 2.0 - 1.0;
+                    float warp2 = noise(float3(0.0, nv * 22.0, tNoise * 1.3)) * 2.0 - 1.0;
+                    float trunkU = u + (warp1 + warp2 * 0.4) * spread;
+                    float distToTrunk = abs(trunkU);
+            
+                    float core = smoothstep(30.0, 0.0, distToTrunk);
+                    float halo = smoothstep(500.0, 0.0, distToTrunk);
+            
+                    float branchNoise = noise(float3(trunkU * 0.0008, nv * 12.0, tNoise * 0.8)) * 2.0 - 1.0;
+                    float branchDist = abs(trunkU - branchNoise * spread * 1.5);
+            
+                    float branchMask = smoothstep(2500.0, 0.0, distToTrunk) * smoothstep(0.1, 0.6, zFrac);
+            
+                    float branchCore = smoothstep(20.0, 0.0, branchDist) * branchMask;
+                    float branchHalo = smoothstep(250.0, 0.0, branchDist) * branchMask;
+            
+                    float finalCore = max(core, branchCore);
+                    float finalHalo = max(halo, branchHalo);
+            
+                    lightningColorToInject = finalCore * float3(1.0, 0.9, 0.6) * 150.0 + finalHalo * float3(1.0, 0.05, 0.01) * 35.0;
+                    lightningColorToInject *= suddenFlash;
+            
+                    lightningColorToInject *= smoothstep(0.0, 0.2, zFrac);
+                }
+            }
+        }
         
         for (int i = 0; i < steps; i++)
         {

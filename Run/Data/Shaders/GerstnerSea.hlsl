@@ -275,7 +275,7 @@ v2p_t VertexMain(vs_input_t input)
     float distX = abs(input.modelPosition.x);
     float distY = abs(input.modelPosition.y);
     float maxDist = max(distX, distY);
-    float edgeWeight = 1.0f - smoothstep(600.0f, 740.0f, maxDist);
+    float edgeWeight = 1.0f - smoothstep(1000.0f, 1500.0f, maxDist);
     
     float finalWaveWeight = depthWeight * edgeWeight;
     
@@ -286,7 +286,7 @@ v2p_t VertexMain(vs_input_t input)
     float2 spatialWarp = float2(
         sin(baseGridPoint.y * 0.002f + GameRunTime * 0.1f),
         cos(baseGridPoint.x * 0.002f - GameRunTime * 0.1f)
-    ) * 45.0f;
+    ) * 15.0f;
     float3 samplePoint = baseGridPoint;
     samplePoint.xy += spatialWarp;
     

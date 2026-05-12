@@ -2,6 +2,7 @@
 #include "Game/Game.hpp"
 #include "Game/Tile.hpp"
 #include "Game/Actor.hpp"
+#include "Game/TempActor.hpp"
 #include "Game/PlayerController.hpp"
 #include "Game/ActorHandle.hpp"
 #include "Engine/Renderer/Texture.hpp"
@@ -35,6 +36,11 @@ Map::~Map() {
 	for (Actor* actor : m_actors) {
 		if (actor != nullptr) {
 			delete actor;
+		}
+	}
+	for (TempActor* tempActor : m_tempActors) {
+		if (tempActor != nullptr) {
+			delete tempActor;
 		}
 	}
 	delete m_sunShadowCamera;
@@ -331,13 +337,19 @@ Mat44 Map::GetSunShadowCameraViewProjMatrix() const {
 
 //-----------------------------------------------------------------------------------------------
 void Map::Update() {
+	float deltaTime = (float)m_game->m_gameClock->GetDeltaSeconds();
+
 	for (Actor* actor : m_actors) {
 		if (actor != nullptr) {
-			actor->Update((float)m_game->m_gameClock->GetDeltaSeconds());
+			actor->Update(deltaTime);
 		}
 	}
 
-	float deltaTime = (float)m_game->m_gameClock->GetDeltaSeconds();
+	for (TempActor* tempActor : m_tempActors) {
+		if (tempActor != nullptr) {
+			tempActor->Update(deltaTime);
+		}
+	}
 	m_timeOfDay += deltaTime * m_simulatTimeScale;
 
 	if (m_timeOfDay >= 24.0f) {
@@ -561,6 +573,13 @@ void Map::ClearDeadActors() {
 			m_actors[i] = nullptr;
 		}
 	}
+
+	for (size_t i = 0; i < m_tempActors.size(); i++) {
+		if (m_tempActors[i] != nullptr && m_tempActors[i]->m_isDead) {
+			delete m_tempActors[i];
+			m_tempActors[i] = nullptr;
+		}
+	}
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -715,6 +734,12 @@ void Map::Render(Camera const& viewCamera) const {
 
 	for (int i = 0; i < m_sortedActors.size(); ++i) {
 		m_sortedActors[i]->Render(viewCamera);
+	}
+
+	for (TempActor* tempActor : m_tempActors) {
+		if (tempActor != nullptr) {
+			tempActor->Render(viewCamera);
+		}
 	}
 }
 
@@ -1112,6 +1137,23 @@ Actor* Map::GetActorByHandle(ActorHandle const handle) const {
 }
 
 //-----------------------------------------------------------------------------------------------
+void Map::AddTempActor(TempActor* tempActor, Vec3 addPosition) {
+	if (tempActor == nullptr) return;
+	bool findEmptySlot = false;
+	for (size_t i = 0; i < m_tempActors.size(); ++i) {
+		if (m_tempActors[i] == nullptr) {
+			m_tempActors[i] = tempActor;
+			findEmptySlot = true;
+			break;
+		}
+	}
+	if (!findEmptySlot) {
+		m_tempActors.push_back(tempActor);
+	}
+	tempActor->m_position = addPosition;
+}
+
+//-----------------------------------------------------------------------------------------------
 Actor* Map::GetRandomSpwanPoint() const {
 	std::vector<Actor*> spawnPoints;
 	for (Actor* actor : m_actors) {
@@ -1170,6 +1212,9 @@ void Map::UpdatePointLights() {
 	m_pointLights.clear();
 
 	for (Actor* actor : m_actors) {
+		if (m_pointLights.size() >= MAX_POINT_LIGHTS) {
+			break;
+		}
 		if (actor != nullptr) {
 			if (actor->m_definition.m_pointLight.m_intensity > 0.f) {
 				m_pointLights.push_back(
@@ -1187,8 +1232,29 @@ void Map::UpdatePointLights() {
 					}
 				);
 			}
-			if (m_pointLights.size() >= MAX_POINT_LIGHTS){
-				break;
+		}
+	}
+
+	for (TempActor* tempActor : m_tempActors) {
+		if (m_pointLights.size() >= MAX_POINT_LIGHTS){
+			break;
+		}
+		if (tempActor != nullptr) {
+			if (tempActor->m_pointLightIntensity > 0.f) {
+				m_pointLights.push_back(
+					PointLight{
+						tempActor->m_position + tempActor->m_pointLightOffset,
+						tempActor->m_pointLightRadius,
+						{
+						(float)tempActor->m_pointLightColor.r / 255.f,
+						(float)tempActor->m_pointLightColor.g / 255.f,
+						(float)tempActor->m_pointLightColor.b / 255.f,
+						1.f
+						},
+						tempActor->m_pointLightIntensity,
+						tempActor->m_pointLightVolumetric
+					}
+				);
 			}
 		}
 	}

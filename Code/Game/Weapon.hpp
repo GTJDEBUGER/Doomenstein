@@ -14,12 +14,16 @@ public:
 	~Weapon();
 
 	bool Fire(Vec3 aimDirection);
+	void Update(float deltaSeconds);
 	Vec3 GetRandomDirectionInCone(Vec3 const& forward, float coneDegrees) const;
 
 public:
 	WeaponDefinition const& m_definition;
 	Actor* m_owner;
 
+	Actor* m_activeProjectile = nullptr;
+	bool   m_isRetrieving = false;
+	float  m_currentRopeLength = 60.0f;
 private:
 	RandomNumberGenerator* m_randomGenerator;
 	Clock* m_fireClock;

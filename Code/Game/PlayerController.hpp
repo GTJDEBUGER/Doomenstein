@@ -70,4 +70,9 @@ public:
 	std::vector<CameraKeyframe> m_cinematicKeyframes;
 	int                         m_currentKeyframeIndex = 0;
 	float                       m_cinematicTimer = 0.f;
+
+	bool                        m_isUnlockFishrod = false;
+	bool                        m_haveFish = false;
+	float                       m_curFishSize = 0.f;
+	unsigned int                m_fishIndex = 0;
 };

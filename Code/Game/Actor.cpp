@@ -8,6 +8,7 @@
 #include "Game/Weapon.hpp"
 #include "Game/Game.hpp"
 #include "Game/App.hpp"
+#include "Game/WeaponPickup.hpp"
 #include "Engine/Core/Engine.hpp"
 #include "Engine/Math/RandomNumberGenerator.hpp"
 #include "Engine/Renderer/Camera.hpp"
@@ -405,6 +406,7 @@ void Actor::Damage(float damageAmount, Actor* attacker) {
 				subActor->m_isFrozenPhysics = true;
 				segmentDelay += 1;
 			}
+			m_map->AddTempActor(new WeaponPickup(m_map), Vec3(80.f, 80.f, 0.f));
 		}
 
 		if (m_definition.m_sounds.find("Death") != m_definition.m_sounds.end()) {
@@ -600,15 +602,23 @@ void Actor::UpdateWeapon(float deltaSeconds) {
 	if ((playerController != nullptr && playerController->m_cameraMode != PlayerCameraMode::FREE_CAMERA) && m_equippedWeapon != nullptr && m_equippedWeapon->m_definition.m_hud.m_animations.size()>0) {
 		m_weaponAnimTimer += deltaSeconds; 
 
-		if (m_curWeaponAnimName != "Idle" && m_curWeaponAnimName == "Attack" && m_weaponAnimTimer > m_equippedWeapon->m_definition.m_hud.m_animations.at("Attack")->GetDuration()) {
-			m_curWeaponAnimName = "Idle";
-			m_weaponAnimTimer = 0.f;
-		} 
-		else if (m_curWeaponAnimName == "Idle") {
-			m_weaponAnimTimer = 0.f;
+		if (m_equippedWeapon->m_definition.m_name != "Fish") {
+			if (m_curWeaponAnimName != "Idle" && m_curWeaponAnimName == "Attack" && m_weaponAnimTimer > m_equippedWeapon->m_definition.m_hud.m_animations.at("Attack")->GetDuration()) {
+				m_curWeaponAnimName = "Idle";
+				m_weaponAnimTimer = 0.f;
+			}
+			else if (m_curWeaponAnimName == "Idle") {
+				m_weaponAnimTimer = 0.f;
+			}
 		}
 
 		UpdateWeaponAnimation(m_curWeaponAnimName, m_weaponAnimTimer);
+	}
+
+	for (Weapon* weapon : m_inventory) {
+		if (weapon != nullptr) {
+			weapon->Update(deltaSeconds);
+		}
 	}
 }
 
@@ -649,7 +659,14 @@ void Actor::UpdateWeaponAnimation(std::string animationName, float playbackTime)
 	if (m_equippedWeapon == nullptr) {
 		return;
 	}
-	AABB2 currentSpriteUV = m_equippedWeapon->m_definition.m_hud.m_animations.at(animationName)->GetSpriteDefAtTime(playbackTime).GetUvs();
+	AABB2 currentSpriteUV;
+	if (m_equippedWeapon->m_definition.m_name == "Fish") {
+		PlayerController* playerController = dynamic_cast<PlayerController*>(m_controller);
+		currentSpriteUV = m_equippedWeapon->m_definition.m_hud.m_animations.at(Stringf("%d", playerController->m_fishIndex))->GetSpriteDefAtTime(playbackTime).GetUvs();
+	}
+	else {
+		currentSpriteUV = m_equippedWeapon->m_definition.m_hud.m_animations.at(animationName)->GetSpriteDefAtTime(playbackTime).GetUvs();
+	}
 	UpdateWeaponVertsUVs(currentSpriteUV);
 }
 
@@ -834,6 +851,36 @@ void Actor::Render(Camera const& viewCamera) const {
 			}
 		}
 
+		if (playerController!=nullptr && m_equippedWeapon!=nullptr && m_equippedWeapon->m_definition.m_name == "Fish") {
+			g_engine->m_renderer->BindTexture(&m_equippedWeapon->m_definition.m_hud.m_spriteSheet->GetTexture(), TextureSlot::DIFFUSE_SCREEN);
+			g_engine->m_renderer->BindTexture(m_equippedWeapon->m_definition.m_hud.m_spriteSheetNormalTexture, TextureSlot::NORMAL_ORIGINALSCREEN);
+			g_engine->m_renderer->BindTexture(nullptr, TextureSlot::AO_SCREENDEPTH);
+			g_engine->m_renderer->BindTexture(nullptr, TextureSlot::PARALLAX_SCREENNORMAL);
+			g_engine->m_renderer->BindTexture(nullptr, TextureSlot::ROUGHNESS_SCREENDEPTHSTENCIL);
+			g_engine->m_renderer->BindTexture(nullptr, TextureSlot::METALLIC);
+			g_engine->m_renderer->BindTexture(m_equippedWeapon->m_definition.m_hud.m_spriteSheetEmissiveTexture, TextureSlot::EMISSIVE);
+			Mat44 modelMatrix = Mat44::MakeTransform3D(
+				m_position + Vec3(0.f,0.f,m_definition.m_actorCamera.m_eyeHeight) + m_orientation.GetForwardDir_IFwd_JLeft_KUp() * m_definition.m_collision.m_radius,
+				m_orientation, 
+				Vec3(1.f,1.f,1.f) * playerController->m_curFishSize
+			);
+			g_engine->m_renderer->SetModelConstants(modelMatrix);
+			g_engine->m_renderer->SetBlendMode(BlendMode::ALPHA);
+			std::vector<Vertex_TBN> tempActorLitVerts;
+			AddVertexForQuad3D(
+				tempActorLitVerts,
+				Vec3(0.f, -0.5f, -0.5f),
+				Vec3(0.f, 0.5f, -0.5f),
+				Vec3(0.f, 0.5f, 0.5f),
+				Vec3(0.f, -0.5f, 0.5f),
+				Rgba8::WHITE,
+				m_equippedWeapon->m_definition.m_hud.m_animations.at(Stringf("%d", playerController->m_fishIndex))->GetSpriteDefAtTime(m_weaponAnimTimer).GetUvs()
+			);
+			g_engine->m_renderer->SetRasterizerMode(RasterizerMode::SOLID_CULL_NONE);
+			g_engine->m_renderer->DrawVertexArray(tempActorLitVerts, m_definition.m_actor2DRenderInfo.m_shader);
+			g_engine->m_renderer->SetRasterizerMode(RasterizerMode::SOLID_CULL_BACK);
+		}
+
 		if (m_map->m_game->m_isDrawDebug) {
 			if (m_isDead && !m_needDestroy) {
 				g_engine->m_renderer->BindTexture(nullptr);
@@ -860,6 +907,30 @@ void Actor::Render(Camera const& viewCamera) const {
 		playerController->m_playerCamera->GetOrientation().GetAsVectors_IFwd_JLeft_KUp(cameraForward, cameraLeft, cameraUp);
 		Vec3 weaponRenderPos = cameraPos + (cameraForward * m_definition.m_collision.m_radius * 0.5f) - cameraUp * 0.26f;
 
+		if (m_equippedWeapon != nullptr && m_equippedWeapon->m_definition.m_isReuseableProjectile) {
+			if (m_equippedWeapon->m_activeProjectile != nullptr && !m_equippedWeapon->m_activeProjectile->m_isDead) {
+				Vec3 startPos = weaponRenderPos + cameraForward * 0.01f + cameraUp * 0.31f;
+				Vec3 endPos = m_equippedWeapon->m_activeProjectile->m_position;
+
+				std::vector<Vertex> ropeVerts;
+				AddVertexForCylinder3D(
+					ropeVerts,
+					startPos,
+					endPos,
+					0.0025f,
+					Rgba8(200, 200, 200, 255),
+					AABB2::ZERO_TO_ONE,
+					8
+				);
+
+				g_engine->m_renderer->BindTexture(nullptr);
+				g_engine->m_renderer->SetDepthMode(DepthMode::READ_WRITE_LESS_EQUAL);
+				g_engine->m_renderer->SetModelConstants(Mat44(), Rgba8::WHITE);
+				g_engine->m_renderer->SetBlendMode(BlendMode::ALPHA);
+				g_engine->m_renderer->DrawVertexArray(ropeVerts);
+			}
+		}
+
 		Mat44 modelMatrix = GetBillboardTransform(
 			BillboardType::FULL_FACING,
 			camModelMatrix,
@@ -877,6 +948,7 @@ void Actor::Render(Camera const& viewCamera) const {
 		g_engine->m_renderer->BindTexture(nullptr, TextureSlot::METALLIC);
 		g_engine->m_renderer->BindTexture(m_equippedWeapon->m_definition.m_hud.m_spriteSheetEmissiveTexture, TextureSlot::EMISSIVE);
 		g_engine->m_renderer->DrawVertexArray(m_weaponLitVerts, m_equippedWeapon->m_definition.m_hud.m_shader);
+
 	}
 }
 

@@ -346,6 +346,18 @@ void App::HandlePlayerInput(){
 			m_game->m_playerKeyboardController->GetPossessedActor()->EquipWeapon(1);
 		}
 	}
+	else if (g_engine->m_input->WasKeyJustPressed('3')) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
+			if (m_game->m_playerKeyboardController->m_isUnlockFishrod)
+				m_game->m_playerKeyboardController->GetPossessedActor()->EquipWeapon(2);
+		}
+	}
+	else if (g_engine->m_input->WasKeyJustPressed('4')) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE) {
+			if (m_game->m_playerKeyboardController->m_haveFish)
+			m_game->m_playerKeyboardController->GetPossessedActor()->EquipWeapon(3);
+		}
+	}
 
 	//PLayer attack input
 	if (g_engine->m_input->WasKeyJustPressed(KEYCODE_LEFT_MOUSE) && m_game->GetCurGameState() == GAME_PLAYING_MODE) {
@@ -444,6 +456,18 @@ void App::HandlePlayerInput(){
 	else if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_DPAD_DOWN)) {
 		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
 			m_game->m_playerGamepadController->GetPossessedActor()->EquipWeapon(1);
+		}
+	}
+	else if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_DPAD_LEFT)) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
+			if (m_game->m_playerGamepadController->m_isUnlockFishrod)
+				m_game->m_playerGamepadController->GetPossessedActor()->EquipWeapon(2);
+		}
+	}
+	else if (g_engine->m_input->GetController(0).WasButtonJustPressed(GAMEPAD_DPAD_RIGHT)) {
+		if (m_game->GetCurGameState() == GAME_PLAYING_MODE && m_game->m_playerGamepadController != nullptr) {
+			if (m_game->m_playerGamepadController->m_haveFish)
+				m_game->m_playerGamepadController->GetPossessedActor()->EquipWeapon(3);
 		}
 	}
 

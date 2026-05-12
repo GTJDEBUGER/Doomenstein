@@ -3,11 +3,14 @@
 #include "Game/ActorDefinition.hpp"
 #include "Game/Game.hpp"
 #include "Game/App.hpp"
+#include "Game/Controller.hpp"
+#include "Game/PlayerController.hpp"
 #include "Engine/Math/RandomNumberGenerator.hpp"
 #include "Engine/Math/MathUtils.hpp"
 #include "Engine/Renderer/DebugRenderSystem.hpp"
 #include "Engine/Core/Clock.hpp"
 #include "Engine/Core/Engine.hpp"
+#include "Engine/Renderer/Camera.hpp"
 
 //-----------------------------------------------------------------------------------------------
 Weapon::Weapon(WeaponDefinition const& definition, Actor* owner) :
@@ -29,6 +32,18 @@ bool Weapon::Fire(Vec3 aimDirection) {
 	if (m_fireClock->GetTotalSeconds() < m_definition.m_refireTime) {
 		return false;
 	}
+	if (m_definition.m_isReuseableProjectile) {
+		if (m_activeProjectile != nullptr && !m_activeProjectile->m_isDead && !m_activeProjectile->m_needDestroy) {
+			m_isRetrieving = true;
+			m_fireClock->Reset();
+
+			if (m_definition.m_sounds.find("Fire") != m_definition.m_sounds.end()) {
+				g_engine->m_audio->StartSoundAt(m_definition.m_sounds.at("Fire"), m_owner->m_position, false, g_gameConfig->m_soundEffectVolume);
+			}
+			return true;
+		}
+	}
+
 	m_fireClock->Reset();
 
 	//Handle ray attack
@@ -117,9 +132,15 @@ bool Weapon::Fire(Vec3 aimDirection) {
 			Actor* projectileActor = m_owner->m_map->SpawnActor(projectileSpawnInfo);
 			projectileActor->m_velocity = randomDirection * m_definition.m_projectileSpeed;
 			projectileActor->m_owner = m_owner;
-			projectileActor->m_position = m_owner->m_position + 
+			projectileActor->m_position = m_owner->m_position +
 				Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.5f) +
 				randomDirection * m_owner->m_definition.m_collision.m_radius;
+
+			if (m_definition.m_isReuseableProjectile) {
+				m_activeProjectile = projectileActor;
+				m_isRetrieving = false;
+				m_currentRopeLength = m_definition.m_projectileSpeed * 1.5f;
+			}
 
 			g_engine->m_audio->StartSoundAt(
 				m_definition.m_sounds.at("Fire"),
@@ -130,14 +151,6 @@ bool Weapon::Fire(Vec3 aimDirection) {
 				g_gameConfig->m_soundEffectVolume
 			);
 		}
-		m_owner->m_map->SpawnActor(
-			SpawnInfo{
-				"PlasmaFireLight",
-				m_owner->m_position +
-				Vec3(0.f, 0.f, m_owner->m_definition.m_collision.m_height * 0.725f) +
-				aimDirection * m_owner->m_definition.m_collision.m_radius * 1.6f
-			}
-		);
 	}
 
 	//Handle melee attack
@@ -191,6 +204,65 @@ bool Weapon::Fire(Vec3 aimDirection) {
 	}
 
 	return true;
+}
+
+//-----------------------------------------------------------------------------------------------
+void Weapon::Update(float deltaSeconds) {
+	if (m_definition.m_isReuseableProjectile && m_activeProjectile != nullptr) {
+		if (m_activeProjectile->m_isDead || m_activeProjectile->m_needDestroy) {
+			m_activeProjectile = nullptr;
+			m_isRetrieving = false;
+			return;
+		}
+
+		if (dynamic_cast<PlayerController*>(m_owner->m_controller) == nullptr) {
+			return;
+		}
+		PlayerController* playerController = dynamic_cast<PlayerController*>(m_owner->m_controller);
+		Mat44 camModelMatrix = playerController->m_playerCamera->GetCameraToWorldTransform();
+		Vec3 cameraPos = playerController->m_playerCamera->GetPosition();
+		Vec3 cameraForward;
+		Vec3 cameraLeft;
+		Vec3 cameraUp;
+		playerController->m_playerCamera->GetOrientation().GetAsVectors_IFwd_JLeft_KUp(cameraForward, cameraLeft, cameraUp);
+		Vec3 weaponRenderPos = cameraPos + (cameraForward * m_owner->m_definition.m_collision.m_radius * 0.5f) - cameraUp * 0.26f;
+
+		Vec3 ropeStartPos = weaponRenderPos + cameraForward * 0.01f + cameraUp * 0.31f;
+		Vec3 ropeEndPos = m_activeProjectile->m_position;
+		Vec3 displacement = ropeEndPos - ropeStartPos;
+		float distance = displacement.GetLength();
+
+		if (m_isRetrieving) {
+			float reelSpeed = m_definition.m_projectileSpeed * 1.5f;
+			m_currentRopeLength -= reelSpeed * deltaSeconds;
+
+			Vec3 pullDir = displacement.GetNormalized() * -1.f + Vec3(0.f,0.f,0.5f);
+			m_activeProjectile->AddForce(pullDir * 100.f);
+
+			if (distance < m_owner->m_definition.m_collision.m_radius * 2.f || m_currentRopeLength <= 0.f) {
+				m_activeProjectile->m_isDead = true;
+				m_activeProjectile = nullptr;
+				m_isRetrieving = false;
+
+				playerController->m_haveFish = true;
+				playerController->m_curFishSize = m_randomGenerator->RollRandomFloatInRange(0.5f, 10.f);
+				playerController->m_fishIndex = m_randomGenerator->RollRandomIntInRange(0, 9);
+				playerController->GetPossessedActor()->EquipWeapon(3);
+				return;
+			}
+		}
+
+		if (distance > m_currentRopeLength && distance > 0.f) {
+			Vec3 dir = displacement.GetNormalized();
+
+			m_activeProjectile->m_position = ropeStartPos + dir * m_currentRopeLength;
+
+			float outwardSpeed = DotProduct3D(m_activeProjectile->m_velocity, dir);
+			if (outwardSpeed > 0.f) {
+				m_activeProjectile->m_velocity -= dir * outwardSpeed;
+			}
+		}
+	}
 }
 
 //-----------------------------------------------------------------------------------------------

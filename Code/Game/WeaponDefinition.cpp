@@ -28,7 +28,8 @@ WeaponDefinition::WeaponDefinition(
 	float meleeArc,
 	float meleeRange,
 	FloatRange meleeDamage,
-	float meleeImpulse
+	float meleeImpulse,
+	bool isReuseableProjectile
 ) : 
 	m_name(name),
 	m_refireTime(refireTime),
@@ -45,7 +46,8 @@ WeaponDefinition::WeaponDefinition(
 	m_meleeArc(meleeArc),
 	m_meleeRange(meleeRange),
 	m_meleeDamage(meleeDamage),
-	m_meleeImpulse(meleeImpulse)
+	m_meleeImpulse(meleeImpulse),
+	m_isReuseableProjectile(isReuseableProjectile)
 {
 }
 
@@ -72,7 +74,8 @@ void WeaponDefinition::InitializeWeaponDefs(std::string configPath) {
 			ParseXmlAttribute(*i, "meleeArc", 0.f),
 			ParseXmlAttribute(*i, "meleeRange", 0.f),
 			ParseXmlAttribute(*i, "meleeDamage", FloatRange(0.f, 0.f)),
-			ParseXmlAttribute(*i, "meleeImpulse", 0.f)
+			ParseXmlAttribute(*i, "meleeImpulse", 0.f),
+			ParseXmlAttribute(*i, "isReuseableProjectile", false)
 		);
 
 		XmlElement* weaponHUD = i->FirstChildElement("HUD");

@@ -48,7 +48,8 @@ public:
 		float meleeArc,
 		float meleeRange,
 		FloatRange meleeDamage,
-		float meleeImpulse
+		float meleeImpulse,
+		bool isReuseableProjectile
 	);
 	static void InitializeWeaponDefs(std::string configPath);
 
@@ -76,6 +77,9 @@ public:
 	float                             m_meleeRange = 0.f;
 	FloatRange                        m_meleeDamage = FloatRange(0.f, 0.f);
 	float                             m_meleeImpulse = 0.f;
+
+	//for fishrod projectile weapon
+	bool                              m_isReuseableProjectile = false;
 
 	WeaponHUD                         m_hud;
 	std::map<std::string, SoundID>    m_sounds;

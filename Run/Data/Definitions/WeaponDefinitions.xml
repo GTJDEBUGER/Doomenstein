@@ -27,6 +27,42 @@
       <Sound sound="Fire" name="Data/Audio/PlasmaFire.wav"/>
     </Sounds>
   </WeaponDefinition>
+  <!-- Fishrod -->
+  <WeaponDefinition name="Fishrod" refireTime="1." projectileCount="1" projectileActor="FishingFloat" projectileCone="0.0" projectileSpeed="50.0" isReuseableProjectile="true">
+  	<HUD shader="Diffuse" baseTexture="Data/Images/Hud_Base.png" reticleTexture="Data/Images/Reticle.png" reticleSize="16,16"
+  			spriteSheet="Data/Images/Weapon_Fishrod.png"
+		    spriteSheetNormal="Data/Images/Weapon_Fishrod_normal.png"
+		    spriteSheetEmissive="Data/Images/Weapon_Fishrod_emissive.png"
+  			cellCount="5,1" spriteSize="512,512" spritePivot="0.5,0.0">
+  		<Animation name="Idle" shader="Diffuse" secondsPerFrame="0.075" startFrame="0" endFrame="0" />
+  		<Animation name="Attack" shader="Diffuse" secondsPerFrame="0.075" startFrame="1" endFrame="3" />
+  	</HUD>
+  	<Sounds>
+  		<Sound sound="Fire" name="Data/Audio/FishrodFire.wav"/>
+  	</Sounds>
+  </WeaponDefinition>
+	<!-- Fish -->
+	<WeaponDefinition name="Fish" refireTime="1." meleeCount="1" meleeArc="180.0" meleeRange="3.75" meleeDamage="20.0~30.0" meleeImpulse="30">
+		<HUD shader="Diffuse" baseTexture="Data/Images/Hud_Base.png" reticleTexture="Data/Images/Reticle.png" reticleSize="16,16"
+				spriteSheet="Data/Images/Weapon_Fish.png"
+				spriteSheetNormal="Data/Images/Weapon_Fish_normal.png"
+				spriteSheetEmissive="Data/Images/Weapon_Fish_emissive.png"
+				cellCount="4,3" spriteSize="256,256" spritePivot="0.5,0.0">
+			    <Animation name="0" shader="Diffuse" secondsPerFrame="0." startFrame="0" endFrame="0" />
+			    <Animation name="1" shader="Diffuse" secondsPerFrame="0." startFrame="1" endFrame="1" />
+			    <Animation name="2" shader="Diffuse" secondsPerFrame="0." startFrame="2" endFrame="2" />
+			    <Animation name="3" shader="Diffuse" secondsPerFrame="0." startFrame="3" endFrame="3" />
+			    <Animation name="4" shader="Diffuse" secondsPerFrame="0." startFrame="4" endFrame="4" />
+			    <Animation name="5" shader="Diffuse" secondsPerFrame="0." startFrame="5" endFrame="5" />
+			    <Animation name="6" shader="Diffuse" secondsPerFrame="0." startFrame="6" endFrame="6" />
+			    <Animation name="7" shader="Diffuse" secondsPerFrame="0." startFrame="7" endFrame="7" />
+			    <Animation name="8" shader="Diffuse" secondsPerFrame="0." startFrame="8" endFrame="8" />
+			    <Animation name="9" shader="Diffuse" secondsPerFrame="0." startFrame="9" endFrame="9" />
+		</HUD>
+		<Sounds>
+			<Sound sound="Fire" name="Data/Audio/FishFire.mp3"/>
+		</Sounds>
+	</WeaponDefinition>
   <!-- Demon Melee -->
   <WeaponDefinition name="DemonMelee" refireTime="2.0" meleeCount="1" meleeArc="180.0" meleeRange="3.75" meleeDamage="20.0~30.0" meleeImpulse="30">
 	<HUD shader="Diffuse" baseTexture="Data/Images/Hud_Base.png" reticleTexture="Data/Images/Reticle.png" reticleSize="16,16"

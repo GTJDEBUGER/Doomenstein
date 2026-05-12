@@ -222,7 +222,7 @@ void Game::Update()
 		m_gameConstantsCBO->WeatherDarkness = bossActor != nullptr ? Interpolate(0.4f, 0.1f, flythroughProgress) : Interpolate(0.1f, 0.4f, skyChangeProgress);
 		m_gameConstantsCBO->WeatherCloudMinHeight = bossActor != nullptr ? Interpolate(5000.f, 2000.f, flythroughProgress) : Interpolate(2000.f, 5000.f, skyChangeProgress);
 		m_gameConstantsCBO->WeatherCloudMaxHeight = bossActor != nullptr ? Interpolate(12000.f, 10000.f, flythroughProgress) : Interpolate(10000.f, 12000.f, skyChangeProgress);
-		m_gameConstantsCBO->StormCenter = Vec2(82.5f, 82.5f);
+		m_gameConstantsCBO->StormCenter = Vec2(80.f, 80.f);
 		m_gameConstantsCBO->StormRadius = bossActor != nullptr ? Interpolate(0.f, 5000.f, skyChangeProgress) : Interpolate(5000.f, 0.f, skyChangeProgress);
 		m_gameConstantsCBO->StormTwistStrength = 1.2f;
 		m_gameConstantsCBO->StormFunnelDepth = bossActor != nullptr ? Interpolate(0.f, 500.f, skyChangeProgress) : Interpolate(500.f, 0.f, skyChangeProgress);
@@ -513,7 +513,7 @@ void Game::Render() const
 	//-----------------------------------------------------------------------------------------------
 	if (m_curGameState == GAME_LOBBY_MODE) {
 		//-------------------------------------------------------------------------------------------
-		g_engine->m_renderer->ClearScreen(Rgba8(100, 100, 100));
+		g_engine->m_renderer->ClearScreen(Rgba8(0, 0, 0));
 		if (m_activePlayerNum == 1) {
 			m_UICamera1->SetViewPort(
 				AABB2(
@@ -873,7 +873,7 @@ void Game::InitializeSea() {
 		m_seaWavesDirK_Speed_Phase.push_back(Vec4(dirX * k, dirY * k, c * k, phaseOffset));
 		m_seaWavesSteep_A_Dx_Dy.push_back(Vec4(steepness, a, dirX, dirY));
 	}
-	m_seaSpirals_Center_Radius_Intensity.push_back(Vec4(82.5f, 82.5f, 80.f, 0.f));
+	m_seaSpirals_Center_Radius_Intensity.push_back(Vec4(80.f, 80.f, 80.f, 0.f));
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -1056,7 +1056,7 @@ void Game::UpdateUIs() {
 
 			g_defaultFont->AddVertsForTextBox2D(
 				*HUDTextVerts,
-				Stringf("%.0f/%.0f", possessedActor->m_curHealth, possessedActor->m_definition.m_health),
+				Stringf("%.1f%%", possessedActor->m_curHealth / possessedActor->m_definition.m_health * 100.f),
 				AABB2(
 					Vec2(viewBottomLeft.x + viewWidth * 0.24f, viewBottomLeft.y),
 					Vec2(viewBottomLeft.x + viewWidth * 0.374f, hudHeight)
@@ -1100,128 +1100,28 @@ void Game::SubmitGameConstants(float isStencilPass) const {
 
 //---------------------------------------------------------------------------------------------------
 void Game::RenderAttractMode() const {
-	Texture* testTexture = g_engine->m_renderer->CreateOrGetTextureFromFile("Data/Images/TestTransparent.png");
+	Texture* testTexture = g_engine->m_renderer->CreateOrGetTextureFromFile("Data/Images/AttractMode.png");
 
 	std::vector<Vertex> tempMesh;
 	float time = (float)m_gameClock->GetTotalSeconds();
 
-	//2D ring rendering
-	AddVertexsForRing2D(tempMesh, g_gameConfig->m_screenCenter,
-		SinDegrees(time * 120.f) * 25.f + 125.f, 10.f, Rgba8(255, 255, 255, 128));
-	g_engine->m_renderer->BindTexture(nullptr);
-	g_engine->m_renderer->DrawVertexArray((int)tempMesh.size(), tempMesh.data());
-	tempMesh.clear();
-
-	//Fake 3D cube rendering
-	float L = 50.f;
-	Vec3 p[8] = {
-		Vec3(-L, -L, -L), Vec3(L, -L, -L), Vec3(L,  L, -L), Vec3(-L,  L, -L),
-		Vec3(-L, -L,  L), Vec3(L, -L,  L), Vec3(L,  L,  L), Vec3(-L,  L,  L)
-	};
-
-	float yaw = time * 45.f;
-	float pitch = time * 30.f;
-
-	struct Face {
-		int indices[4];
-		float depth = 0.f;
-	};
-
-	Face faces[6] = {
-		{ {0, 1, 2, 3}, 0.f }, { {4, 5, 6, 7}, 0.f },
-		{ {0, 4, 7, 3}, 0.f }, { {1, 5, 6, 2}, 0.f },
-		{ {0, 1, 5, 4}, 0.f }, { {3, 2, 6, 7}, 0.f }
-	};
-
-	for (int i = 0; i < 6; i++) {
-		Vec3 center;
-		for (int j = 0; j < 4; j++) center += p[faces[i].indices[j]];
-		center /= 4.f;
-
-		float z = center.x * SinDegrees(yaw) + center.z * CosDegrees(yaw);
-		faces[i].depth = center.y * SinDegrees(pitch) + z * CosDegrees(pitch);
-	}
-
-	for (int i = 0; i < 5; i++) {
-		for (int j = 0; j < 5 - i; j++) {
-			if (faces[j].depth < faces[j + 1].depth) {
-				std::swap(faces[j], faces[j + 1]);
-			}
-		}
-	}
-
-	int subdiv = 4;
-
-	for (int i = 0; i < 6; i++) {
-		Face& f = faces[i];
-		Vec3 corners[4] = { p[f.indices[0]], p[f.indices[1]], p[f.indices[2]], p[f.indices[3]] };
-
-		for (int vy = 0; vy < subdiv; vy++) {
-			for (int vx = 0; vx < subdiv; vx++) {
-
-				float u_steps[2] = { (float)vx / subdiv, (float)(vx + 1) / subdiv };
-				float v_steps[2] = { (float)vy / subdiv, (float)(vy + 1) / subdiv };
-
-				Vertex quad[4];
-				for (int r = 0; r < 2; r++) {
-					for (int c = 0; c < 2; c++) {
-						float u = u_steps[c];
-						float v = v_steps[r];
-
-						Vec3 pos3D = corners[0] * (1.f - u) * (1.f - v) +
-							corners[1] * u * (1.f - v) +
-							corners[2] * u * v +
-							corners[3] * (1.f - u) * v;
-
-						float rx = pos3D.x * CosDegrees(yaw) - pos3D.z * SinDegrees(yaw);
-						float rz = pos3D.x * SinDegrees(yaw) + pos3D.z * CosDegrees(yaw);
-						float ry = pos3D.y * CosDegrees(pitch) - rz * SinDegrees(pitch);
-						rz = pos3D.y * SinDegrees(pitch) + rz * CosDegrees(pitch);
-
-						float cameraZ = -400.f;
-						float perspectiveScale = 400.f / (rz - cameraZ);
-						float screenX = g_gameConfig->m_screenCenter.x + (rx * perspectiveScale);
-						float screenY = g_gameConfig->m_screenCenter.y + (ry * perspectiveScale);
-
-						Vec2 uv_base[4] = { Vec2(1.f, 1.f), Vec2(0.f, 1.f), Vec2(0.f, 0.f), Vec2(1.f, 0.f) };
-						Vec2 uv = uv_base[0] * (1.f - u) * (1.f - v) +
-							uv_base[1] * u * (1.f - v) +
-							uv_base[2] * u * v +
-							uv_base[3] * (1.f - u) * v;
-
-						quad[r * 2 + c] = Vertex(Vec3(screenX, screenY, 0.f), Rgba8(255, 255, 255), uv);
-					}
-				}
-
-				tempMesh.push_back(quad[0]); tempMesh.push_back(quad[1]); tempMesh.push_back(quad[3]);
-				tempMesh.push_back(quad[0]); tempMesh.push_back(quad[3]); tempMesh.push_back(quad[2]);
-			}
-		}
-	}
+	AddVertexsForAABB2D(
+		tempMesh,
+		AABB2(
+			Vec2(0.f, 0.f),
+			g_gameConfig->m_screenSize
+		),
+		Rgba8::WHITE
+	);
 
 	g_engine->m_renderer->SetSamplerMode(SamplerMode::POINT_CLAMP);
 	g_engine->m_renderer->BindTexture(testTexture);
 	g_engine->m_renderer->DrawVertexArray((int)tempMesh.size(), tempMesh.data());
 
 	tempMesh.clear();
-	std::string text = "Doomenstein Gold";
-	float fontSize = 50;
-	float shadowSize = 51;
-	g_defaultFont->AddVertsForText2D(
-		tempMesh,
-		Vec2(g_gameConfig->m_screenCenter.x - text.size() * 0.5f * shadowSize, g_gameConfig->m_screenCenter.y - 0.5f * shadowSize - 130.f),
-		shadowSize,
-		text,
-		Rgba8(50, 50, 50, 255));
-	g_defaultFont->AddVertsForText2D(
-		tempMesh,
-		Vec2(g_gameConfig->m_screenCenter.x - text.size() * 0.5f * fontSize, g_gameConfig->m_screenCenter.y - 0.5f * fontSize - 125.f),
-		fontSize,
-		text,
-		Rgba8(225, 225, 225, 255));
 
-	text = "-PRESS SPACE PLAY GAME WITH KEYBOARD AND MOUSE-";
-	fontSize = 10;
+	std::string text = "-PRESS SPACE PLAY GAME WITH KEYBOARD AND MOUSE-";
+	float fontSize = 10;
 	g_defaultFont->AddVertsForText2D(
 		tempMesh,
 		Vec2(g_gameConfig->m_screenCenter.x - text.size() * 0.5f * fontSize, 4.f * fontSize),

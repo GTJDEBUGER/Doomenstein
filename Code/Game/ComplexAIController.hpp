@@ -9,7 +9,7 @@ enum class BossState {
 	CIRCLE_SHOOT,
 	DIVE,
 	INTRO,
-	STAGE_TRANSITION
+	STAGE_TRANSITION,
 };
 
 enum class DivePhase {
@@ -42,6 +42,9 @@ public:
 public:
 	Actor* m_targetActor = nullptr;
 	std::vector<Actor*> m_subActors;
+
+private:
+	RaycastResult3D RaycastMap(Vec3 const& start, Vec3 const& direction, float distance);
 
 private:
 	float m_baseSpringK = 180.f;

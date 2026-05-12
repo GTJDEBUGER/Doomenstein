@@ -70,6 +70,12 @@
     <ClCompile Include="ComplexAIController.cpp">
       <Filter>Gameplay</Filter>
     </ClCompile>
+    <ClCompile Include="TempActor.cpp">
+      <Filter>Gameplay</Filter>
+    </ClCompile>
+    <ClCompile Include="WeaponPickup.cpp">
+      <Filter>Gameplay</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="App.hpp">
@@ -121,6 +127,12 @@
       <Filter>Gameplay</Filter>
     </ClInclude>
     <ClInclude Include="ComplexAIController.hpp">
+      <Filter>Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="TempActor.hpp">
+      <Filter>Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="WeaponPickup.hpp">
       <Filter>Gameplay</Filter>
     </ClInclude>
   </ItemGroup>

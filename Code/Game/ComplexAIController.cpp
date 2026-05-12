@@ -237,11 +237,19 @@ void ComplexAIController::Update() {
 				Vec3 moveDir = toTarget / distToTarget;
 
 				float checkDist = head->m_definition.m_collision.m_radius + 2.5f;
-				RaycastResult3D forwardRay = m_map->RaycastWorldXY(head->m_position, moveDir, checkDist);
+
+				RaycastResult3D forwardRay = RaycastMap(head->m_position, moveDir, checkDist);
 
 				if (forwardRay.m_didImpact) {
 					Vec3 retreatDir = forwardRay.m_impactNormal;
-					retreatDir.z = 1.5f;
+
+					if (retreatDir.z < -0.5f) {
+						retreatDir.z = -0.5f;
+					}
+					else {
+						retreatDir.z = 1.5f;
+					}
+
 					retreatDir = retreatDir.GetNormalized();
 
 					head->TurnInDirection(moveDir, head->m_definition.m_physics.m_turnSpeed * physicsDelta);
@@ -414,12 +422,15 @@ void ComplexAIController::Update() {
 				follower->AddForce(dirToLeader * (m_baseSpringK * 2.0f * stretch));
 			}
 
-			RaycastResult3D losResult = m_map->RaycastWorldXY(follower->m_position, dirToLeader, currentDist);
+			RaycastResult3D losResult = RaycastMap(follower->m_position, dirToLeader, currentDist);
+
 			if (losResult.m_didImpact) {
 				curSpringK *= 0.15f;
 				Vec3 wallNormal = losResult.m_impactNormal;
 				Vec3 tangentDir = CrossProduct3D(CrossProduct3D(wallNormal, dirToLeader), wallNormal).GetNormalized();
-				follower->AddForce(tangentDir * m_baseSpringK * stretch * 0.5f);
+
+				Vec3 pushOutForce = wallNormal * m_baseSpringK * stretch * 0.8f;
+				follower->AddForce((tangentDir * m_baseSpringK * stretch * 0.5f) + pushOutForce);
 			}
 
 			Vec3 springForce = dirToLeader * (curSpringK * stretch);
@@ -455,7 +466,33 @@ void ComplexAIController::Update() {
 
 			follower->AddForce(totalForce);
 			follower->TurnInDirection(dirToLeader, follower->m_definition.m_physics.m_turnSpeed * physicsDelta);
+
+			if (currentDist > restLength * 3.0f) {
+				follower->m_position = leader->m_position - (dirToLeader * restLength);
+				follower->m_velocity = leader->m_velocity;
+			}
 		}
 		leader = follower;
 	}
 }
+
+//-----------------------------------------------------------------------------------------------
+RaycastResult3D ComplexAIController::RaycastMap(Vec3 const& start, Vec3 const& direction, float distance) {
+	RaycastResult3D result;
+	result.m_didImpact = false;
+	result.m_impactDist = distance;
+	result.m_rayStartPos = start;
+	result.m_rayFwdNormal = direction;
+	result.m_rayMaxLength = distance;
+
+	RaycastResult3D xyResult = m_map->RaycastWorldXY(start, direction, result.m_impactDist);
+	if (xyResult.m_didImpact && xyResult.m_impactDist < result.m_impactDist) {
+		result = xyResult;
+	}
+
+	RaycastResult3D zResult = m_map->RaycastWorldZ(start, direction, result.m_impactDist);
+	if (zResult.m_didImpact && zResult.m_impactDist < result.m_impactDist) {
+		result = zResult;
+	}
+	return result;
+};
