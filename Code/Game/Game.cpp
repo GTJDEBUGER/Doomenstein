@@ -26,12 +26,14 @@
 #include "Engine/Core/Vertex.hpp"
 #include "Engine/Renderer/VertexBuffer.hpp"
 #include "Engine/Renderer/IndexBuffer.hpp"
-#include "Engine/Core/VertexUtils.hpp"
+#include "Engine/Renderer/ConstantBuffer.hpp"
 
 
 //---------------------------------------------------------------------------------------------------
 Game::Game()
 {
+	m_gameCBO = g_engine->m_renderer->CreateConstantBuffer(sizeof(GameConstants));
+	
 	m_gameClock = new Clock();
 
 	m_UICamera1 = new Camera(
@@ -73,8 +75,8 @@ Game::~Game()
 		delete cbo;
 	}
 	m_postProcessingCBOs.clear();
-	delete m_gameConstantsCBO;
-	m_gameConstantsCBO = nullptr;
+	delete m_gameConstants;
+	m_gameConstants = nullptr;
 
 	delete m_seaVertexBuffer;
 	m_seaVertexBuffer = nullptr;
@@ -110,6 +112,10 @@ Game::~Game()
 
 	delete m_gameClock;
 	m_gameClock = nullptr;
+
+	delete m_gameCBO;
+	m_gameCBO = nullptr;
+
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -215,18 +221,18 @@ void Game::Update()
 				skyChangeProgress = SmoothStart2(linearSkyChangeProgress);
 			}
 		}
-		m_gameConstantsCBO->GameRunTime = runTime;
-		m_gameConstantsCBO->WeatherCoverage = bossActor != nullptr ? Interpolate(0.45f, 0.2f, flythroughProgress) : Interpolate(0.2f, 0.45f, skyChangeProgress);
-		m_gameConstantsCBO->WeatherDensity = bossActor != nullptr ? Interpolate(6.0f, 12.f, flythroughProgress) : Interpolate(12.f, 6.f, skyChangeProgress);
-		m_gameConstantsCBO->WeatherAbsorption = bossActor != nullptr ? Interpolate(2.0f, 2.5f, flythroughProgress) : Interpolate(2.5f, 2.0f, skyChangeProgress);
-		m_gameConstantsCBO->WeatherDarkness = bossActor != nullptr ? Interpolate(0.4f, 0.1f, flythroughProgress) : Interpolate(0.1f, 0.4f, skyChangeProgress);
-		m_gameConstantsCBO->WeatherCloudMinHeight = bossActor != nullptr ? Interpolate(5000.f, 2000.f, flythroughProgress) : Interpolate(2000.f, 5000.f, skyChangeProgress);
-		m_gameConstantsCBO->WeatherCloudMaxHeight = bossActor != nullptr ? Interpolate(12000.f, 10000.f, flythroughProgress) : Interpolate(10000.f, 12000.f, skyChangeProgress);
-		m_gameConstantsCBO->StormCenter = Vec2(80.f, 80.f);
-		m_gameConstantsCBO->StormRadius = bossActor != nullptr ? Interpolate(0.f, 5000.f, skyChangeProgress) : Interpolate(5000.f, 0.f, skyChangeProgress);
-		m_gameConstantsCBO->StormTwistStrength = 1.2f;
-		m_gameConstantsCBO->StormFunnelDepth = bossActor != nullptr ? Interpolate(0.f, 500.f, skyChangeProgress) : Interpolate(500.f, 0.f, skyChangeProgress);
-		m_gameConstantsCBO->StormEyeRadius = bossActor != nullptr ? Interpolate(0.f, 2000.f, skyChangeProgress) : Interpolate(2000.f, 0.f, skyChangeProgress);
+		m_gameConstants->GameRunTime = runTime;
+		m_gameConstants->WeatherCoverage = bossActor != nullptr ? Interpolate(0.45f, 0.2f, flythroughProgress) : Interpolate(0.2f, 0.45f, skyChangeProgress);
+		m_gameConstants->WeatherDensity = bossActor != nullptr ? Interpolate(6.0f, 12.f, flythroughProgress) : Interpolate(12.f, 6.f, skyChangeProgress);
+		m_gameConstants->WeatherAbsorption = bossActor != nullptr ? Interpolate(2.0f, 2.5f, flythroughProgress) : Interpolate(2.5f, 2.0f, skyChangeProgress);
+		m_gameConstants->WeatherDarkness = bossActor != nullptr ? Interpolate(0.4f, 0.1f, flythroughProgress) : Interpolate(0.1f, 0.4f, skyChangeProgress);
+		m_gameConstants->WeatherCloudMinHeight = bossActor != nullptr ? Interpolate(5000.f, 2000.f, flythroughProgress) : Interpolate(2000.f, 5000.f, skyChangeProgress);
+		m_gameConstants->WeatherCloudMaxHeight = bossActor != nullptr ? Interpolate(12000.f, 10000.f, flythroughProgress) : Interpolate(10000.f, 12000.f, skyChangeProgress);
+		m_gameConstants->StormCenter = Vec2(80.f, 80.f);
+		m_gameConstants->StormRadius = bossActor != nullptr ? Interpolate(0.f, 5000.f, skyChangeProgress) : Interpolate(5000.f, 0.f, skyChangeProgress);
+		m_gameConstants->StormTwistStrength = 1.2f;
+		m_gameConstants->StormFunnelDepth = bossActor != nullptr ? Interpolate(0.f, 500.f, skyChangeProgress) : Interpolate(500.f, 0.f, skyChangeProgress);
+		m_gameConstants->StormEyeRadius = bossActor != nullptr ? Interpolate(0.f, 2000.f, skyChangeProgress) : Interpolate(2000.f, 0.f, skyChangeProgress);
 		m_curMap->m_sunIntensity = bossActor != nullptr ? Interpolate(0.85f, 0.4f, flythroughProgress) : Interpolate(0.3f, 0.85f, skyChangeProgress);
 		m_curMap->m_ambientIntensity = bossActor != nullptr ? Interpolate(0.35f, 0.2f, flythroughProgress) : Interpolate(0.1f, 0.35f, skyChangeProgress);
 		m_curMap->m_sunIntensity = bossActor != nullptr ? Interpolate(m_curMap->m_sunIntensity, 0.3f, skyChangeProgress) : m_curMap->m_sunIntensity;
@@ -359,13 +365,13 @@ void Game::Render() const
 			if (g_gameConfig->m_defaultMap == "SeaMap") {
 				g_engine->m_renderer->ResolveCurScene(controller->m_playerCamera->GetViewPort());
 
-				g_engine->m_renderer->SetGameConstants((float)m_gameClock->GetTotalSeconds(), 0.0f);
+				SubmitGameConstants(0.0f);
 				g_engine->m_renderer->SetBlendMode(BlendMode::ALPHA);
 				g_engine->m_renderer->SetRasterizerMode(RasterizerMode::SOLID_CULL_NONE);
 				g_engine->m_renderer->SetDepthMode(DepthMode::READ_WRITE_LESS_EQUAL);
 				RenderSea(*controller->m_playerCamera);
 
-				g_engine->m_renderer->SetGameConstants((float)m_gameClock->GetTotalSeconds(), 1.0f);
+				SubmitGameConstants(1.0f);
 				g_engine->m_renderer->SetBlendMode(BlendMode::COLOR_DISABLE);
 
 				g_engine->m_renderer->SetRasterizerMode(RasterizerMode::SOLID_CULL_FRONT_ZFAIL);
@@ -708,7 +714,7 @@ void Game::InitializeShaders() {
 
 //---------------------------------------------------------------------------------------------------
 void Game::InitializeShaderConstants() {
-	m_gameConstantsCBO = new GameConstants();
+	m_gameConstants = new GameConstants();
 	for (int i = 0; i < 2; i++) {
 		m_postProcessingCBOs.push_back(new PostProcessingConstants());
 		for (int j = 0; j < 64; ++j)
@@ -1079,23 +1085,10 @@ void Game::UpdateUIs() {
 
 //---------------------------------------------------------------------------------------------------
 void Game::SubmitGameConstants(float isStencilPass) const {
-	if (m_gameConstantsCBO == nullptr) return;
-
-	g_engine->m_renderer->SetGameConstants(
-		m_gameConstantsCBO->GameRunTime,
-		isStencilPass,
-		m_gameConstantsCBO->WeatherCoverage,
-		m_gameConstantsCBO->WeatherDensity,
-		m_gameConstantsCBO->WeatherAbsorption,
-		m_gameConstantsCBO->WeatherDarkness,
-		m_gameConstantsCBO->WeatherCloudMinHeight,
-		m_gameConstantsCBO->WeatherCloudMaxHeight,
-		m_gameConstantsCBO->StormCenter,
-		m_gameConstantsCBO->StormRadius,
-		m_gameConstantsCBO->StormTwistStrength,
-		m_gameConstantsCBO->StormFunnelDepth,
-		m_gameConstantsCBO->StormEyeRadius
-	);
+	if (m_gameConstants == nullptr) return;
+	m_gameConstants->IsStencilPass = isStencilPass;
+	g_engine->m_renderer->CopyCPUToGPU(m_gameConstants, sizeof(GameConstants), m_gameCBO);
+	g_engine->m_renderer->BindConstantBuffer(gameConstantsSlot, m_gameCBO);
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -1318,7 +1311,7 @@ void Game::RenderSea(Camera const& viewCamera) const {
 	g_engine->m_renderer->BindTexture(m_seaFoamTexture, TextureSlot::NORMAL_ORIGINALSCREEN);
 	g_engine->m_renderer->BindTexture(m_seaFoamNormalTexture, TextureSlot::AO_SCREENDEPTH);
 	g_engine->m_renderer->BindResolvedSceneTextures(
-		TextureSlot::PARALLAX_SCREENNORMAL,
+		TextureSlot::ENVIRONMENT_SCREENNORMAL,
 		TextureSlot::ROUGHNESS_SCREENDEPTHSTENCIL,
 		TextureSlot::METALLIC
 	);
@@ -1336,7 +1329,7 @@ void Game::RenderSea(Camera const& viewCamera) const {
 	);
 	g_engine->m_renderer->DrawIndexedVertexBuffer(m_seaVertexBuffer, m_seaIndexBuffer, static_cast<unsigned int>(m_seaIndexs.size()));
 	g_engine->m_renderer->UnbindResolvedSceneTextures(
-		TextureSlot::PARALLAX_SCREENNORMAL,
+		TextureSlot::ENVIRONMENT_SCREENNORMAL,
 		TextureSlot::ROUGHNESS_SCREENDEPTHSTENCIL,
 		TextureSlot::METALLIC
 	);
