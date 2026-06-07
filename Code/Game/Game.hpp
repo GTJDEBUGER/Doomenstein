@@ -16,9 +16,9 @@ class Map;
 class Shader;
 class VertexBuffer;
 class IndexBuffer;
+class ConstantBuffer;
 class Texture;
 struct PostProcessingConstants;
-struct GameConstants;
 
 //-----------------------------------------------------------------------------------------------
 enum GameState {
@@ -27,6 +27,27 @@ enum GameState {
 	GAME_LOBBY_MODE,
 	GAME_PLAYING_MODE
 };
+
+struct GameConstants
+{
+	float GameRunTime;
+	float IsStencilPass;
+
+	float WeatherCoverage;			// currentCoverage (Sunny 0.45, Storm 0.2)
+	float WeatherDensity;			// Density6.0 (Sunny 6.0, Storm 12.0)
+	float WeatherAbsorption;		// PrimaryLightDecay 2.0 (Sunny 2.0, Storm 5.0)
+	float WeatherDarkness;			// AO 0.4 (Sunny 0.4, Storm 0.1)
+	float WeatherCloudMinHeight;	// cloudMinHeight (Sunny 5000.0, Storm 3000.0)
+	float WeatherCloudMaxHeight;	// cloudMaxHeight (Sunny 15000.0, Storm 20000.0)
+
+	Vec2  StormCenter;          // XY
+	float StormRadius;          // Radius (15000.0)
+	float StormTwistStrength;   // Intensity (3.0 - 6.0)
+	float StormFunnelDepth;     // Deep (4000.0)
+	float StormEyeRadius;       // EyeRadius (3000.0)
+	float padding[2];
+};
+static const int gameConstantsSlot = 0;
 
 //-----------------------------------------------------------------------------------------------
 class Game {
@@ -96,6 +117,7 @@ private:
 	void                    DecayCameraShake();
 
 private:
+	ConstantBuffer*           m_gameCBO = nullptr;
 	GameState                 m_curGameState = GAME_ATTRACT_MODE;
 	GameState                 m_nextGameState = GAME_ATTRACT_MODE;
 	std::vector<Vertex_TBN>   m_skySphereVerts;
@@ -115,7 +137,7 @@ private:
 	std::vector<Vec4>         m_seaWavesSteep_A_Dx_Dy;
 	std::vector<Vec4>         m_seaSpirals_Center_Radius_Intensity;
 	std::vector<PostProcessingConstants*> m_postProcessingCBOs;
-	GameConstants*            m_gameConstantsCBO = nullptr;
+	GameConstants*            m_gameConstants = nullptr;
 	std::vector<Vertex>       m_cinemaVerts1;
 	std::vector<Vertex>       m_cinemaVerts2;
 	std::vector<Vertex>       m_HUDVerts1;
