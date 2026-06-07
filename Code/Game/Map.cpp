@@ -715,7 +715,7 @@ void Map::Render(Camera const& viewCamera) const {
 	g_engine->m_renderer->BindTexture(m_definition.m_mapTexture, TextureSlot::DIFFUSE_SCREEN);
 	g_engine->m_renderer->BindTexture(m_definition.m_mapNormalTexture, TextureSlot::NORMAL_ORIGINALSCREEN);
 	g_engine->m_renderer->BindTexture(m_definition.m_mapAOTexture, TextureSlot::AO_SCREENDEPTH);
-	g_engine->m_renderer->BindTexture(m_definition.m_mapParallaxTexture, TextureSlot::PARALLAX_SCREENNORMAL);
+	g_engine->m_renderer->BindTexture(m_definition.m_mapParallaxTexture, TextureSlot::ENVIRONMENT_SCREENNORMAL);
 	g_engine->m_renderer->BindTexture(m_definition.m_mapRoughnessTexture, TextureSlot::ROUGHNESS_SCREENDEPTHSTENCIL);
 	g_engine->m_renderer->BindTexture(m_definition.m_mapMetallicTexture, TextureSlot::METALLIC);
 	g_engine->m_renderer->BindTexture(nullptr, TextureSlot::EMISSIVE);
