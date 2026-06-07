@@ -817,7 +817,7 @@ void Actor::Render(Camera const& viewCamera) const {
 			g_engine->m_renderer->BindTexture(m_definition.m_actor2DRenderInfo.m_spriteSheetTexture, TextureSlot::DIFFUSE_SCREEN);
 			g_engine->m_renderer->BindTexture(m_definition.m_actor2DRenderInfo.m_spriteSheetNormalTexture, TextureSlot::NORMAL_ORIGINALSCREEN); 
 			g_engine->m_renderer->BindTexture(m_definition.m_actor2DRenderInfo.m_spriteSheetAOTexture, TextureSlot::AO_SCREENDEPTH);
-			g_engine->m_renderer->BindTexture(nullptr, TextureSlot::PARALLAX_SCREENNORMAL);
+			g_engine->m_renderer->BindTexture(nullptr, TextureSlot::ENVIRONMENT_SCREENNORMAL);
 			g_engine->m_renderer->BindTexture(m_definition.m_actor2DRenderInfo.m_spriteSheetRoughnessTexture, TextureSlot::ROUGHNESS_SCREENDEPTHSTENCIL);
 			g_engine->m_renderer->BindTexture(m_definition.m_actor2DRenderInfo.m_spriteSheetMetallicTexture, TextureSlot::METALLIC);
 			g_engine->m_renderer->BindTexture(m_definition.m_actor2DRenderInfo.m_spriteSheetEmissiveTexture, TextureSlot::EMISSIVE);
@@ -855,7 +855,7 @@ void Actor::Render(Camera const& viewCamera) const {
 			g_engine->m_renderer->BindTexture(&m_equippedWeapon->m_definition.m_hud.m_spriteSheet->GetTexture(), TextureSlot::DIFFUSE_SCREEN);
 			g_engine->m_renderer->BindTexture(m_equippedWeapon->m_definition.m_hud.m_spriteSheetNormalTexture, TextureSlot::NORMAL_ORIGINALSCREEN);
 			g_engine->m_renderer->BindTexture(nullptr, TextureSlot::AO_SCREENDEPTH);
-			g_engine->m_renderer->BindTexture(nullptr, TextureSlot::PARALLAX_SCREENNORMAL);
+			g_engine->m_renderer->BindTexture(nullptr, TextureSlot::ENVIRONMENT_SCREENNORMAL);
 			g_engine->m_renderer->BindTexture(nullptr, TextureSlot::ROUGHNESS_SCREENDEPTHSTENCIL);
 			g_engine->m_renderer->BindTexture(nullptr, TextureSlot::METALLIC);
 			g_engine->m_renderer->BindTexture(m_equippedWeapon->m_definition.m_hud.m_spriteSheetEmissiveTexture, TextureSlot::EMISSIVE);
@@ -943,7 +943,7 @@ void Actor::Render(Camera const& viewCamera) const {
 		g_engine->m_renderer->BindTexture(&m_equippedWeapon->m_definition.m_hud.m_spriteSheet->GetTexture(), TextureSlot::DIFFUSE_SCREEN);
 		g_engine->m_renderer->BindTexture(m_equippedWeapon->m_definition.m_hud.m_spriteSheetNormalTexture, TextureSlot::NORMAL_ORIGINALSCREEN);
 		g_engine->m_renderer->BindTexture(nullptr, TextureSlot::AO_SCREENDEPTH);
-		g_engine->m_renderer->BindTexture(nullptr, TextureSlot::PARALLAX_SCREENNORMAL);
+		g_engine->m_renderer->BindTexture(nullptr, TextureSlot::ENVIRONMENT_SCREENNORMAL);
 		g_engine->m_renderer->BindTexture(nullptr, TextureSlot::ROUGHNESS_SCREENDEPTHSTENCIL);
 		g_engine->m_renderer->BindTexture(nullptr, TextureSlot::METALLIC);
 		g_engine->m_renderer->BindTexture(m_equippedWeapon->m_definition.m_hud.m_spriteSheetEmissiveTexture, TextureSlot::EMISSIVE);
